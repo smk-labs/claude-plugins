@@ -28,7 +28,7 @@ Restart the session after installing (hooks load at session start).
 
 - A client that runs Claude Code plugins and has the `mcp__visualize__show_widget` tool (Claude Desktop / Cowork). In clients without the widget tool, the rule falls back to BiDi-safe plain text.
 - `python3` on PATH (macOS ships it). The hook is stdlib-only, no dependencies.
-- Fail-open by design: if the hook ever errors, the tool call proceeds untouched.
+- Fail-safe in two modes: widget calls without the `<md>` sentinel pass through untouched; if converting a sentinel card ever fails, the hook denies the call with guidance and Claude immediately re-sends the reply as a hand-written HTML card, so the raw sentinel never reaches your screen.
 - readable styles Claude's replies. It does not change how the app renders the text you type; that is what [claude-rtl](https://github.com/smk-labs/claude-rtl) fixes at the app level.
 
 ## Test

@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
 """Unit tests for the readable plugin PreToolUse hook. Run: python3 tests/test_rtl_card.py"""
+import contextlib
+import importlib.util
+import io
 import json
 import os
 import subprocess
 import sys
 import unittest
 
-HOOK = os.path.join(os.path.dirname(__file__), "..", "hooks", "rtl_card.py")
+HOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "hooks", "rtl_card.py"))
+
+
+def load_module():
+    spec = importlib.util.spec_from_file_location("rtl_card", HOOK)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def run_hook(payload, raw=None):
@@ -115,6 +125,26 @@ class TestHook(unittest.TestCase):
         proc = run_hook(event(MD))
         self.assertEqual(len(proc.stdout.strip().splitlines()), 1)
         json.loads(proc.stdout)
+
+    def test_conversion_failure_denies_with_guidance(self):
+        card = load_module()
+
+        def boom(md):
+            raise RuntimeError("boom")
+
+        card.convert = boom
+        saved_stdin = sys.stdin
+        try:
+            sys.stdin = io.StringIO(json.dumps(event("<md>\nx\n</md>")))
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                card.main()
+        finally:
+            sys.stdin = saved_stdin
+        hso = json.loads(buf.getvalue())["hookSpecificOutput"]
+        self.assertEqual(hso["permissionDecision"], "deny")
+        self.assertIn("HTML card", hso["permissionDecisionReason"])
+        self.assertIn('dir="rtl"', hso["permissionDecisionReason"])
 
 
 if __name__ == "__main__":

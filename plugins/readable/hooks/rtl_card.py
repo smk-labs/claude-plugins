@@ -6,8 +6,10 @@ This hook converts it to HTML and wraps it in a fixed RTL shell (Vazirmatn,
 per-block bidi resolution, LTR-isolated code). The shell costs zero model
 tokens because it is injected here, not generated.
 
-Fail-open: on any error the hook stays silent (exit 0, no output) and the
-tool call proceeds with its original input.
+Fail-safe in two modes: input without the <md> sentinel (or unparseable stdin)
+passes through silently; a sentinel card whose conversion fails is denied with
+guidance, so the model immediately re-sends the reply as a hand-written HTML
+card and the raw sentinel never reaches the screen.
 """
 import html
 import json
@@ -165,24 +167,48 @@ def wrap(body):
     return '<div id="rtl-card" dir="rtl">%s%s</div>' % (STYLE, body)
 
 
+FALLBACK = (
+    "rtl-card hook: converting the <md> Markdown card failed. Re-send this exact "
+    "show_widget call yourself as a full RTL HTML card instead: a <div dir=\"rtl\" "
+    "lang=\"fa\"> wrapper (match the reply language), text-align: right, the "
+    "Vazirmatn 400/500 font via fonts.googleapis.com, colors only through the host "
+    "theme's CSS variables, transparent background, and every file path, URL, or "
+    "CLI token wrapped in <span dir=\"ltr\" style=\"display:inline-block; "
+    "unicode-bidi: isolate;\">...</span>. Keep the same title and loading_messages. "
+    "Do not use the <md> sentinel again for this reply."
+)
+
+
 def main():
-    data = json.load(sys.stdin)
+    try:
+        data = json.load(sys.stdin)
+    except Exception:
+        return
     if data.get("tool_name") != TOOL:
         return
     tool_input = data.get("tool_input") or {}
-    code = tool_input.get("widget_code") or ""
-    m = SENTINEL.match(code)
+    m = SENTINEL.match(tool_input.get("widget_code") or "")
     if not m:
         return
-    new_input = dict(tool_input)
-    new_input["widget_code"] = wrap(convert(m.group(1)))
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "allow",
-            "updatedInput": new_input,
+    try:
+        new_input = dict(tool_input)
+        new_input["widget_code"] = wrap(convert(m.group(1)))
+        out = {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+                "updatedInput": new_input,
+            }
         }
-    }))
+    except Exception:
+        out = {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": FALLBACK,
+            }
+        }
+    print(json.dumps(out))
 
 
 if __name__ == "__main__":
