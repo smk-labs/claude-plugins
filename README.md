@@ -34,7 +34,6 @@ For example, to install the fig plugin:
 | --- | --- | --- |
 | dev-agents | A ten-agent dev squad (architect, frontend, backend, devops, tester, reviewer and more) plus a browser-test command. | `/plugin install dev-agents@smk` |
 | multirepo-git | Branch and merge across multiple sub-repos with two commands: isolate and merge. | `/plugin install multirepo-git@smk` |
-| gitlab-ci-kit | Generate a GitLab CI pipeline and Helm chart: kaniko image builds and cluster deploys. | `/plugin install gitlab-ci-kit@smk` |
 
 ## Writing and Docs
 
