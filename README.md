@@ -5,7 +5,7 @@ Everything I built for Claude Code, in one marketplace, organized by category.
 ## Install
 
 ```
-/plugin marketplace add SMKeramati/claude-plugins
+/plugin marketplace add smk-labs/claude-plugins
 /plugin install <name>@smk
 ```
 
@@ -57,9 +57,9 @@ gstack is Garry Tan's work. It is only packaged here as a Claude Code plugin. I 
 
 ## Related CLI tools
 
-- [claude-sync](https://github.com/SMKeramati/claude-sync): see your Claude Code sessions across every account.
-- [claude-rtl](https://github.com/SMKeramati/claude-rtl): fixes right-to-left Persian text in Claude Desktop on macOS.
-- [backlog-overview](https://github.com/SMKeramati/backlog-overview): cross-project Backlog.md overview in pure bash.
+- [claude-sync](https://github.com/smk-labs/claude-sync): see your Claude Code sessions across every account.
+- [claude-rtl](https://github.com/smk-labs/claude-rtl): fixes right-to-left Persian text in Claude Desktop on macOS.
+- [backlog-overview](https://github.com/smk-labs/backlog-overview): cross-project Backlog.md overview in pure bash.
 
 ## License
 
