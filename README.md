@@ -40,6 +40,7 @@ For example, to install the fig plugin:
 | Plugin | What it does | Install command |
 | --- | --- | --- |
 | tldr | Bilingual English and Persian TL;DR summaries, written for product managers. | `/plugin install tldr@smk` |
+| parsi | Beautiful Persian/RTL replies at near zero token cost: the model writes plain markdown, a hook styles it into an RTL card. | `/plugin install parsi@smk` |
 
 ## Task Management
 
