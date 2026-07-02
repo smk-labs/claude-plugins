@@ -8,8 +8,9 @@ Chat clients lay plain text out left-to-right, so mixed Persian/English replies 
 
 readable moves the template out of the model and into code:
 
-1. A `SessionStart` hook injects one short rule: reply in Persian as plain Markdown inside `<md>...</md>`, in a single widget call.
-2. A `PreToolUse` hook intercepts that widget call and rewrites its input: Markdown becomes HTML wrapped in a fixed RTL shell. Vazirmatn font, per-block direction resolution (`unicode-bidi: plaintext`), LTR-isolated code/paths/URLs, clean headings, hairline tables. All styling is injected locally: zero model tokens, deterministic look, adapts to light/dark mode via CSS variables.
+1. A `SessionStart` hook injects one short rule: reply in Persian as plain Markdown inside a `<script type="text/markdown">` block, in a single widget call, followed by one script tag pointing at this repo's renderer on jsDelivr.
+2. The renderer ([assets/rtl-card.js](assets/rtl-card.js)) runs inside the widget and turns that Markdown into a styled RTL card: Vazirmatn font, per-block direction resolution (`unicode-bidi: plaintext`), LTR-isolated code/paths/URLs, clean headings, hairline tables. Zero template tokens, deterministic look, adapts to light/dark mode via CSS variables, and works in any client that renders widgets.
+3. A `PreToolUse` hook ([hooks/rtl_card.py](hooks/rtl_card.py)) does the same conversion locally as a fast path on hosts that honor `updatedInput`; where the host ignores it (Claude Desktop chat does today), the CDN renderer covers it.
 
 ## 2. visualize (skill, on demand)
 

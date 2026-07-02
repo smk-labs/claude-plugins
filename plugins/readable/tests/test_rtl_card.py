@@ -126,6 +126,20 @@ class TestHook(unittest.TestCase):
         self.assertEqual(len(proc.stdout.strip().splitlines()), 1)
         json.loads(proc.stdout)
 
+    def test_script_form_is_rewritten(self):
+        code = (
+            '<script type="text/markdown">\n# Test\nsome text\n</script>\n'
+            '<script src="https://cdn.jsdelivr.net/gh/smk-labs/claude-plugins@main/'
+            'plugins/readable/assets/rtl-card.js"></script>'
+        )
+        proc = run_hook(event(code))
+        out = json.loads(proc.stdout)["hookSpecificOutput"]
+        self.assertEqual(out["permissionDecision"], "allow")
+        widget = out["updatedInput"]["widget_code"]
+        self.assertIn('dir="rtl"', widget)
+        self.assertIn("<h1>Test</h1>", widget)
+        self.assertNotIn("text/markdown", widget)
+
     def test_conversion_failure_denies_with_guidance(self):
         card = load_module()
 

@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """readable plugin PreToolUse hook for mcp__visualize__show_widget.
 
-The model writes its Persian reply as plain Markdown between <md> and </md>.
+The model writes its Persian reply as plain Markdown inside a
+<script type="text/markdown"> block (or the legacy <md>...</md> sentinel).
 This hook converts it to HTML and wraps it in a fixed RTL shell (Vazirmatn,
 per-block bidi resolution, LTR-isolated code). The shell costs zero model
 tokens because it is injected here, not generated.
+
+This is the FAST PATH: some hosts (Claude Desktop chat, observed 2026-07)
+record the hook output but ignore updatedInput. There the widget renders the
+model's original input, and the CDN renderer referenced inside it
+(assets/rtl-card.js, kept in sync with this converter) does the same job in
+the browser instead.
 
 Fail-safe in two modes: input without the <md> sentinel (or unparseable stdin)
 passes through silently; a sentinel card whose conversion fails is denied with
@@ -49,6 +56,9 @@ STYLE = (
 )
 
 SENTINEL = re.compile(r"^\s*<md>\s*\n?(.*?)\n?\s*</md>\s*$", re.S)
+SCRIPT_FORM = re.compile(
+    r'^\s*<script type="text/markdown">\s*\n?(.*?)\n?\s*</script>', re.S
+)
 HEADING = re.compile(r"^(#{1,4})\s+(.*)$")
 RULE = re.compile(r"^(-{3,}|\*{3,})$")
 ULIST = re.compile(r"^\s*[-*+]\s+(.*)$")
@@ -187,7 +197,8 @@ def main():
     if data.get("tool_name") != TOOL:
         return
     tool_input = data.get("tool_input") or {}
-    m = SENTINEL.match(tool_input.get("widget_code") or "")
+    code = tool_input.get("widget_code") or ""
+    m = SENTINEL.match(code) or SCRIPT_FORM.match(code)
     if not m:
         return
     try:
