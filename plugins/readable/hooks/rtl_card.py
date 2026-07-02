@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""parsi PreToolUse hook for mcp__visualize__show_widget.
+"""readable plugin PreToolUse hook for mcp__visualize__show_widget.
 
 The model writes its Persian reply as plain Markdown between <md> and </md>.
 This hook converts it to HTML and wraps it in a fixed RTL shell (Vazirmatn,
@@ -19,30 +19,30 @@ TOOL = "mcp__visualize__show_widget"
 STYLE = (
     "<style>"
     "@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500&display=swap');"
-    "#parsi{direction:rtl;text-align:start;font-family:Vazirmatn,-apple-system,'Segoe UI',Tahoma,sans-serif;"
+    "#rtl-card{direction:rtl;text-align:start;font-family:Vazirmatn,-apple-system,'Segoe UI',Tahoma,sans-serif;"
     "font-size:16px;line-height:1.9;color:var(--text-primary);padding:.25rem 0}"
-    "#parsi p,#parsi li,#parsi h1,#parsi h2,#parsi h3,#parsi h4,#parsi td,#parsi th,#parsi blockquote{unicode-bidi:plaintext}"
-    "#parsi h1{font-size:22px;font-weight:500;margin:1.2rem 0 .6rem}"
-    "#parsi h2{font-size:18px;font-weight:500;margin:1.1rem 0 .5rem}"
-    "#parsi h3,#parsi h4{font-size:16px;font-weight:500;margin:1rem 0 .4rem}"
-    "#parsi p{margin:.5rem 0}"
-    "#parsi strong{font-weight:500}"
-    "#parsi code{direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:14px;"
+    "#rtl-card p,#rtl-card li,#rtl-card h1,#rtl-card h2,#rtl-card h3,#rtl-card h4,#rtl-card td,#rtl-card th,#rtl-card blockquote{unicode-bidi:plaintext}"
+    "#rtl-card h1{font-size:22px;font-weight:500;margin:1.2rem 0 .6rem}"
+    "#rtl-card h2{font-size:18px;font-weight:500;margin:1.1rem 0 .5rem}"
+    "#rtl-card h3,#rtl-card h4{font-size:16px;font-weight:500;margin:1rem 0 .4rem}"
+    "#rtl-card p{margin:.5rem 0}"
+    "#rtl-card strong{font-weight:500}"
+    "#rtl-card code{direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:14px;"
     "background:var(--surface-1);border:0.5px solid var(--border);border-radius:4px;padding:1px 5px}"
-    "#parsi pre{direction:ltr;unicode-bidi:isolate;text-align:left;background:var(--surface-1);"
+    "#rtl-card pre{direction:ltr;unicode-bidi:isolate;text-align:left;background:var(--surface-1);"
     "border:0.5px solid var(--border);border-radius:var(--radius);padding:12px 14px;overflow-x:auto;line-height:1.6}"
-    "#parsi pre code{background:none;border:none;padding:0}"
-    "#parsi a{color:var(--text-accent)}"
-    "#parsi a.u{direction:ltr;unicode-bidi:isolate;word-break:break-all}"
-    "#parsi ul,#parsi ol{margin:.5rem 0;padding-inline-start:1.4rem}"
-    "#parsi li{margin:.25rem 0}"
-    "#parsi blockquote{margin:.8rem 0;padding:.2rem 1rem;border-inline-start:2px solid var(--border-strong);"
+    "#rtl-card pre code{background:none;border:none;padding:0}"
+    "#rtl-card a{color:var(--text-accent)}"
+    "#rtl-card a.u{direction:ltr;unicode-bidi:isolate;word-break:break-all}"
+    "#rtl-card ul,#rtl-card ol{margin:.5rem 0;padding-inline-start:1.4rem}"
+    "#rtl-card li{margin:.25rem 0}"
+    "#rtl-card blockquote{margin:.8rem 0;padding:.2rem 1rem;border-inline-start:2px solid var(--border-strong);"
     "border-radius:0;color:var(--text-secondary)}"
-    "#parsi table{border-collapse:collapse;margin:.8rem 0;width:100%;font-size:15px}"
-    "#parsi th{font-weight:500;text-align:start}"
-    "#parsi th,#parsi td{border:0.5px solid var(--border);padding:6px 10px}"
-    "#parsi hr{border:none;border-top:0.5px solid var(--border);margin:1.2rem 0}"
-    "#parsi svg{max-width:100%;height:auto;display:block;margin:.8rem auto}"
+    "#rtl-card table{border-collapse:collapse;margin:.8rem 0;width:100%;font-size:15px}"
+    "#rtl-card th{font-weight:500;text-align:start}"
+    "#rtl-card th,#rtl-card td{border:0.5px solid var(--border);padding:6px 10px}"
+    "#rtl-card hr{border:none;border-top:0.5px solid var(--border);margin:1.2rem 0}"
+    "#rtl-card svg{max-width:100%;height:auto;display:block;margin:.8rem auto}"
     "</style>"
 )
 
@@ -162,7 +162,7 @@ def convert(md):
 
 
 def wrap(body):
-    return '<div id="parsi" dir="rtl">%s%s</div>' % (STYLE, body)
+    return '<div id="rtl-card" dir="rtl">%s%s</div>' % (STYLE, body)
 
 
 def main():

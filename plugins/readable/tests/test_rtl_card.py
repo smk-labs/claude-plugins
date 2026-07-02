@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for the parsi PreToolUse hook. Run: python3 tests/test_rtl_card.py"""
+"""Unit tests for the readable plugin PreToolUse hook. Run: python3 tests/test_rtl_card.py"""
 import json
 import os
 import subprocess

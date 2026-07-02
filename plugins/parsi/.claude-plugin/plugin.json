@@ -1,9 +1,0 @@
-{
-  "name": "parsi",
-  "description": "Beautiful Persian/RTL replies at near zero token cost: the model writes plain markdown, a hook styles it into an RTL card (Vazirmatn font, LTR-isolated code, light SVG allowed).",
-  "version": "1.0.0",
-  "author": {
-    "name": "Seyed M. Keramati",
-    "url": "https://github.com/SMKeramati"
-  }
-}
