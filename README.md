@@ -52,8 +52,11 @@ For example, to install the fig plugin:
 | Plugin | What it does | Install command |
 | --- | --- | --- |
 | gstack | Garry Tan's gstack dev workflow (53+ skills) packaged for Claude Code. Not our work: all credit to Garry Tan. | `/plugin install gstack@smk` |
+| gstack-installer | Installs gstack natively from upstream: runs its real `./setup` build (browse binary, 60+ bin tools), always current. | `/plugin install gstack-installer@smk` |
 
 gstack is Garry Tan's work. It is only packaged here as a Claude Code plugin. I claim no ownership of it. All credit and ongoing development belong upstream: https://github.com/garrytan/gstack
+
+Two ways to get gstack, pick one: the `gstack` plugin is a self-contained snapshot that works out of the box; `gstack-installer` runs the upstream installer for the full native setup (compiled browse binary and bin tools) and always tracks the latest upstream version.
 
 ## Related CLI tools
 
