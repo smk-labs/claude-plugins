@@ -1,40 +1,43 @@
-/* readable rtl-card renderer.
+/* readable rtl-card renderer, v2.1.
    Finds the <script type="text/markdown"> block in this widget, converts its
-   Markdown to HTML, and renders it as a styled RTL card (Vazirmatn, per-block
-   direction resolution, LTR-isolated code/paths/URLs). Served via jsDelivr
-   from github.com/smk-labs/claude-plugins, plugins/readable/assets/rtl-card.js.
+   Markdown to HTML, and renders it as a polished RTL card (Vazirmatn,
+   per-block direction resolution, LTR-isolated code/paths/URLs). Served via
+   jsDelivr from github.com/smk-labs/claude-plugins, pinned by release tag.
    Mirrors plugins/readable/hooks/rtl_card.py: keep the two in sync. */
 (function () {
   "use strict";
 
   var STYLE =
     "<style>" +
-    "@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500&display=swap');" +
+    "@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');" +
     "#rtl-card{direction:rtl;text-align:start;font-family:Vazirmatn,-apple-system,'Segoe UI',Tahoma,sans-serif;" +
-    "font-size:16px;line-height:1.9;color:var(--text-primary);padding:.25rem 0}" +
+    "font-size:16px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);" +
+    "border:0.5px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;margin:.5rem 0}" +
+    "#rtl-card>:first-child{margin-top:0}#rtl-card>:last-child{margin-bottom:0}" +
     "#rtl-card p,#rtl-card li,#rtl-card h1,#rtl-card h2,#rtl-card h3,#rtl-card h4," +
     "#rtl-card td,#rtl-card th,#rtl-card blockquote{unicode-bidi:plaintext}" +
-    "#rtl-card h1{font-size:22px;font-weight:500;margin:1.2rem 0 .6rem}" +
-    "#rtl-card h2{font-size:18px;font-weight:500;margin:1.1rem 0 .5rem}" +
-    "#rtl-card h3,#rtl-card h4{font-size:16px;font-weight:500;margin:1rem 0 .4rem}" +
-    "#rtl-card p{margin:.5rem 0}" +
-    "#rtl-card strong{font-weight:500}" +
-    "#rtl-card code{direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:14px;" +
-    "background:var(--surface-1);border:0.5px solid var(--border);border-radius:4px;padding:1px 5px}" +
-    "#rtl-card pre{direction:ltr;unicode-bidi:isolate;text-align:left;background:var(--surface-1);" +
-    "border:0.5px solid var(--border);border-radius:var(--radius);padding:12px 14px;overflow-x:auto;line-height:1.6}" +
-    "#rtl-card pre code{background:none;border:none;padding:0}" +
-    "#rtl-card a{color:var(--text-accent)}" +
+    "#rtl-card h1{font-size:22px;font-weight:700;margin:1.4rem 0 .7rem}" +
+    "#rtl-card h2{font-size:18px;font-weight:700;margin:1.2rem 0 .6rem}" +
+    "#rtl-card h3,#rtl-card h4{font-size:16px;font-weight:700;margin:1rem 0 .5rem}" +
+    "#rtl-card p{margin:.65rem 0}" +
+    "#rtl-card strong{font-weight:700}" +
+    "#rtl-card code{direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:13.5px;" +
+    "background:var(--surface-2);border:0.5px solid var(--border);border-radius:5px;padding:2px 6px}" +
+    "#rtl-card pre{direction:ltr;unicode-bidi:isolate;text-align:left;background:var(--surface-2);" +
+    "border:0.5px solid var(--border);border-radius:8px;padding:12px 16px;overflow-x:auto;line-height:1.7}" +
+    "#rtl-card pre code{background:none;border:none;padding:0;font-size:13.5px}" +
+    "#rtl-card a{color:var(--text-accent);text-decoration:none;border-bottom:1px solid var(--border-strong)}" +
     "#rtl-card a.u{direction:ltr;unicode-bidi:isolate;word-break:break-all}" +
-    "#rtl-card ul,#rtl-card ol{margin:.5rem 0;padding-inline-start:1.4rem}" +
-    "#rtl-card li{margin:.25rem 0}" +
-    "#rtl-card blockquote{margin:.8rem 0;padding:.2rem 1rem;border-inline-start:2px solid var(--border-strong);" +
+    "#rtl-card ul,#rtl-card ol{margin:.65rem 0;padding-inline-start:1.5rem}" +
+    "#rtl-card li{margin:.35rem 0}" +
+    "#rtl-card blockquote{margin:1rem 0;padding:.3rem 1.1rem;border-inline-start:3px solid var(--border-strong);" +
     "border-radius:0;color:var(--text-secondary)}" +
-    "#rtl-card table{border-collapse:collapse;margin:.8rem 0;width:100%;font-size:15px}" +
-    "#rtl-card th{font-weight:500;text-align:start}" +
-    "#rtl-card th,#rtl-card td{border:0.5px solid var(--border);padding:6px 10px}" +
-    "#rtl-card hr{border:none;border-top:0.5px solid var(--border);margin:1.2rem 0}" +
-    "#rtl-card svg{max-width:100%;height:auto;display:block;margin:.8rem auto}" +
+    "#rtl-card table{border-collapse:collapse;margin:1rem 0;width:100%;font-size:15px}" +
+    "#rtl-card th{font-weight:700;text-align:start;color:var(--text-secondary);font-size:14px}" +
+    "#rtl-card th,#rtl-card td{border:none;border-bottom:0.5px solid var(--border);padding:8px 12px}" +
+    "#rtl-card tbody tr:last-child td{border-bottom:none}" +
+    "#rtl-card hr{border:none;border-top:0.5px solid var(--border);margin:1.4rem 0}" +
+    "#rtl-card svg{max-width:100%;height:auto;display:block;margin:1rem auto}" +
     "</style>";
 
   var HEADING = /^(#{1,4})\s+(.*)$/;
