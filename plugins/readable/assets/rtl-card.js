@@ -1,4 +1,4 @@
-/* readable rtl-card renderer, v2.2.1 "Persian editorial", chat-scale type.
+/* readable rtl-card renderer, v2.2.2 "Persian editorial", calibrated to host chat scale (user-picked 11.5px base).
    Finds the <script type="text/markdown"> block in this widget, converts its
    Markdown to HTML, and renders it as a polished RTL reading card: Vazirmatn
    400/700/800, accent bar under h1, persian-numbered ordered lists, framed
@@ -15,41 +15,41 @@
     "@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');" +
     "@keyframes rcIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}" +
     "#rtl-card{direction:rtl;text-align:start;font-family:Vazirmatn,-apple-system,'Segoe UI',Tahoma,sans-serif;" +
-    "font-size:14px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);" +
-    "border:0.5px solid var(--border);border-radius:14px;padding:1.25rem 1.4rem;margin:.5rem 0;" +
+    "font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);" +
+    "border:0.5px solid var(--border);border-radius:12px;padding:1.1rem 1.25rem;margin:.5rem 0;" +
     "animation:rcIn .35s ease-out}" +
     "#rtl-card>:first-child{margin-top:0}#rtl-card>:last-child{margin-bottom:0}" +
     "#rtl-card ::selection{background:var(--bg-accent)}" +
     "#rtl-card p,#rtl-card li,#rtl-card h1,#rtl-card h2,#rtl-card h3,#rtl-card h4," +
     "#rtl-card td,#rtl-card th,#rtl-card blockquote{unicode-bidi:plaintext}" +
-    "#rtl-card h1{font-size:19px;font-weight:800;line-height:1.5;margin:1.4rem 0 .7rem}" +
-    "#rtl-card h1::after{content:'';display:block;width:32px;height:2.5px;border-radius:2px;margin-top:.5rem;" +
+    "#rtl-card h1{font-size:15.5px;font-weight:800;line-height:1.5;margin:1.4rem 0 .7rem}" +
+    "#rtl-card h1::after{content:'';display:block;width:26px;height:2px;border-radius:2px;margin-top:.5rem;" +
     "background:var(--fill-accent,var(--text-accent))}" +
-    "#rtl-card h2{font-size:16px;font-weight:800;margin:1.4rem 0 .55rem}" +
-    "#rtl-card h3,#rtl-card h4{font-size:14px;font-weight:700;margin:1rem 0 .45rem}" +
+    "#rtl-card h2{font-size:13px;font-weight:800;margin:1.4rem 0 .55rem}" +
+    "#rtl-card h3,#rtl-card h4{font-size:11.5px;font-weight:700;margin:1rem 0 .45rem}" +
     "#rtl-card p{margin:.7rem 0}" +
     "#rtl-card strong{font-weight:700}" +
-    "#rtl-card code{direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:12px;" +
+    "#rtl-card code{direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:10px;" +
     "color:var(--text-accent);background:var(--surface-2);border:0.5px solid var(--border);" +
-    "border-radius:6px;padding:2px 7px}" +
+    "border-radius:6px;padding:1.5px 6px}" +
     "#rtl-card pre{direction:ltr;unicode-bidi:isolate;text-align:left;background:var(--surface-2);" +
-    "border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;overflow-x:auto;line-height:1.7}" +
-    "#rtl-card pre code{background:none;border:none;padding:0;color:inherit;font-size:12px}" +
+    "border:0.5px solid var(--border);border-radius:9px;padding:11px 13px;overflow-x:auto;line-height:1.7}" +
+    "#rtl-card pre code{background:none;border:none;padding:0;color:inherit;font-size:10px}" +
     "#rtl-card a{color:var(--text-accent);text-decoration:none;border-bottom:1px solid transparent;" +
     "transition:border-color .15s}" +
     "#rtl-card a:hover{border-bottom-color:var(--text-accent)}" +
     "#rtl-card a.u{direction:ltr;unicode-bidi:isolate;word-break:break-all}" +
-    "#rtl-card ul,#rtl-card ol{margin:.7rem 0;padding-inline-start:1.6rem}" +
+    "#rtl-card ul,#rtl-card ol{margin:.6rem 0;padding-inline-start:1.6em}" +
     "#rtl-card ol{list-style-type:persian}" +
     "#rtl-card li{margin:.4rem 0}" +
     "#rtl-card li::marker{color:var(--text-accent)}" +
     "#rtl-card li.rc-i{list-style:none;position:relative}" +
-    "#rtl-card li.rc-i svg{position:absolute;inset-inline-start:-1.55rem;top:.38em;width:13px;height:13px}" +
+    "#rtl-card li.rc-i svg{position:absolute;inset-inline-start:-1.5em;top:.38em;width:11px;height:11px}" +
     "#rtl-card li.rc-ok svg{color:var(--text-success)}" +
     "#rtl-card li.rc-no svg{color:var(--text-danger)}" +
     "#rtl-card li.rc-warn svg{color:var(--text-warning)}" +
-    "#rtl-card .rc-co{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:11px;margin:1rem 0}" +
-    "#rtl-card .rc-co svg{width:17px;height:17px;flex-shrink:0;margin-top:.3em}" +
+    "#rtl-card .rc-co{display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border-radius:9px;margin:1rem 0}" +
+    "#rtl-card .rc-co svg{width:14px;height:14px;flex-shrink:0;margin-top:.3em}" +
     "#rtl-card .rc-co .rc-b{min-width:0}" +
     "#rtl-card .rc-co p{margin:.2rem 0}" +
     "#rtl-card .rc-note{background:var(--bg-accent);color:var(--text-accent)}" +
@@ -58,13 +58,13 @@
     "#rtl-card .rc-danger{background:var(--bg-danger);color:var(--text-danger)}" +
     "#rtl-card blockquote{margin:1rem 0;padding:.35rem 1.15rem;" +
     "border-inline-start:3px solid var(--border-strong);border-radius:0;color:var(--text-secondary)}" +
-    "#rtl-card table{border-collapse:separate;border-spacing:0;margin:1.1rem 0;width:100%;font-size:13.5px;" +
+    "#rtl-card table{border-collapse:separate;border-spacing:0;margin:1.1rem 0;width:100%;font-size:11px;" +
     "border:0.5px solid var(--border);border-radius:11px;overflow:hidden}" +
-    "#rtl-card th{font-weight:700;text-align:start;color:var(--text-secondary);font-size:12.5px;" +
+    "#rtl-card th{font-weight:700;text-align:start;color:var(--text-secondary);font-size:10.5px;" +
     "background:var(--surface-2)}" +
-    "#rtl-card th,#rtl-card td{padding:8px 13px;border-bottom:0.5px solid var(--border)}" +
+    "#rtl-card th,#rtl-card td{padding:7px 11px;border-bottom:0.5px solid var(--border)}" +
     "#rtl-card tbody tr:last-child td{border-bottom:none}" +
-    "#rtl-card hr{border:none;height:2px;width:56px;border-radius:1px;background:var(--border-strong);" +
+    "#rtl-card hr{border:none;height:2px;width:48px;border-radius:1px;background:var(--border-strong);" +
     "margin:1.6rem auto}" +
     "#rtl-card>svg{max-width:100%;height:auto;display:block;margin:1rem auto}" +
     "</style>";
