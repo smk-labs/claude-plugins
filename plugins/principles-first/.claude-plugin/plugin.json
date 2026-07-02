@@ -1,0 +1,9 @@
+{
+  "name": "principles-first",
+  "description": "First-principles and design-thinking checks for product and architecture decisions.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Seyed M. Keramati",
+    "url": "https://github.com/SMKeramati"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "smk",
+  "owner": { "name": "Seyed M. Keramati", "url": "https://github.com/SMKeramati" },
+  "metadata": {
+    "description": "Everything I have built for Claude Code: skills, commands, agents, and packaged tools, in one place.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    { "name": "fig", "source": "./plugins/fig", "description": "Single-file looping animated SVG explainers, plus a to-gif converter command.", "version": "1.0.0", "category": "visual" },
+    { "name": "web-animation-engine", "source": "./plugins/web-animation-engine", "description": "Animated scenes and explainers: a skill plus a React/SVG runtime.", "version": "1.0.0", "category": "visual" },
+    { "name": "principles-first", "source": "./plugins/principles-first", "description": "First-principles and design-thinking checks for product and architecture decisions.", "version": "1.0.0", "category": "thinking" },
+    { "name": "dev-agents", "source": "./plugins/dev-agents", "description": "A ten-agent dev squad (architect, frontend, backend, devops, tester, reviewer and more) plus a browser-test command.", "version": "1.0.0", "category": "engineering" },
+    { "name": "multirepo-git", "source": "./plugins/multirepo-git", "description": "Branch and merge across multiple sub-repos with two commands: isolate and merge.", "version": "1.0.0", "category": "engineering" },
+    { "name": "gitlab-ci-kit", "source": "./plugins/gitlab-ci-kit", "description": "Generate a GitLab CI pipeline and Helm chart: kaniko image builds and cluster deploys.", "version": "1.0.0", "category": "engineering" },
+    { "name": "tldr", "source": "./plugins/tldr", "description": "Bilingual English and Persian TL;DR summaries, written for product managers.", "version": "1.0.0", "category": "writing" },
+    { "name": "backlog-md", "source": { "source": "github", "repo": "SMKeramati/claude-backlog-md" }, "description": "Backlog.md task management as a plugin: MCP server, hooks, and a docs-migration skill.", "category": "tasks" },
+    { "name": "gstack", "source": { "source": "github", "repo": "SMKeramati/gstack" }, "description": "Garry Tan's gstack dev workflow (53+ skills) packaged for Claude Code. Not our work: all credit to Garry Tan.", "category": "third-party" }
+  ]
+}

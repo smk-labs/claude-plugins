@@ -1,0 +1,9 @@
+{
+  "name": "dev-agents",
+  "description": "A ten-agent dev squad (architect, frontend, backend, devops, tester, reviewer and more) plus a browser-test command.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Seyed M. Keramati",
+    "url": "https://github.com/SMKeramati"
+  }
+}

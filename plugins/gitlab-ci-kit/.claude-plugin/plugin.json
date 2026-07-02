@@ -1,0 +1,1 @@
+{"name": "gitlab-ci-kit", "description": "Generate a GitLab CI pipeline and Helm chart: kaniko image builds and cluster deploys.", "version": "1.0.0", "author": {"name": "Seyed M. Keramati", "url": "https://github.com/SMKeramati"}}

@@ -1,0 +1,9 @@
+{
+  "name": "fig",
+  "description": "Single-file looping animated SVG explainers, plus a to-gif converter command.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Seyed M. Keramati",
+    "url": "https://github.com/SMKeramati"
+  }
+}
