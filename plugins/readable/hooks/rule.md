@@ -41,9 +41,10 @@ Persian/RTL replies scramble as plain chat text. In this client, deliver every P
 .rc .trend.up{background:var(--bg-success);color:var(--ca)}.rc .trend.up::before{content:'▲ '}
 .rc .trend.dn{background:var(--bg-danger);color:var(--cd)}.rc .trend.dn::before{content:'▼ '}
 .rc .bars{margin:.8em 0}.rc .bar{display:flex;align-items:center;gap:10px;margin:.45em 0}.rc .bar .l{flex:0 0 auto;min-width:4.5em;color:var(--text-secondary)}.rc .bar .t{flex:1;height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden}.rc .bar .t i{display:block;height:100%;background:var(--text-accent);border-radius:4px}.rc .bar .v{flex:0 0 auto;font-weight:700;font-size:.9em}
-.rc .flow{display:flex;flex-wrap:wrap;align-items:center;gap:27px;margin:.9em .2em}
+.rc .flow{display:flex;flex-wrap:wrap;align-items:center;gap:34px;margin:.9em .2em}
 .rc .flow .s{position:relative;background:var(--surface-2);border:.5px solid var(--border);border-radius:9px;padding:5px 13px;font-weight:500}
-.rc .flow .s:not(:last-child)::after{content:'←';position:absolute;inset-inline-end:-22px;top:50%;transform:translateY(-50%);color:var(--text-secondary)}
+.rc .flow .s:not(:last-child)::after{content:'';position:absolute;inset-inline-end:-28px;top:50%;width:22px;height:1.5px;border-radius:1px;background:var(--text-accent);transform:translateY(-50%)}
+.rc .flow .s:not(:last-child)::before{content:'';position:absolute;inset-inline-end:-30px;top:50%;width:6px;height:6px;border-left:1.5px solid var(--text-accent);border-bottom:1.5px solid var(--text-accent);transform:translateY(-50%) rotate(45deg)}
 .rc .donut-w{display:flex;align-items:center;gap:20px;margin:.9em 0;flex-wrap:wrap}
 .rc .donut{width:92px;height:92px;border-radius:50%;flex:0 0 auto;background:conic-gradient(var(--ca) 0 calc(var(--a)*1%),var(--cb) 0 calc((var(--a) + var(--b))*1%),var(--cc) 0 100%);-webkit-mask:radial-gradient(circle,transparent 56%,#000 57%);mask:radial-gradient(circle,transparent 56%,#000 57%)}
 .rc .leg{display:flex;flex-direction:column;gap:5px}

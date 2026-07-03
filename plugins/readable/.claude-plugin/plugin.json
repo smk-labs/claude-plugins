@@ -1,7 +1,7 @@
 {
   "name": "readable",
   "description": "Beautiful Persian/RTL replies as self-contained cards with a full component kit: KPI grids, donut and bar charts, timelines, flows, callouts, badges, CTA buttons. Plus a visualize skill for diagrams on demand.",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "author": {
     "name": "Seyed M. Keramati",
     "url": "https://github.com/SMKeramati"

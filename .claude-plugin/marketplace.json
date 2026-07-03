@@ -55,7 +55,7 @@
       "name": "readable",
       "source": "./plugins/readable",
       "description": "Persian/RTL replies as self-contained styled cards with a component kit (KPI, charts, timelines, callouts, CTA), plus a visualize skill for diagrams.",
-      "version": "3.1.0",
+      "version": "3.1.1",
       "category": "writing"
     },
     {
