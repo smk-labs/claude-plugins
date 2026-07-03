@@ -59,6 +59,13 @@
       "category": "writing"
     },
     {
+      "name": "getpix",
+      "source": "./plugins/getpix",
+      "description": "Find free licensed images from five sources (Pexels, Pixabay, Unsplash, Openverse, Wikimedia), show them right in the chat, or insert optimized WebP with alt text and attribution.",
+      "version": "1.0.0",
+      "category": "content"
+    },
+    {
       "name": "backlog-md",
       "source": {
         "source": "github",

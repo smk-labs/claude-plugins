@@ -42,6 +42,12 @@ For example, to install the fig plugin:
 | tldr | Bilingual English and Persian TL;DR summaries, written for product managers. | `/plugin install tldr@smk` |
 | readable | Easy-to-read outputs: Persian/RTL replies as clean styled cards at near zero token cost, plus a visualize skill for light diagrams on demand. | `/plugin install readable@smk` |
 
+## Content and Media
+
+| Plugin | What it does | Install command |
+| --- | --- | --- |
+| getpix | Finds free licensed images from five sources (works with zero API keys), shows them right in the chat, or drops optimized WebP into your project with alt text and attribution. | `/plugin install getpix@smk` |
+
 ## Task Management
 
 | Plugin | What it does | Install command |
