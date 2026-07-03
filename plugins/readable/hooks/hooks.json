@@ -1,16 +1,5 @@
 {
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "mcp__visualize__show_widget",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/rtl_card.py\""
-          }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "matcher": "*",

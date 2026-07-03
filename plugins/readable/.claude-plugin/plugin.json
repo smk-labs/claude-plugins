@@ -1,7 +1,7 @@
 {
   "name": "readable",
   "description": "Easy-to-read outputs: Persian/RTL replies as clean styled cards at near zero token cost, plus a visualize skill that turns any answer into a light diagram when a shape says it better than text.",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "author": {
     "name": "Seyed M. Keramati",
     "url": "https://github.com/SMKeramati"
