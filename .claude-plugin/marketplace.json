@@ -54,8 +54,8 @@
     {
       "name": "readable",
       "source": "./plugins/readable",
-      "description": "Beautiful Persian/RTL replies as self-contained styled cards at low token cost, plus a visualize skill for light diagrams on demand.",
-      "version": "3.0.0",
+      "description": "Persian/RTL replies as self-contained styled cards with a component kit (KPI, charts, timelines, callouts, CTA), plus a visualize skill for diagrams.",
+      "version": "3.1.0",
       "category": "writing"
     },
     {
