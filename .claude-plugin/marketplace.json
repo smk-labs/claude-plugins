@@ -54,8 +54,8 @@
     {
       "name": "readable",
       "source": "./plugins/readable",
-      "description": "Easy-to-read outputs: Persian/RTL replies as clean styled cards at near zero token cost, plus a visualize skill for light diagrams on demand.",
-      "version": "2.3.0",
+      "description": "Beautiful Persian/RTL replies as self-contained styled cards at low token cost, plus a visualize skill for light diagrams on demand.",
+      "version": "3.0.0",
       "category": "writing"
     },
     {
