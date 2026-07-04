@@ -33,6 +33,17 @@ Run an art-direction photo pass on this project's website. Work end to end: audi
 - RTL-safe if applicable: logical properties only (inset-inline-*, margin-inline), never left/right.
 - No new dependencies. Match the codebase's existing conventions and lint rules.
 
+## Blog posts
+
+Blogs follow their own rhythm; the site-wide 3-6 placement cap does not count per-post blog images.
+
+- Every post gets a cover image: the one non-negotiable placement. Same visual family as the site, ~1200-1600px wide.
+- Inside the body, add images where the TEXT needs them, not on a grid: a concept that reads better seen, a change of scene, a long unbroken stretch of paragraphs. Rhythm guide: roughly one image per 4-6 paragraphs, 2-4 in a typical post, none in very short posts.
+- Each in-body image must illustrate the paragraph next to it, not just the post's general topic. If nothing on-family and on-topic exists, skip that spot; never fill it with something generic.
+- Treat them consistently: one width system (content width, with at most one full-bleed breather per post), the site's own corner radius and overlay treatment, optional caption that can carry the credit.
+- Cover gets eager + fetchpriority="high" when above the fold; every in-body image is lazy. Alt text describes the image in the post's language.
+- The test: a reader scrolling a long post should never hit a wall of text, and never a wall of decoration either.
+
 ## 5. Definition of done
 
 - Production build passes and lint is clean.
