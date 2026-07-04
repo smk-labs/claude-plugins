@@ -7,6 +7,10 @@ Claude finds a good free photo on the internet, downloads it, optimizes it, and 
 - Claude can preview thumbnails with its own eyes before choosing ("picky mode"), or pick from metadata only ("fast mode", cheaper).
 - Every fetch prints the file path, an alt-text suggestion, and the exact attribution line the license needs.
 
+## Photo pass
+
+`/getpix:photo-pass` runs a whole-site art-direction pass: audit where photos genuinely earn their place (3 to 6 spots, no decoration), define one visual family, pick every image by eye, melt them into the design with the site's own color tokens, verify both themes, and record every credit in CREDITS.md.
+
 ## Setup (optional)
 
 ```bash

@@ -61,8 +61,8 @@
     {
       "name": "getpix",
       "source": "./plugins/getpix",
-      "description": "Find free licensed images from five sources (Pexels, Pixabay, Unsplash, Openverse, Wikimedia), show them right in the chat, or insert optimized WebP with alt text and attribution.",
-      "version": "1.0.0",
+      "description": "Find free licensed images from five sources (Pexels, Pixabay, Unsplash, Openverse, Wikimedia), show them right in the chat, or insert optimized WebP with alt text and attribution. Includes photo-pass: a whole-site art-direction pass.",
+      "version": "1.1.0",
       "category": "content"
     },
     {

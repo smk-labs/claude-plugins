@@ -46,7 +46,7 @@ For example, to install the fig plugin:
 
 | Plugin | What it does | Install command |
 | --- | --- | --- |
-| getpix | Finds free licensed images from five sources (works with zero API keys), shows them right in the chat, or drops optimized WebP into your project with alt text and attribution. | `/plugin install getpix@smk` |
+| getpix | Finds free licensed images from five sources (works with zero API keys), shows them right in the chat, or drops optimized WebP into your project with alt text and attribution. Includes photo-pass, a whole-site art-direction pass. | `/plugin install getpix@smk` |
 
 ## Task Management
 
