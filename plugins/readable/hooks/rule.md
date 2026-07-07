@@ -1,5 +1,5 @@
 <readable-rtl-rule>
-Persian/RTL replies scramble as plain chat text. In this client, deliver every Persian (or any RTL) reply as ONE mcp__visualize__show_widget call. Do NOT call read_me; there is no design work to do. The widget must be fully self-contained: no external scripts, no CDN, no network. widget_code is EXACTLY this skeleton (copy the whole <style> block verbatim, never edit it), then your reply as HTML in place of CONTENT, then </div>:
+Persian/RTL replies scramble as plain chat text. In this client, deliver every Persian (or any RTL) reply as ONE mcp__visualize__show_widget call. Do NOT call read_me; there is no design work to do. The widget must be fully self-contained: no scripts of any kind and no external resources; the single exception is the Google Fonts @import already inside the kit, which degrades to system fonts when unreachable. widget_code is EXACTLY this skeleton (copy the whole <style> block verbatim, never edit it), then your reply as HTML in place of CONTENT, then </div>:
 
 <div class="rc" dir="rtl">
 <style>
@@ -14,7 +14,7 @@ Persian/RTL replies scramble as plain chat text. In this client, deliver every P
 .rc p{margin:.6em 0}.rc .lead{color:var(--text-secondary);font-size:1.05em}
 .rc p,.rc li,.rc h2,.rc h4,.rc td,.rc th,.rc .kpi,.rc .tl div{unicode-bidi:plaintext}
 .rc strong{font-weight:700}
-.rc code{direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;color:var(--text-accent);background:var(--surface-2);border:.5px solid var(--border);border-radius:5px;padding:1px 5px}
+.rc code{display:inline-block;direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;color:var(--text-accent);background:var(--surface-2);border:.5px solid var(--border);border-radius:5px;padding:1px 5px}
 .rc a{color:var(--text-accent);text-decoration:none}.rc a:hover{border-bottom:1px solid currentColor}
 .rc ul,.rc ol{padding-inline-start:1.5em;margin:.5em 0}.rc li{margin:.35em 0;position:relative}
 .rc ul{list-style:none}.rc ul>li::before{content:'';position:absolute;inset-inline-start:-1.1em;top:.68em;width:4px;height:4px;border-radius:50%;background:var(--text-accent)}
@@ -79,7 +79,7 @@ Write CONTENT as real HTML using ONLY these building blocks (all styling is pre-
 - Optional closing CTA (max two, only when a natural next step exists): <div class="btns"><button class="cta" onclick="sendPrompt('the exact prompt')">label</button><button class="cta ghost" onclick="sendPrompt('...')">label</button></div>.
 - Wrap every path, command, URL, and code token in <code>. Use <hr> sparingly between major parts.
 
-Pick components by content, not decoration: numbers deserve kpi or bars or donut, sequences deserve flow or tl, comparisons deserve a table. Even a pure prose answer should read like an edited page, not a wall: open with a <p class="lead"> one-liner, give each part an <h3>, bold the key term in each point with <strong>, and put the final takeaway in a <div class="cal tip"> or <div class="cal note"> instead of a plain paragraph. Reach for <ul class> status lists, a short <ol>, or a <div class="kv"> whenever the content is a list of points rather than flowing text. Never leave a long answer as bare h2 + p + p.
+Pick the lightest structure that fits the content: a short conversational answer is plain paragraphs with zero components, and no component is ever used just because the kit has it. When content genuinely benefits, numbers get kpi/bars/donut, sequences get flow/tl, comparisons get a table, list-shaped content gets ul/ol/kv, and one callout may hold the single most important takeaway. A long structured answer reads best opened with <h2> plus one <p class="lead"> and an <h3> per section. One bidi caveat: an RTL line that must START with a Latin token needs &rlm; prefixed (or lead with an RTL word) to stay right-to-left.
 
 The show_widget call IS the whole reply. Output nothing after it: no plain-text version, no summary, no "here is the answer" line. NEVER repeat the content as plain text, even if you suspect the card did not render (it does; plain Persian text would only scramble). If the user says a card came out blank, tell them in one English line to update the readable plugin and restart, and stop; do not paste the answer as plain text.
 
