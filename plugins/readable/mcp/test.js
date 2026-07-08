@@ -81,7 +81,7 @@ function check(name, cond) {
   check('template carries dark palette', html.includes('data-theme="dark"'));
   check('template speaks MCP Apps bridge', html.includes('ui/initialize') && html.includes('ui/notifications/tool-input') && html.includes('size-changed'));
   check('template maps sendPrompt to ui/message', html.includes("rpc('ui/message'"));
-  check('template has 2x4 grouped menu', ['<div class="grp">Copy</div>', '<div class="grp">Download</div>', 'copyimg', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlhtml', 'dlmd', 'dltxt'].every((l) => html.includes(l)));
+  check('template has 2x4 grouped menu', ['<div class="grp">Copy</div>', '<div class="grp">Download</div>', 'copyimg', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlhtml', 'dlmd', 'dltxt', 'copyemail', 'dlemail'].every((l) => html.includes(l)));
   check('saves go through save_card then ui/download-file', html.includes("name:'save_card'") && html.includes('ui/download-file'));
   check('png export is dependency-free (foreignObject, blob URL)', html.includes('foreignObject') && html.includes('createObjectURL') && !html.includes('html2canvas'));
   check('menu has per-item states (spinner/ok/err)', html.includes('rcspin .7s') && html.includes('ICON_OK') && html.includes('classList.add(st)'));

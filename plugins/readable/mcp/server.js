@@ -105,6 +105,7 @@ const I = {
   code: '<svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
   filetext: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
   type: '<svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>',
+  mail: '<svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>',
 };
 
 function menuItem(act, icon, label) {
@@ -118,11 +119,13 @@ const MENU_HTML =
   menuItem('copyhtml', I.code, 'HTML') +
   menuItem('copymd', I.filetext, 'Markdown') +
   menuItem('copytext', I.type, 'Plain text') +
+  menuItem('copyemail', I.mail, 'Email (rendered)') +
   '<div class="grp">Download</div>' +
   menuItem('dlpng', I.image, 'PNG image') +
   menuItem('dlhtml', I.code, 'HTML file') +
   menuItem('dlmd', I.filetext, 'Markdown file') +
   menuItem('dltxt', I.type, 'Text file') +
+  menuItem('dlemail', I.mail, 'Email HTML') +
   '</div></div><div id="rctoast"></div>';
 
 const MENU_JS = [
@@ -139,6 +142,50 @@ const MENU_JS = [
   "function collectCss(){var out='',els=document.querySelectorAll('style');for(var i=0;i<els.length;i++)out+=els[i].textContent+'\\n';return out}",
   "function varCss(cls){var cs=getComputedStyle(document.documentElement),out='.'+cls+'{';for(var i=0;i<VARS.length;i++){var v=cs.getPropertyValue(VARS[i]);if(v)out+=VARS[i]+':'+v.trim()+';'}return out+'}'}",
   "function exportHtml(){var card=document.getElementById('card');return '<!DOCTYPE html>\\n<html data-theme=\"'+theme()+'\"><head><meta charset=\"utf-8\"><title>readable card</title><style>\\n'+collectCss()+'\\n#rcmenu,#rctoast{display:none}\\n</style></head><body style=\"margin:16px\">'+card.outerHTML+'</body></html>'}",
+  "/* Email export: clients strip <style> and classes, so every element gets its computed styles inlined (resolved against the LIGHT palette), pseudo-element decorations become real spans, and interactive bits are dropped. Pasteable into Gmail/Mail as rendered rich text. */",
+  "var EMAIL_PROPS=['color','background-color','font-family','font-size','font-weight','font-style','line-height','text-align','direction','unicode-bidi','padding-top','padding-bottom','padding-left','padding-right','margin-top','margin-bottom','margin-left','margin-right','border-radius','border-top','border-bottom','border-left','border-right','vertical-align','white-space','letter-spacing','border-collapse'];",
+  "function emailHtml(){var root=document.documentElement,prev=root.getAttribute('data-theme');root.setAttribute('data-theme','light');",
+  "try{var card=document.getElementById('card');",
+  "var srcEls=[card].concat([].slice.call(card.querySelectorAll('*')));",
+  "var clone=card.cloneNode(true);",
+  "var dstEls=[clone].concat([].slice.call(clone.querySelectorAll('*')));",
+  "var rtl=(getComputedStyle(card).direction==='rtl');var accent=getComputedStyle(card).getPropertyValue('--text-accent').trim()||'#2f66c4';",
+  "var jobs=[];",
+  "for(var i=0;i<srcEls.length;i++){var s=srcEls[i],d=dstEls[i],cs=getComputedStyle(s),st='';",
+  "for(var q=0;q<EMAIL_PROPS.length;q++){var v=cs.getPropertyValue(EMAIL_PROPS[q]);if(v&&v!=='none'&&v!=='normal'&&v!=='auto'&&v.indexOf('0px none')===-1)st+=EMAIL_PROPS[q]+':'+v+';'}",
+  "var disp=cs.getPropertyValue('display');if(disp&&disp!=='inline'&&disp!=='block')st+='display:'+((disp.indexOf('flex')>-1||disp.indexOf('grid')>-1)?'block':disp)+';';",
+  "if(s.style&&s.style.width&&s.style.width.indexOf('%')>-1)st+='width:'+s.style.width+';background:'+cs.getPropertyValue('background-color')+';display:block;';",
+  "var cls=s.className||'';var tag=s.tagName;",
+  "if(/(^| )t( |$)/.test(cls)&&s.parentNode&&/(^| )bar( |$)/.test(s.parentNode.className||''))st+='width:220px;height:7px;display:inline-block;';",
+  "if(s.style&&s.style.width&&s.style.width.indexOf('%')>-1)st+='height:7px;';",
+  "d.setAttribute('style',st);d.removeAttribute('class');d.removeAttribute('onclick');d.removeAttribute('id');",
+  "var dr=cs.getPropertyValue('direction');if(dr)d.setAttribute('dir',dr);",
+  "if(tag==='H2')jobs.push(['h2',d]);else if(tag==='H3')jobs.push(['h3',d]);",
+  "else if(tag==='LI'){if(/(^| )ok( |$)/.test(cls))jobs.push(['ok',d]);else if(/(^| )no( |$)/.test(cls))jobs.push(['no',d]);else if(s.parentNode.tagName==='UL')jobs.push(['dot',d])}",
+  "else if(/(^| )trend( |$)/.test(cls))jobs.push([/(^| )up( |$)/.test(cls)?'up':'dn',d]);",
+  "else if(/(^| )flow( |$)/.test(cls))jobs.push(['flow',d]);",
+  "else if(/(^| )donut( |$)/.test(cls))jobs.push(['kill',d]);",
+  "else if(/(^| )btns( |$)/.test(cls))jobs.push(['kill',d]);",
+  "else if(tag==='I'&&/(^| )leg( |$)/.test(s.parentNode.parentNode?s.parentNode.parentNode.className||'':''))jobs.push(['sw',d,cs.getPropertyValue('background-color')]);",
+  "}",
+  "function mk(html){var t=document.createElement('span');t.innerHTML=html;return t.firstChild}",
+  "for(var j=0;j<jobs.length;j++){var kind=jobs[j][0],el=jobs[j][1];",
+  "if(kind==='kill'){el.parentNode&&el.parentNode.removeChild(el)}",
+  "else if(kind==='h2'){el.appendChild(mk('<div style=\"width:28px;height:3px;background:'+accent+';border-radius:2px;margin-top:6px\"></div>'))}",
+  "else if(kind==='h3'){el.insertBefore(mk('<span style=\"display:inline-block;width:7px;height:7px;background:'+accent+';border-radius:2px;margin-'+(rtl?'left':'right')+':8px\"></span>'),el.firstChild)}",
+  "else if(kind==='ok'){el.insertBefore(mk('<span style=\"color:#0f9d58;font-weight:800\">\u2713&nbsp;</span>'),el.firstChild);el.style.listStyle='none'}",
+  "else if(kind==='no'){el.insertBefore(mk('<span style=\"color:#e05555;font-weight:800\">\u2715&nbsp;</span>'),el.firstChild);el.style.listStyle='none'}",
+  "else if(kind==='dot'){el.insertBefore(mk('<span style=\"color:'+accent+'\">\u2022&nbsp;</span>'),el.firstChild);el.style.listStyle='none'}",
+  "else if(kind==='up'){el.insertBefore(document.createTextNode('\u25b2 '),el.firstChild)}",
+  "else if(kind==='dn'){el.insertBefore(document.createTextNode('\u25bc '),el.firstChild)}",
+  "else if(kind==='sw'){el.setAttribute('style',(el.getAttribute('style')||'')+'display:inline-block;width:9px;height:9px;border-radius:3px;background:'+jobs[j][2])}",
+  "else if(kind==='flow'){var kids=[].slice.call(el.children);for(var k=1;k<kids.length;k++){el.insertBefore(mk('<span style=\"color:'+accent+';padding:0 6px\">'+(rtl?'\u2190':'\u2192')+'</span>'),kids[k])}}",
+  "}",
+  "return clone.outerHTML}finally{if(prev)root.setAttribute('data-theme',prev);else root.removeAttribute('data-theme')}}",
+  "function richCopy(html,plain,cb){",
+  "if(navigator.clipboard&&window.ClipboardItem){try{navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([plain],{type:'text/plain'})})]).then(function(){cb(true)},function(){cb(legacy())});return}catch(e){}}",
+  "cb(legacy());",
+  "function legacy(){try{var d=document.createElement('div');d.contentEditable='true';d.style.position='fixed';d.style.opacity='0';d.style.left='-9999px';d.innerHTML=html;document.body.appendChild(d);var r=document.createRange();r.selectNodeContents(d);var sel=getSelection();sel.removeAllRanges();sel.addRange(r);var ok=document.execCommand('copy');sel.removeAllRanges();d.remove();return ok}catch(e){return false}}}",
   "function inlineMd(el){var out='';el.childNodes.forEach(function(n){if(n.nodeType===3){out+=n.textContent;return}if(n.nodeType!==1)return;var t=n.tagName;",
   "if(t==='CODE')out+='`'+n.textContent+'`';else if(t==='STRONG'||t==='B')out+='**'+inlineMd(n)+'**';else if(t==='A')out+='['+inlineMd(n)+']('+(n.getAttribute('href')||'')+')';else if(t==='BR')out+='\\n';else out+=inlineMd(n)});return out.replace(/[ \\t]+/g,' ')}",
   "function rowMd(tr,tag){var cells=[];tr.querySelectorAll(tag).forEach(function(c){cells.push(inlineMd(c).trim()||' ')});return '| '+cells.join(' | ')+' |'}",
@@ -205,12 +252,14 @@ const MENU_JS = [
   "if(kind==='copyimg'){pngBlob(function(b,err){if(!b){setState(btn,'err','Failed');toast('image: '+err);return}",
   "if(navigator.clipboard&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){setState(btn,'ok','Copied')},function(){saveFile('readable-card.png',null,b,btn,'Saved instead')})}else saveFile('readable-card.png',null,b,btn,'Saved instead')});return}",
   "if(kind==='dlpng'){pngBlob(function(b,err){if(!b){setState(btn,'err','Failed');toast('image: '+err);return}saveFile('readable-card.png',null,b,btn,'Saved')});return}",
+  "if(kind==='copyemail'){richCopy(emailHtml(),toMd(),function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed');if(ok)toast('paste into your email compose window')});return}",
+  "if(kind==='dlemail'){saveFile('readable-card.email.html','<!DOCTYPE html><html dir=\"'+(getComputedStyle(document.getElementById('card')).direction)+'\"><head><meta charset=\"utf-8\"><title>readable card</title></head><body style=\"margin:0;padding:16px;background:#ffffff\">'+emailHtml()+'</body></html>',null,btn,'Saved');return}",
   "if(kind==='dlhtml'){saveFile('readable-card.html',exportHtml(),null,btn,'Saved');return}",
   "if(kind==='dlmd'){saveFile('readable-card.md',toMd(),null,btn,'Saved');return}",
   "if(kind==='dltxt'){saveFile('readable-card.txt',document.getElementById('card').innerText,null,btn,'Saved');return}}",
   "menu.querySelector('.items').addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('button');if(b&&!b.classList.contains('busy'))act(b.getAttribute('data-act'),b)});",
   "window.__rcCopy=clipText;",
-  "window.__rcExport={md:toMd,html:exportHtml,png:pngBlob};",
+  "window.__rcExport={md:toMd,html:exportHtml,png:pngBlob,email:emailHtml};",
   "})();",
 ].join('');
 
