@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "readable-card": {
+      "command": "node",
+      "args": ["plugins/readable/mcp/server.js"]
+    }
+  }
+}
