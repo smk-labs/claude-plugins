@@ -66,6 +66,13 @@
       "category": "content"
     },
     {
+      "name": "cursor-delegate",
+      "source": "./plugins/cursor-delegate",
+      "description": "Delegate self-contained tasks to the Cursor CLI (cursor-agent) from inside Claude Code, running them on the Cursor subscription's quota instead of Claude's. Works with one Cursor login out of the box; optional account input for multiple seats. Agent calling, not a model-backend swap.",
+      "version": "1.0.0",
+      "category": "engineering"
+    },
+    {
       "name": "backlog-md",
       "source": {
         "source": "github",
