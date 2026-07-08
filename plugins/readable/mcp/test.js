@@ -89,6 +89,7 @@ function check(name, cond) {
   check('template maps sendPrompt to ui/message', html.includes("rpc('ui/message'"));
   check('template has 5x2 format/action matrix (Email row back in 4.4, rendered server-side)', ['class="row"', 'class="fmt"', 'copyimg', 'copyemail', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlemail', 'dlhtml', 'dlmd', 'dltxt'].every((l) => html.includes(l)) && html.split('row(I.').length === 6);
   check('email export fetches render_email and rich-copies both flavors', html.includes("name:'render_email'") && html.includes("'text/html'") && html.includes("contentEditable"));
+  check('open menu grows the iframe (fixed menu never enters scrollHeight)', html.includes('window.__rcFit=fit') && html.split('window.__rcFit()').length === 3);
   check('template stays under the host resource-size ceiling', html.length < 30000);
   check('saves go through save_card then ui/download-file', html.includes("name:'save_card'") && html.includes('ui/download-file'));
   check('png export is dependency-free (foreignObject, blob URL)', html.includes('foreignObject') && html.includes('createObjectURL') && !html.includes('html2canvas'));

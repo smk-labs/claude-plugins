@@ -91,7 +91,10 @@ const BRIDGE_JS = [
   "document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('#card [onclick]');if(!b||b.onclick)return;var m=String(b.getAttribute('onclick')).match(/^\\s*sendPrompt\\((['\"])([\\s\\S]*?)\\1\\)\\s*;?\\s*$/);if(m)window.sendPrompt(m[2])});",
   "var finalGot=false,partialTimer=null;",
   "/* +2 covers fractional line-height rounding; overflow:hidden kills any residual scrollbar. Fonts (Vazirmatn) land late and change the height, so re-fit once they settle. */",
-  "function fit(){notify('ui/notifications/size-changed',{height:Math.ceil(document.documentElement.scrollHeight)+2})}",
+  "/* The menu is position:fixed, so an OPEN menu adds nothing to scrollHeight and would clip on short cards (overflow:hidden kills scrolling too). While open, the iframe grows to the menu's bottom edge; menu.js pings __rcFit on every open/close. */",
+  "/* Measure the .items panel itself: #rcmenu's own rect is just the dots button, absolute children never grow it. */",
+  "function fit(){var h=document.documentElement.scrollHeight;var m=document.getElementById('rcmenu');var it=m&&m.querySelector('.items');if(it&&m.className.indexOf('open')>-1){var b=it.getBoundingClientRect().bottom+10;if(b>h)h=b}notify('ui/notifications/size-changed',{height:Math.ceil(h)+2})}",
+  "window.__rcFit=fit;",
   "/* Card direction follows the content's majority script (the kit is Persian-first, ties go RTL); .rc[dir=ltr] overrides in the template CSS mirror the sided rules. */",
   "function dirOf(h){var t=String(h).replace(/<[^>]*>/g,' ');var r=(t.match(/[\\u0591-\\u07FF\\uFB1D-\\uFDFD\\uFE70-\\uFEFC]/g)||[]).length;var l=(t.match(/[A-Za-z]/g)||[]).length;return r>=l?'rtl':'ltr'}",
   "function paint(html){if(!html)return;var c=document.getElementById('card');c.setAttribute('dir',dirOf(html));c.innerHTML=html;fit();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)}",
@@ -528,7 +531,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.4.2 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.4.3 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();

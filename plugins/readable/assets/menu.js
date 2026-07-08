@@ -47,8 +47,9 @@ document.body.appendChild(toastEl);
 var VARS=['--text-primary','--text-secondary','--text-accent','--surface-1','--surface-2','--border','--border-strong','--bg-success','--bg-accent','--bg-warning','--bg-danger','--font-mono','--page-bg'];
 var ICON_OK='<svg viewBox="0 0 24 24" style="stroke-width:2.5"><polyline points="20 6 9 17 4 12"/></svg>';
 var ICON_ERR='<svg viewBox="0 0 24 24" style="stroke-width:2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-menu.querySelector('.dots').addEventListener('click',function(e){e.stopPropagation();if(e.altKey){clipText(JSON.stringify({host:window.__rcHost||null,errors:window.__rcErrs||[]},null,1),function(ok){toast(ok?'diagnostics copied':'diagnostics copy failed')});return}menu.classList.toggle('open')});
-document.addEventListener('click',function(e){if(!menu.contains(e.target))menu.classList.remove('open')});
+/* __rcFit (chat-card bridge only) grows the iframe while the menu is open — a fixed-position menu never enters scrollHeight, so short cards would clip it. */
+menu.querySelector('.dots').addEventListener('click',function(e){e.stopPropagation();if(e.altKey){clipText(JSON.stringify({host:window.__rcHost||null,errors:window.__rcErrs||[]},null,1),function(ok){toast(ok?'diagnostics copied':'diagnostics copy failed')});return}menu.classList.toggle('open');if(window.__rcFit)window.__rcFit()});
+document.addEventListener('click',function(e){if(!menu.contains(e.target)&&menu.classList.contains('open')){menu.classList.remove('open');if(window.__rcFit)window.__rcFit()}});
 function toast(t){var el=toastEl;el.textContent=t;el.style.opacity='1';clearTimeout(el._t);el._t=setTimeout(function(){el.style.opacity='0'},3400)}
 window.__rcToast=toast;
 function theme(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'}
