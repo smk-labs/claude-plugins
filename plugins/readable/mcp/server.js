@@ -87,10 +87,6 @@ const MENU_CSS = [
   '#rcmenu:hover .dots,#rcmenu.open .dots{opacity:1}',
   '#rcmenu .items{display:none;position:absolute;right:0;top:34px;background:var(--surface-1);border:.5px solid var(--border-strong);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.28)}',
   '#rcmenu.open .items{display:block}',
-  '#rcmenu .hdr{display:flex;align-items:center;padding:2px 4px 6px}',
-  '#rcmenu .hdr .cap{width:34px;display:flex;justify-content:center;color:var(--text-secondary)}',
-  '#rcmenu .hdr .cap svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.7}',
-  '#rcmenu .hdr .fmt{flex:1;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-secondary);user-select:none}',
   '#rcmenu .row{display:flex;align-items:center;border-radius:8px;padding:2px 4px}',
   '#rcmenu .row:hover{background:var(--surface-2)}',
   '#rcmenu .fmt{flex:1;display:flex;align-items:center;gap:11px;font-size:14px;color:var(--text-primary);white-space:nowrap;padding:7px 4px 7px 2px;min-width:132px}',
@@ -125,7 +121,6 @@ function menuRow(icon, label, copyAct, dlAct) {
 
 const MENU_HTML =
   '<div id="rcmenu"><button class="dots" title="card menu">⋯</button><div class="items">' +
-  '<div class="hdr"><span class="fmt">Export</span><span class="cap" title="Copy">' + I.copy + '</span><span class="cap" title="Download">' + I.download + '</span></div>' +
   menuRow(I.image, 'Image', 'copyimg', 'dlpng') +
   menuRow(I.code, 'HTML', 'copyhtml', 'dlhtml') +
   menuRow(I.filetext, 'Markdown', 'copymd', 'dlmd') +
