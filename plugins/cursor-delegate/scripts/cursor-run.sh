@@ -5,6 +5,11 @@
 # cursor-mcp server all shell out to, so the "how do we actually invoke Cursor"
 # logic lives in exactly one place.
 #
+# QUICK TASKS ONLY (under ~4 minutes of agent work): flaky networks/VPNs kill
+# any single stream older than ~5 minutes. Anything longer goes through
+# legged-run.sh (same directory), which chains short legs of THIS script on one
+# resumed session and survives connection drops.
+#
 # Why this exists: a company often has idle Cursor seats. Claude Code can put
 # them to work as delegated agents ("agent calling") without leaving Claude:
 # Claude stays the orchestrator (it holds the context, the plan, CLAUDE.md), and

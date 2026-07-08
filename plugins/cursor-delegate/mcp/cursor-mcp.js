@@ -15,7 +15,7 @@ const fs = require('fs');
 const readline = require('readline');
 const { execFile } = require('child_process');
 
-const SERVER_INFO = { name: 'cursor-mcp', version: '1.0.0' };
+const SERVER_INFO = { name: 'cursor-mcp', version: '1.2.0' };
 const DEFAULT_PROTOCOL = '2025-06-18';
 
 // Locate cursor-run.sh: explicit override, canonical install path, then a
@@ -35,9 +35,12 @@ function resolveRunner() {
 const TOOL = {
   name: 'cursor_run',
   description:
-    'Delegate ONE self-contained coding/research task to a Cursor account via cursor-agent, ' +
-    "running on the Cursor subscription's quota instead of Claude's. The task must be fully " +
-    'self-contained (cursor-agent starts with a blank context): include file paths, the goal, ' +
+    'Delegate ONE self-contained QUICK coding/research task (under ~4 minutes of agent work) to a ' +
+    "Cursor account via cursor-agent, running on the Cursor subscription's quota instead of Claude's. " +
+    'Anything that could run longer MUST NOT use this tool: long single streams die at ~5-6 minutes ' +
+    "on flaky networks/VPNs — run those with the plugin's legged runner (scripts/legged-run.sh, see " +
+    'the cursor-delegate skill), which chains ~4-minute legs on one resumed session. The task must be ' +
+    'fully self-contained (cursor-agent starts with a blank context): include file paths, the goal, ' +
     'and acceptance criteria. Cursor "auto" model is unlimited on paid plans; named models draw ' +
     'the monthly pool. File-editing tasks need an approval flag via extraArgs (e.g. ["--force"]).',
   inputSchema: {

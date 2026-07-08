@@ -31,25 +31,31 @@ Bad: "add the auth we discussed." Good: "In `src/auth/session.ts`, add `refresh(
 
 ## Step 3 — run it
 
+**One rule overrides everything: no single cursor-agent stream may live past ~4 minutes.** Flaky networks (VPNs especially) kill streams at ~5-6 minutes — measured, not theoretical. Quick slices (< ~4 min) may use `cursor_run`; every longer slice runs **legged**: short legs on one `--resume`d session until the worker prints `DONE-ALL` (see the cursor-delegate skill).
+
 ### Mode A-simple
-Call the `cursor_run` tool (or spawn the `cursor-worker` subagent) with one self-contained task. Done.
+One quick task → the `cursor_run` tool (or the `cursor-worker` subagent). One long task → the legged runner:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/legged-run.sh" --cwd <repo> "…self-contained task…"
+```
 
 ### Mode A-fan-out
-Issue several `cursor_run` tool calls **in a single turn** so they run concurrently (proven: multiple cursor-agent runs on one account run in parallel fine). For slices that **edit files in the same repo**, give each `extraArgs: ["-w"]` (isolated git worktree) or disjoint directories, so they never collide. Collect all results, then go to Step 4.
+Quick slices: several `cursor_run` calls **in a single turn** so they run concurrently (proven: multiple cursor-agent runs on one account run in parallel fine). Long slices: one `legged-run.sh` per slice via Bash `run_in_background`. For slices that **edit files in the same repo**, give each legged run `--worktree` (persistent git worktree, branch `legs/<id>`) or disjoint directories, so they never collide. Collect all results, then go to Step 4.
 
 ### Mode B — the JS harness
-Write a `tasks.json` and run the bundled fleet runner:
+Write a `tasks.json` and run the bundled fleet runner (it executes **every task legged** through `legged-run.sh`):
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrator.js" tasks.json \
   --account <name> --concurrency 4 --model auto --out results.json
 ```
 
-`tasks.json` is an array of `{ id, prompt, model?, account?, cwd?, worktree?, resume?, extraArgs? }`. The runner pools the fleet, forces `--force` (so workers can edit files), and writes `results.json` with each task's `result`, `session_id`, and token `usage`. Then review `results.json` (Step 4). Full field docs are in the header of `scripts/orchestrator.js`.
+`tasks.json` is an array of `{ id, prompt, model?, account?, cwd?, worktree?, resume?, legMinutes?, maxLegs?, extraArgs? }`. The runner pools the fleet, passes `--force` automatically, keeps each task's leg state under `<out dir>/cursor-legs/<id>` (rerunning the same command resumes unfinished tasks), and writes `results.json` with each task's `ok`, `result`, `session_id`, `legs`, and summed token `usage`. Then review `results.json` (Step 4). Full field docs are in the header of `scripts/orchestrator.js`.
 
 ## Step 4 — review and iterate (Claude's job)
 
-Read each worker's output and **accept or fix it yourself** — you are the quality gate. To correct a worker, **resume its session** instead of restarting: pass its `session_id` back (`cursor_run` → `extraArgs: ["--resume", "<id>"]`, or a `tasks.json` entry with `"resume": "<id>"`). The worker keeps its prior context, so "also handle the empty-input case" just works. Loop until every slice passes, then integrate.
+Read each worker's output and **accept or fix it yourself** — you are the quality gate. To correct a worker, **resume its session** instead of restarting: pass its `session_id` back (`legged-run.sh --resume <id>` for anything non-trivial, a `tasks.json` entry with `"resume": "<id>"`, or `cursor_run` → `extraArgs: ["--resume", "<id>"]` for a quick nudge). The worker keeps its prior context, so "also handle the empty-input case" just works. Loop until every slice passes, then integrate.
 
 ## Model routing
 

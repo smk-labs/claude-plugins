@@ -9,21 +9,25 @@ You hand ONE self-contained task to Cursor and return its result. cursor-agent d
 
 ## How to run
 
-Prefer the `cursor_run` MCP tool. Otherwise the script is at `${CLAUDE_PLUGIN_ROOT}/scripts/cursor-run.sh`:
+**Pick the runner by duration — never start a single stream that could outlive ~4 minutes** (flaky networks/VPNs kill streams at ~5-6 minutes; measured):
+
+- **Quick task (< ~4 min of agent work):** the `cursor_run` MCP tool, or `"${CLAUDE_PLUGIN_ROOT}/scripts/cursor-run.sh"`. For file edits add `-- --force` (headless runs don't prompt).
+- **Anything longer:** the legged runner — it chains ~4-minute legs on ONE `--resume`d session until the worker prints `DONE-ALL`, so a connection drop costs one leg, not the job:
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/cursor-run.sh" [--account <name>] [--model auto] --dry-run "<task>"
+"${CLAUDE_PLUGIN_ROOT}/scripts/legged-run.sh" --cwd <repo> [--account <name>] "<task>"
 ```
+
+Exit `1` means the leg budget ran out — rerun the same command to continue (state: `~/.claude-deck/cursor/legs/<id>`). `--worktree` isolates parallel edits; `--force` is automatic.
 
 1. **Account is optional.** Omit it to use the machine's single `cursor-agent login` (the normal case). Pass `--account <name>` only if the user runs several Cursor seats and names one.
 2. **Task must be self-contained.** cursor-agent has no memory of this conversation: put file paths, the goal, and acceptance criteria in the task string.
 3. **Model:** `--model auto` is unlimited on paid plans (no quota drawn); a named model draws the pool. Say which you used.
-4. **Editing files:** add `-- --force` so the headless run doesn't stall on the approval prompt.
-5. Dry-run first (key is redacted) to show what will run, then run for real.
+4. Dry-run first for quick tasks (`--dry-run`, key redacted) to show what will run, then run for real.
 
 ## Reporting back
 
-Return the worker's output, then one line: what ran, which account (or "default"), which model. If cursor-agent is missing, unauthenticated, or out of quota, say so and stop — do not silently redo the work yourself unless asked.
+Return the worker's output, then one line: what ran, which runner (quick or legged, with leg count), which account (or "default"), which model. If cursor-agent is missing, unauthenticated, or out of quota, say so and stop — do not silently redo the work yourself unless asked.
 
 ## Safety
 
