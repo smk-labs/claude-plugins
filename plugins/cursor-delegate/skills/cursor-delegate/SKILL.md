@@ -27,6 +27,16 @@ Prefer `cursor_run`. If the MCP tool is unavailable, the same logic is a script 
 4. **No secrets in the task text.** It leaves this machine for Cursor's servers.
 5. **Report back honestly.** Return the worker's output plus one line: what ran, which account (or "default"), which model. If cursor-agent is missing, unauthenticated, or out of quota, say so and stop — don't silently redo the work on Claude's quota unless asked.
 
+## How cursor-agent behaves (proven facts, use these)
+
+- **Editing files:** a headless run won't touch files unless it can bypass the approval prompt — pass `extraArgs: ["--force"]` for any task that writes.
+- **Structured output:** `json: true` returns one object `{ result, session_id, request_id, usage: {inputTokens, outputTokens, cacheReadTokens, ...}, duration_ms }`. Use `result` for the answer, `usage` to track cost.
+- **Iterate, don't restart:** capture `session_id`, then continue that same worker with `extraArgs: ["--resume", "<session_id>"]`. It keeps its full prior context (verified), so corrections and follow-ups are cheap.
+- **Concurrency:** several cursor-agent runs on one account run in parallel fine — fan out independent slices at once. For parallel edits in one repo, isolate each with `extraArgs: ["-w"]` (git worktree) or disjoint dirs.
+- **Project context:** cursor-agent reads `CLAUDE.md` and `AGENTS.md` at the repo root, so workers follow the project's conventions automatically. Global `~/.cursor/rules` do NOT reach headless runs. Project `.cursor/mcp.json` MCP servers are available if a task needs one.
+- **Models:** `model: "auto"` is unlimited on paid plans (no quota); named models (e.g. `composer-2.5`, a `gpt-5.x-codex` tier, Opus, Fable) draw the pool. `cursor-agent --list-models` (needs auth) lists them.
+- **Big or multi-part jobs:** don't cram them into one task — use the **cursor-orchestrate** skill (fleet fan-out, review loop, JS harness).
+
 ## Setup (once)
 
 - Install the CLI: `curl https://cursor.com/install -fsS | bash`, then `cursor-agent login` for the default account.

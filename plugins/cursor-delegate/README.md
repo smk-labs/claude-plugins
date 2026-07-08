@@ -10,10 +10,17 @@ Works with your single Cursor login out of the box. An optional account input ta
 
 | Component | Role |
 |-----------|------|
-| `cursor_run` MCP tool | Structured call: `task` (required), `account`, `model`, `extraArgs`, `dryRun`. The main interface. |
-| `cursor-delegate` skill | Teaches Claude when/how to delegate, and that `account` is optional. |
+| `cursor_run` MCP tool | Structured call: `task` (required), `account`, `model`, `extraArgs`, `dryRun`. The main interface for one task. |
+| `cursor-delegate` skill | Teaches Claude when/how to delegate one task, and that `account` is optional. |
+| `cursor-orchestrate` skill | Scales it up: Claude plans and reviews, a **fleet** of Cursor workers executes in parallel. Auto-picks the approach by size; say **"sub"** to force one worker or **"workflow"**/**"w"** to force the JS harness. |
 | `cursor-worker` subagent | Owns one delegation end-to-end and reports back. |
-| `scripts/cursor-run.sh` | The shared primitive both the tool and subagent call. Usable directly in a terminal. |
+| `scripts/cursor-run.sh` | The shared primitive everything calls. Usable directly in a terminal. |
+| `scripts/orchestrator.js` | Zero-dep fleet runner (Mode B): a concurrency pool over `cursor-run.sh` that takes a `tasks.json` and writes `results.json` (each with `result`, `session_id`, token `usage`). |
+
+## Two ways to use it
+
+- **One task** — ask "delegate X to cursor" (or call `cursor_run`). Best for a single self-contained slice.
+- **A whole job** — ask "orchestrate X with a cursor fleet" (the `cursor-orchestrate` skill). Claude decomposes into vertical slices, fans them out across parallel Cursor workers, reviews each, iterates by resuming worker sessions, and integrates. Good for building a feature (or a whole app) fast on Cursor's quota while Claude keeps the architecture and design decisions.
 
 ## Setup
 

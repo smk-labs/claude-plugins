@@ -68,8 +68,8 @@
     {
       "name": "cursor-delegate",
       "source": "./plugins/cursor-delegate",
-      "description": "Delegate self-contained tasks to the Cursor CLI (cursor-agent) from inside Claude Code, running them on the Cursor subscription's quota instead of Claude's. Works with one Cursor login out of the box; optional account input for multiple seats. Agent calling, not a model-backend swap.",
-      "version": "1.0.0",
+      "description": "Delegate to the Cursor CLI (cursor-agent) from inside Claude Code, on the Cursor subscription's quota instead of Claude's. One task via the cursor-delegate skill, or a parallel fleet via cursor-orchestrate (Claude plans and reviews, Cursor executes). Works with one login out of the box; optional account for multiple seats. Agent calling, not a model-backend swap.",
+      "version": "1.1.0",
       "category": "engineering"
     },
     {
