@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}" dir="{{DIR}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+{{KIT}}
+</style>
+<style>
+:root{--page-bg:#f4f4f1;--text-primary:#1f1f1f;--text-secondary:#6f6f6a;--text-accent:#2f66c4;--surface-1:#fff;--surface-2:#f2f2ef;--border:#dcdcd6;--border-strong:#b8b8b0;--bg-success:#e6f4ec;--bg-accent:#e8effc;--bg-warning:#faf0d9;--bg-danger:#fbe9e7;--font-mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+:root[data-theme="dark"]{--page-bg:#1b1b19;--text-primary:#ececea;--text-secondary:#9f9f98;--text-accent:#82abec;--surface-1:#262624;--surface-2:#302f2c;--border:#3e3e3a;--border-strong:#55554f;--bg-success:#143122;--bg-accent:#16283f;--bg-warning:#382c13;--bg-danger:#3a1d19}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page-bg:#1b1b19;--text-primary:#ececea;--text-secondary:#9f9f98;--text-accent:#82abec;--surface-1:#262624;--surface-2:#302f2c;--border:#3e3e3a;--border-strong:#55554f;--bg-success:#143122;--bg-accent:#16283f;--bg-warning:#382c13;--bg-danger:#3a1d19}}
+html,body{margin:0;background:var(--page-bg)}
+.wrap{max-width:860px;margin:0 auto;padding:34px 16px 20px}
+.rc{font-size:13.5px;padding:2rem 2.4rem;border-radius:16px;margin:0}
+.meta{color:var(--text-secondary);font-family:inherit;font-size:11.5px;margin:10px 4px 0;text-align:end;font-family:Vazirmatn,Inter,Tahoma,sans-serif}
+.theme-toggle{position:fixed;top:16px;inset-inline-end:16px;width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:linear-gradient(90deg,var(--surface-1) 50%,var(--text-primary) 50%);cursor:pointer;padding:0}
+.theme-toggle:hover{border-color:var(--text-accent)}
+@media print{.theme-toggle{display:none}html,body{background:#fff}.rc{border:none;padding:0}.wrap{max-width:none;padding:0}}
+</style>
+<style>
+{{EXTRA}}
+</style>
+</head>
+<body>
+<button class="theme-toggle" title="light / dark" onclick="(function(){var r=document.documentElement,d=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);r.setAttribute('data-theme',d?'light':'dark');try{localStorage.setItem('report-theme',r.getAttribute('data-theme'))}catch(e){}})()"></button>
+<script>try{var t=localStorage.getItem('report-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<div class="wrap">
+<div class="rc">
+{{CONTENT}}
+</div>
+<div class="meta">{{DATE}}</div>
+</div>
+</body>
+</html>

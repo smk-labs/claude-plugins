@@ -1,6 +1,6 @@
 # readable
 
-Easy-to-read outputs from Claude: three small tools, one goal.
+Easy-to-read outputs from Claude: four small tools, one goal.
 
 ## 1. RTL cards (automatic)
 
@@ -39,6 +39,12 @@ The endgame for token cost: the model sends only content and never outputs CSS a
 - Template-tested: the bridge (`ui/initialize` → `ui/notifications/tool-input` → `ui/notifications/size-changed`) renders the card correctly in a sandboxed iframe; CTA buttons map `sendPrompt()` onto `ui/message`.
 - Registered project-scope in this repo's `.mcp.json`. Global opt-in: `claude mcp add --scope user readable-card -- node <path>/plugins/readable/mcp/server.js`.
 - Not wired into the plugin manifest yet: whether a given host renders MCP Apps from local servers must be verified per client first. Until then the hook rule (section 1) stays the delivery path.
+
+## 4. report (skill, explicit export only)
+
+Turns a chat card (or fresh content) into a standalone HTML report file in the exact same template, without the model ever writing CSS: the model writes content-only HTML, and [skills/report/build.py](skills/report/build.py) injects the kit from `assets/rc.css` into a page shell (light/dark toggle, print styles for PDF). Persian is RTL with Vazirmatn; `--lang en` gives the same design fully LTR with Inter (arrows and alignment auto-flip).
+
+Triggers ONLY on an explicit ask ("همین کارت رو ذخیره کن", "save this card as a report") or `/readable:report`. Generic "write a report" requests never trigger it, by design.
 
 ## Install
 
