@@ -85,17 +85,22 @@ const MENU_CSS = [
   '#rcmenu{position:fixed;top:8px;right:8px;z-index:9;font-family:system-ui,sans-serif;direction:ltr}',
   '#rcmenu .dots{width:30px;height:30px;border-radius:8px;border:.5px solid var(--border);background:var(--surface-2);color:var(--text-secondary);cursor:pointer;font-size:16px;line-height:1;opacity:.4;padding:0}',
   '#rcmenu:hover .dots,#rcmenu.open .dots{opacity:1}',
-  '#rcmenu .items{display:none;position:absolute;right:0;top:34px;background:var(--surface-1);border:.5px solid var(--border-strong);border-radius:12px;padding:6px;min-width:216px;box-shadow:0 8px 24px rgba(0,0,0,.28)}',
+  '#rcmenu .items{display:none;position:absolute;right:0;top:34px;background:var(--surface-1);border:.5px solid var(--border-strong);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.28)}',
   '#rcmenu.open .items{display:block}',
-  '#rcmenu .items .grp{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-secondary);padding:7px 13px 3px;user-select:none}',
-  '#rcmenu .items button+.grp{margin-top:5px;padding-top:9px;border-top:.5px solid var(--border)}',
-  '#rcmenu .items button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:none;padding:10px 13px;border-radius:8px;font-size:14px;font-family:inherit;color:var(--text-primary);cursor:pointer;white-space:nowrap}',
-  '#rcmenu .items button:hover{background:var(--surface-2)}',
-  '#rcmenu .ic{width:17px;height:17px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}',
-  '#rcmenu .ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}',
-  '#rcmenu button.ok .ic svg{stroke:var(--ca);opacity:1}#rcmenu button.ok .lb{color:var(--ca)}',
-  '#rcmenu button.err .ic svg{stroke:#e05555;opacity:1}#rcmenu button.err .lb{color:#e05555}',
-  '.rcspin{width:13px;height:13px;border:2px solid var(--border-strong);border-top-color:var(--text-accent);border-radius:50%;animation:rcspin .7s linear infinite}',
+  '#rcmenu .hdr{display:flex;align-items:center;padding:2px 4px 6px}',
+  '#rcmenu .hdr .cap{width:34px;display:flex;justify-content:center;color:var(--text-secondary)}',
+  '#rcmenu .hdr .cap svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.7}',
+  '#rcmenu .hdr .fmt{flex:1;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-secondary);user-select:none}',
+  '#rcmenu .row{display:flex;align-items:center;border-radius:8px;padding:2px 4px}',
+  '#rcmenu .row:hover{background:var(--surface-2)}',
+  '#rcmenu .fmt{flex:1;display:flex;align-items:center;gap:11px;font-size:14px;color:var(--text-primary);white-space:nowrap;padding:7px 4px 7px 2px;min-width:132px}',
+  '#rcmenu .fmt svg{width:17px;height:17px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}',
+  '#rcmenu .act{width:30px;height:30px;margin:0 2px;border-radius:7px;border:none;background:none;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}',
+  '#rcmenu .act:hover{background:var(--surface-1);color:var(--text-primary);box-shadow:inset 0 0 0 .5px var(--border-strong)}',
+  '#rcmenu .act .ic{display:inline-flex;align-items:center;justify-content:center}',
+  '#rcmenu .act svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}',
+  '#rcmenu .act.ok{color:var(--ca)}#rcmenu .act.err{color:#e05555}',
+  '.rcspin{width:12px;height:12px;border:2px solid var(--border-strong);border-top-color:var(--text-accent);border-radius:50%;animation:rcspin .7s linear infinite;display:inline-block}',
   '@keyframes rcspin{to{transform:rotate(360deg)}}',
   '#rctoast{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);max-width:92%;background:var(--text-primary);color:var(--surface-1);font-size:12px;font-family:system-ui,sans-serif;padding:5px 12px;border-radius:14px;opacity:0;transition:opacity .2s;pointer-events:none;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
 ].join('\n');
@@ -106,26 +111,26 @@ const I = {
   filetext: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
   type: '<svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>',
   mail: '<svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>',
+  copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  download: '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
 };
 
-function menuItem(act, icon, label) {
-  return '<button data-act="' + act + '"><span class="ic">' + icon + '</span><span class="lb">' + label + '</span></button>';
+/* One row per FORMAT with identical naming; two action columns (Copy,
+ * Download) so every format is exportable both ways, symmetrically. */
+function menuRow(icon, label, copyAct, dlAct) {
+  return '<div class="row"><span class="fmt">' + icon + label + '</span>' +
+    '<button class="act" data-act="' + copyAct + '" title="Copy ' + label + '"><span class="ic">' + I.copy + '</span></button>' +
+    '<button class="act" data-act="' + dlAct + '" title="Download ' + label + '"><span class="ic">' + I.download + '</span></button></div>';
 }
 
 const MENU_HTML =
   '<div id="rcmenu"><button class="dots" title="card menu">⋯</button><div class="items">' +
-  '<div class="grp">Copy</div>' +
-  menuItem('copyimg', I.image, 'Image') +
-  menuItem('copyhtml', I.code, 'HTML') +
-  menuItem('copymd', I.filetext, 'Markdown') +
-  menuItem('copytext', I.type, 'Plain text') +
-  menuItem('copyemail', I.mail, 'Email (rendered)') +
-  '<div class="grp">Download</div>' +
-  menuItem('dlpng', I.image, 'PNG image') +
-  menuItem('dlhtml', I.code, 'HTML file') +
-  menuItem('dlmd', I.filetext, 'Markdown file') +
-  menuItem('dltxt', I.type, 'Text file') +
-  menuItem('dlemail', I.mail, 'Email HTML') +
+  '<div class="hdr"><span class="fmt">Export</span><span class="cap" title="Copy">' + I.copy + '</span><span class="cap" title="Download">' + I.download + '</span></div>' +
+  menuRow(I.image, 'Image', 'copyimg', 'dlpng') +
+  menuRow(I.code, 'HTML', 'copyhtml', 'dlhtml') +
+  menuRow(I.filetext, 'Markdown', 'copymd', 'dlmd') +
+  menuRow(I.type, 'Text', 'copytext', 'dltxt') +
+  menuRow(I.mail, 'Email', 'copyemail', 'dlemail') +
   '</div></div><div id="rctoast"></div>';
 
 const MENU_JS = [
@@ -211,12 +216,12 @@ const MENU_JS = [
   "function lkind(l){return l.charAt(0)==='|'?'t':(/^(- |\\d+\\. )/.test(l)?'l':(l.charAt(0)==='>'?'q':'b'))}",
   "var out='';for(var q=0;q<L.length;q++){if(q>0){var pa=lkind(L[q-1]),cu=lkind(L[q]);out+=(pa===cu&&pa!=='b')?'\\n':'\\n\\n'}out+=L[q]}return out}",
   "var ORIG={};",
-  "function setState(btn,st,lb){var act=btn.getAttribute('data-act');var ic=btn.querySelector('.ic'),lbl=btn.querySelector('.lb');if(!ORIG[act])ORIG[act]=[ic.innerHTML,lbl.textContent];",
+  "function setState(btn,st,lb){var act=btn.getAttribute('data-act');var ic=btn.querySelector('.ic'),lbl=btn.querySelector('.lb');if(!ORIG[act])ORIG[act]=[ic.innerHTML,lbl?lbl.textContent:''];",
   "btn.classList.remove('busy','ok','err');clearTimeout(btn._t);",
-  "if(st==='idle'){ic.innerHTML=ORIG[act][0];lbl.textContent=ORIG[act][1];return}",
+  "if(st==='idle'){ic.innerHTML=ORIG[act][0];if(lbl)lbl.textContent=ORIG[act][1];return}",
   "btn.classList.add(st);",
   "if(st==='busy'){ic.innerHTML='<span class=\"rcspin\"></span>'}else{ic.innerHTML=st==='ok'?ICON_OK:ICON_ERR}",
-  "if(lb)lbl.textContent=lb;",
+  "if(lb){if(lbl)lbl.textContent=lb;else if(st==='err')toast(lb)}",
   "if(st!=='busy')btn._t=setTimeout(function(){setState(btn,'idle')},2600)}",
   "function clipText(t,cb){function legacy(){try{var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();var ok=document.execCommand('copy');ta.remove();return ok}catch(e){return false}}",
   "if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cb(true)},function(){cb(legacy())})}else cb(legacy())}",
