@@ -108,6 +108,12 @@ function handle(msg) {
       const ext = params && params.capabilities && params.capabilities.extensions;
       const ui = ext && ext[UI_EXT];
       clientSupportsUi = Boolean(ui && Array.isArray(ui.mimeTypes) && ui.mimeTypes.indexOf(UI_MIME) !== -1);
+      try {
+        const ci = (params && params.clientInfo) || {};
+        process.stderr.write('[readable-card] client=' + (ci.name || '?') + '/' + (ci.version || '?') +
+          ' mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') +
+          ' extensions=' + JSON.stringify(ext ? Object.keys(ext) : []) + '\n');
+      } catch (e) { /* logging must never break the handshake */ }
       respond({
         protocolVersion: (params && params.protocolVersion) || PROTOCOL_FALLBACK,
         capabilities: {
@@ -127,6 +133,7 @@ function handle(msg) {
       const html = params.arguments && params.arguments.html;
       if (typeof html !== 'string' || !html.trim()) return fail(-32602, 'html (string) is required');
       if (/<\s*(style|script)\b/i.test(html)) return fail(-32602, 'html must not contain <style> or <script>; send content only');
+      try { process.stderr.write('[readable-card] tools/call card, mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') + ', html=' + html.length + 'B\n'); } catch (e) {}
       const note = clientSupportsUi
         ? 'Card rendered by the host UI. Do not repeat the content as text.'
         : 'Host did not negotiate MCP Apps UI; card was NOT rendered. Fall back to the readable rule: deliver this content via mcp__visualize__show_widget with the BASE kit.';
