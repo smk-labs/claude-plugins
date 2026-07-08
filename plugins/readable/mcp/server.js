@@ -25,7 +25,11 @@ const UI_EXT = 'io.modelcontextprotocol/ui';
 const UI_MIME = 'text/html;profile=mcp-app';
 const CARD_URI = 'ui://readable/card.html';
 
-const KIT_CSS = fs.readFileSync(path.join(__dirname, '..', 'assets', 'rc.css'), 'utf8');
+const KIT_CANDIDATES = [
+  path.join(__dirname, '..', 'assets', 'rc.css'), // plugin layout
+  path.join(__dirname, 'rc.css'), // bundled layout (.mcpb extension)
+];
+const KIT_CSS = fs.readFileSync(KIT_CANDIDATES.find((p) => fs.existsSync(p)), 'utf8');
 
 /* Host CSS variables do not exist inside the sandboxed MCP Apps iframe,
  * so the template ships its own palette and switches on hostContext.theme. */
