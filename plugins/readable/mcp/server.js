@@ -37,8 +37,14 @@ const KIT_CSS = fs.readFileSync(KIT_CANDIDATES.find((p) => fs.existsSync(p)), 'u
 const PALETTE = [
   ':root{--ca:#0f9d58;--cb:#3f8ac9;--cc:#e0a52e;--cd:#d96666;--text-primary:#1f1f1f;--text-secondary:#6f6f6a;--text-accent:#2f66c4;--surface-1:#fff;--surface-2:#f2f2ef;--border:#dcdcd6;--border-strong:#b8b8b0;--bg-success:#e6f4ec;--bg-accent:#e8effc;--bg-warning:#faf0d9;--bg-danger:#fbe9e7;--font-mono:ui-monospace,Menlo,monospace}',
   'html[data-theme="dark"]{--text-primary:#ececea;--text-secondary:#9f9f98;--text-accent:#82abec;--surface-1:#262624;--surface-2:#302f2c;--border:#3e3e3a;--border-strong:#55554f;--bg-success:#143122;--bg-accent:#16283f;--bg-warning:#382c13;--bg-danger:#3a1d19}',
-  'html,body{margin:0;background:transparent}',
+  'html,body{margin:0;background:transparent;overflow:hidden}',
 ].join('\n');
+
+/* The host already draws a rounded, framed cell around the app iframe, so the
+ * card renders flush inside it: no own border/radius/margin (which read as a
+ * cheap nested box). Template-only override — rc.css keeps the frame for the
+ * hook-rule path, where the card floats bare in the chat column. */
+const FLUSH_CSS = '.rc{margin:0;border:none;border-radius:0;background:transparent}';
 
 /* JSON-RPC-over-postMessage bridge, per SEP-1865: ui/initialize handshake,
  * then render on ui/notifications/tool-input (arguments.html). sendPrompt()
@@ -58,19 +64,21 @@ const BRIDGE_JS = [
   "/* Host CSP in MCP Apps iframes blocks inline onclick attributes (unlike the old widget host), so CTA clicks are re-dispatched by delegation; blocked attributes leave .onclick null, which doubles as the no-double-fire guard. */",
   "document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('#card [onclick]');if(!b||b.onclick)return;var m=String(b.getAttribute('onclick')).match(/^\\s*sendPrompt\\((['\"])([\\s\\S]*?)\\1\\)\\s*;?\\s*$/);if(m)window.sendPrompt(m[2])});",
   "var finalGot=false,partialTimer=null;",
-  "function paint(html){if(!html)return;document.getElementById('card').innerHTML=html;notify('ui/notifications/size-changed',{height:document.documentElement.scrollHeight})}",
+  "/* +2 covers fractional line-height rounding; overflow:hidden kills any residual scrollbar. Fonts (Vazirmatn) land late and change the height, so re-fit once they settle. */",
+  "function fit(){notify('ui/notifications/size-changed',{height:Math.ceil(document.documentElement.scrollHeight)+2})}",
+  "function paint(html){if(!html)return;document.getElementById('card').innerHTML=html;fit();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)}",
   "function render(html,isFinal){if(isFinal){finalGot=true;if(partialTimer){clearTimeout(partialTimer);partialTimer=null}paint(html);return}",
   "if(finalGot)return;if(partialTimer)clearTimeout(partialTimer);partialTimer=setTimeout(function(){if(!finalGot)paint(html)},700)}",
-  "window.__rcGotInput=false;",
-  "/* If the lifecycle stalls (no tool input within 5s), dump the message log to disk through save_card so the failure is diagnosable without reaching into the iframe. */",
-  "setTimeout(function(){if(window.__rcGotInput)return;try{rpc('tools/call',{name:'save_card',arguments:{filename:'rc-diagnostics.json',content:JSON.stringify({build:'4.3.8',log:LOG,host:window.__rcHost||null,rendered:rendered,vis:document.visibilityState},null,1),encoding:'utf8'}},function(){})}catch(e){}},5000);",
+  "/* The 4.3.5 stall auto-dump (save_card at 5s without input) is gone: the lifecycle bug it chased was fixed in 4.3.8, and its bytes now pay for the Email row. __rcLog + alt-click diagnostics remain. */",
   "function applyTheme(ctx){if(ctx&&ctx.theme)document.documentElement.setAttribute('data-theme',ctx.theme==='dark'?'dark':'light')}",
   "window.__rcRpc=rpc;",
+  "/* Host adapter for the shared menu (assets/menu.js): email HTML renders server-side (render_email tool, static style map) because the ui:// template must stay under the host's ~30KB resource ceiling. The report shell swaps in a computed-style walker instead. */",
+  "window.__rcEmail=function(cb){rpc('tools/call',{name:'render_email',arguments:{html:document.getElementById('card').innerHTML,theme:'light'}},function(res,err){var t=!err&&res&&!res.isError&&res.content&&res.content[0]&&res.content[0].text;if(t)cb(t,null);else cb(null,err?String(err.code||'')+' '+String(err.message||'').slice(0,60):'render failed')})};",
   "window.addEventListener('message',function(e){var m=e.data;if(typeof m==='string'){try{m=JSON.parse(m)}catch(err){return}}if(!m||m.jsonrpc!=='2.0')return;tap('<',m);",
   "/* A response is a message carrying result or error for a pending id. Do NOT discriminate on the absence of 'method': at least one real host echoes the method field in its responses, and treating those as requests silently kills the ui/initialize handshake, which keeps the iframe visibility:hidden forever (anthropics/claude-ai-mcp#61). */",
   "if(m.id!=null&&pending[m.id]&&(('result' in m)||('error' in m))){var cb=pending[m.id];delete pending[m.id];cb(m.result,m.error);return}",
-  "if(m.method==='ui/notifications/tool-input'&&m.params&&m.params.arguments){window.__rcGotInput=true;render(m.params.arguments.html,true)}",
-  "else if(m.method==='ui/notifications/tool-input-partial'&&m.params&&m.params.arguments){window.__rcGotInput=true;render(m.params.arguments.html,false)}",
+  "if(m.method==='ui/notifications/tool-input'&&m.params&&m.params.arguments){render(m.params.arguments.html,true)}",
+  "else if(m.method==='ui/notifications/tool-input-partial'&&m.params&&m.params.arguments){render(m.params.arguments.html,false)}",
   "else if(m.method==='ui/notifications/tool-result'&&m.params&&m.params.structuredContent){render(m.params.structuredContent.html,true)}",
   "else if(m.method&&m.method.indexOf('host-context-changed')!==-1&&m.params){applyTheme(m.params.hostContext||m.params)}",
   "else if(m.id!=null&&m.method){send({jsonrpc:'2.0',id:m.id,error:{code:-32601,message:'not supported'}})}",
@@ -80,156 +88,28 @@ const BRIDGE_JS = [
   "if(err&&i+1<PVS.length){initTry(i+1);return}",
   "if(res){window.__rcHost=res;applyTheme(res.hostContext)}",
   "notify('ui/notifications/initialized',{});});})(0);",
-  "new ResizeObserver(function(){notify('ui/notifications/size-changed',{height:document.documentElement.scrollHeight})}).observe(document.body);",
+  "new ResizeObserver(fit).observe(document.body);",
   "})();",
 ].filter(function (l) { return l.slice(0, 2) !== '/*'; }).join('');
 
-/* Card menu (copy image / save HTML), replacing the affordances the
- * show_widget host chrome used to provide. Lives entirely in the template:
- * zero output tokens per reply. PNG export is hand-rolled (no html2canvas):
- * card HTML + collected CSS go into an SVG foreignObject, fonts are
- * best-effort inlined as data: URIs, then canvas -> blob -> clipboard.
- * HTML export uses the spec's ui/download-file first, <a download> second,
- * clipboard text last. */
-/* Menu design mirrors the host's code-block popover: dark rounded panel,
- * stroke icons + labels, roomy rows. Labels stay English (LTR panel). */
-const MENU_CSS = [
-  '#rcmenu{position:fixed;top:8px;right:8px;z-index:9;font-family:system-ui,sans-serif;direction:ltr}',
-  '#rcmenu .dots{width:30px;height:30px;border-radius:8px;border:.5px solid var(--border);background:var(--surface-2);color:var(--text-secondary);cursor:pointer;font-size:16px;line-height:1;opacity:.4;padding:0}',
-  '#rcmenu:hover .dots,#rcmenu.open .dots{opacity:1}',
-  '#rcmenu .items{display:none;position:absolute;right:0;top:34px;background:var(--surface-1);border:.5px solid var(--border-strong);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.28)}',
-  '#rcmenu.open .items{display:block}',
-  '#rcmenu .row{display:flex;align-items:center;border-radius:8px;padding:2px 4px}',
-  '#rcmenu .row:hover{background:var(--surface-2)}',
-  '#rcmenu .fmt{flex:1;display:flex;align-items:center;gap:11px;font-size:14px;color:var(--text-primary);white-space:nowrap;padding:7px 4px 7px 2px;min-width:132px}',
-  '#rcmenu .fmt svg{width:17px;height:17px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}',
-  '#rcmenu .act{width:30px;height:30px;margin:0 2px;border-radius:7px;border:none;background:none;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}',
-  '#rcmenu .act:hover{background:var(--surface-1);color:var(--text-primary);box-shadow:inset 0 0 0 .5px var(--border-strong)}',
-  '#rcmenu .act .ic{display:inline-flex;align-items:center;justify-content:center}',
-  '#rcmenu .act svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}',
-  '#rcmenu .act.ok{color:var(--ca)}#rcmenu .act.err{color:#e05555}',
-  '.rcspin{width:12px;height:12px;border:2px solid var(--border-strong);border-top-color:var(--text-accent);border-radius:50%;animation:rcspin .7s linear infinite;display:inline-block}',
-  '@keyframes rcspin{to{transform:rotate(360deg)}}',
-  '#rctoast{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);max-width:92%;background:var(--text-primary);color:var(--surface-1);font-size:12px;font-family:system-ui,sans-serif;padding:5px 12px;border-radius:14px;opacity:0;transition:opacity .2s;pointer-events:none;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-].join('\n');
-
-const I = {
-  image: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
-  code: '<svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
-  filetext: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
-  type: '<svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>',
-  copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
-  download: '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
-};
-
-/* One row per FORMAT with identical naming; two action columns (Copy,
- * Download) so every format is exportable both ways, symmetrically. */
-function menuRow(icon, label, copyAct, dlAct) {
-  return '<div class="row"><span class="fmt">' + icon + label + '</span>' +
-    '<button class="act" data-act="' + copyAct + '" title="Copy ' + label + '"><span class="ic">' + I.copy + '</span></button>' +
-    '<button class="act" data-act="' + dlAct + '" title="Download ' + label + '"><span class="ic">' + I.download + '</span></button></div>';
-}
-
-const MENU_HTML =
-  '<div id="rcmenu"><button class="dots" title="card menu">⋯</button><div class="items">' +
-  menuRow(I.image, 'Image', 'copyimg', 'dlpng') +
-  menuRow(I.code, 'HTML', 'copyhtml', 'dlhtml') +
-  menuRow(I.filetext, 'Markdown', 'copymd', 'dlmd') +
-  menuRow(I.type, 'Text', 'copytext', 'dltxt') +
-  '</div></div><div id="rctoast"></div>';
-
-const MENU_JS = [
-  "(function(){",
-  "var VARS=['--text-primary','--text-secondary','--text-accent','--surface-1','--surface-2','--border','--border-strong','--bg-success','--bg-accent','--bg-warning','--bg-danger','--font-mono','--page-bg'];",
-  "var ICON_OK='<svg viewBox=\"0 0 24 24\" style=\"stroke-width:2.5\"><polyline points=\"20 6 9 17 4 12\"/></svg>';",
-  "var ICON_ERR='<svg viewBox=\"0 0 24 24\" style=\"stroke-width:2.5\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"/><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"/></svg>';",
-  "var menu=document.getElementById('rcmenu');",
-  "menu.querySelector('.dots').addEventListener('click',function(e){e.stopPropagation();if(e.altKey){clipText(JSON.stringify({host:window.__rcHost||null,errors:window.__rcErrs||[]},null,1),function(ok){toast(ok?'diagnostics copied':'diagnostics copy failed')});return}menu.classList.toggle('open')});",
-  "document.addEventListener('click',function(e){if(!menu.contains(e.target))menu.classList.remove('open')});",
-  "function toast(t){var el=document.getElementById('rctoast');el.textContent=t;el.style.opacity='1';clearTimeout(el._t);el._t=setTimeout(function(){el.style.opacity='0'},3400)}",
-  "window.__rcToast=toast;",
-  "function theme(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'}",
-  "function collectCss(){var out='',els=document.querySelectorAll('style');for(var i=0;i<els.length;i++)out+=els[i].textContent+'\\n';return out}",
-  "function varCss(cls){var cs=getComputedStyle(document.documentElement),out='.'+cls+'{';for(var i=0;i<VARS.length;i++){var v=cs.getPropertyValue(VARS[i]);if(v)out+=VARS[i]+':'+v.trim()+';'}return out+'}'}",
-  "function exportHtml(){var card=document.getElementById('card');return '<!DOCTYPE html>\\n<html data-theme=\"'+theme()+'\"><head><meta charset=\"utf-8\"><title>readable card</title><style>\\n'+collectCss()+'\\n#rcmenu,#rctoast{display:none}\\n</style></head><body style=\"margin:16px\">'+card.outerHTML+'</body></html>'}",
-  "/* Email export: clients strip <style> and classes, so every element gets its computed styles inlined (resolved against the LIGHT palette), pseudo-element decorations become real spans, and interactive bits are dropped. Pasteable into Gmail/Mail as rendered rich text. */",
-  "function inlineMd(el){var out='';el.childNodes.forEach(function(n){if(n.nodeType===3){out+=n.textContent;return}if(n.nodeType!==1)return;var t=n.tagName;",
-  "if(t==='CODE')out+='`'+n.textContent+'`';else if(t==='STRONG'||t==='B')out+='**'+inlineMd(n)+'**';else if(t==='A')out+='['+inlineMd(n)+']('+(n.getAttribute('href')||'')+')';else if(t==='BR')out+='\\n';else out+=inlineMd(n)});return out.replace(/[ \\t]+/g,' ')}",
-  "function rowMd(tr,tag){var cells=[];tr.querySelectorAll(tag).forEach(function(c){cells.push(inlineMd(c).trim()||' ')});return '| '+cells.join(' | ')+' |'}",
-  "function toMd(){var card=document.getElementById('card'),L=[];",
-  "card.childNodes.forEach(function(n){if(n.nodeType!==1)return;var t=n.tagName,c=n.className||'';",
-  "if(t==='H2')L.push('# '+inlineMd(n).trim());",
-  "else if(t==='H3')L.push('## '+inlineMd(n).trim());",
-  "else if(t==='H4')L.push('### '+inlineMd(n).trim());",
-  "else if(t==='P')L.push(inlineMd(n).trim());",
-  "else if(t==='HR')L.push('---');",
-  "else if(t==='PRE')L.push('```\\n'+n.textContent.replace(/\\n$/,'')+'\\n```');",
-  "else if(t==='UL'||t==='OL'){var i=0;n.querySelectorAll(':scope>li').forEach(function(li){i++;var p=t==='OL'?i+'. ':'- ';var cc=li.className||'';if(cc.indexOf('ok')>-1)p+='\\u2713 ';else if(cc.indexOf('no')>-1)p+='\\u2715 ';L.push(p+inlineMd(li).trim())})}",
-  "else if(t==='TABLE'){var h=n.querySelector('thead tr');if(h){L.push(rowMd(h,'th'));L.push('|'+' --- |'.repeat(h.querySelectorAll('th').length))}n.querySelectorAll('tbody tr').forEach(function(tr){L.push(rowMd(tr,'td'))})}",
-  "else if(c.indexOf('cal')>-1){var kind=(c.match(/tip|note|warn|danger/)||[''])[0];L.push('> '+(kind?'['+kind.toUpperCase()+'] ':'')+inlineMd(n).trim())}",
-  "else if(c.indexOf('kv')>-1){n.querySelectorAll(':scope>div').forEach(function(d){var k=d.querySelector('b'),v=d.querySelector('span');L.push('- **'+(k?inlineMd(k).trim():'')+':** '+(v?inlineMd(v).trim():''))})}",
-  "else if(c.indexOf('grid')>-1){n.querySelectorAll('.kpi').forEach(function(k){var l=k.querySelector('.l'),v=k.querySelector('.n'),tr=k.querySelector('.trend');var val=v?v.childNodes[0]?v.childNodes[0].textContent.trim():'':'';L.push('- **'+(l?l.textContent.trim():'')+':** '+val+(tr?' ('+tr.textContent.trim()+')':''))})}",
-  "else if(c.indexOf('bars')>-1){n.querySelectorAll('.bar').forEach(function(b){var l=b.querySelector('.l'),v=b.querySelector('.v');L.push('- '+(l?l.textContent.trim():'')+': '+(v?v.textContent.trim():''))})}",
-  "else if(c.indexOf('donut')>-1){n.querySelectorAll('.leg>span').forEach(function(s){L.push('- '+s.textContent.trim())})}",
-  "else if(c.indexOf('flow')>-1){var steps=[];n.querySelectorAll('.s').forEach(function(s){steps.push(s.textContent.trim())});L.push(steps.join(' \\u2192 '))}",
-  "else if(c.indexOf('tl')>-1){n.querySelectorAll(':scope>div').forEach(function(d){var b=d.querySelector('b'),rest=d.textContent.replace(b?b.textContent:'','').trim();L.push('- **'+(b?b.textContent.trim():'')+':** '+rest)})}",
-  "else if(c.indexOf('btns')>-1){}",
-  "else{var tx=inlineMd(n).trim();if(tx)L.push(tx)}});",
-  "function lkind(l){return l.charAt(0)==='|'?'t':(/^(- |\\d+\\. )/.test(l)?'l':(l.charAt(0)==='>'?'q':'b'))}",
-  "var out='';for(var q=0;q<L.length;q++){if(q>0){var pa=lkind(L[q-1]),cu=lkind(L[q]);out+=(pa===cu&&pa!=='b')?'\\n':'\\n\\n'}out+=L[q]}return out}",
-  "var ORIG={};",
-  "function setState(btn,st,lb){var act=btn.getAttribute('data-act');var ic=btn.querySelector('.ic'),lbl=btn.querySelector('.lb');if(!ORIG[act])ORIG[act]=[ic.innerHTML,lbl?lbl.textContent:''];",
-  "btn.classList.remove('busy','ok','err');clearTimeout(btn._t);",
-  "if(st==='idle'){ic.innerHTML=ORIG[act][0];if(lbl)lbl.textContent=ORIG[act][1];return}",
-  "btn.classList.add(st);",
-  "if(st==='busy'){ic.innerHTML='<span class=\"rcspin\"></span>'}else{ic.innerHTML=st==='ok'?ICON_OK:ICON_ERR}",
-  "if(lb){if(lbl)lbl.textContent=lb;else if(st==='err')toast(lb)}",
-  "if(st!=='busy')btn._t=setTimeout(function(){setState(btn,'idle')},2600)}",
-  "function clipText(t,cb){function legacy(){try{var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();var ok=document.execCommand('copy');ta.remove();return ok}catch(e){return false}}",
-  "if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cb(true)},function(){cb(legacy())})}else cb(legacy())}",
-  "function b64(blob,cb){var r=new FileReader();r.onload=function(){cb(String(r.result).split(',')[1]||'')};r.onerror=function(){cb(null)};r.readAsDataURL(blob)}",
-  "function saveFile(name,text,blob,btn,verb){",
-  "function finish(ok,lb,info){setState(btn,ok?'ok':'err',lb);if(info)toast(info)}",
-  "function viaAnchor(){try{var u=URL.createObjectURL(blob||new Blob([text],{type:'text/plain;charset=utf-8'}));var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(u);a.remove()},1500);finish(true,'Downloaded','Browser download: '+name)}catch(e){finish(false,'Failed','download blocked: '+e.message)}}",
-  "function viaDownloadFile(payload){if(!window.__rcRpc){viaAnchor();return}window.__rcRpc('ui/download-file',{contents:[payload]},function(res,err){if(err)viaAnchor();else finish(true,'Saved','Sent to host downloads')})}",
-  "function hostPayload(bb){var rsc={uri:'file:///'+name,mimeType:blob?'image/png':(name.slice(-3)==='.md'?'text/markdown':(name.slice(-5)==='.html'?'text/html':'text/plain'))};if(bb)rsc.blob=bb;else rsc.text=text;return {type:'resource',resource:rsc}}",
-  "function go(content,enc,bb){if(!window.__rcRpc){viaAnchor();return}window.__rcRpc('tools/call',{name:'save_card',arguments:{filename:name,content:content,encoding:enc}},function(res,err){",
-  "if(!err&&res&&!res.isError&&res.content&&res.content[0]&&res.content[0].text&&res.content[0].text.charAt(0)==='/'){finish(true,verb,'Saved: '+res.content[0].text);return}",
-  "viaDownloadFile(hostPayload(bb))})}",
-  "if(blob)b64(blob,function(bb){if(bb==null){finish(false,'Failed','encode failed');return}go(bb,'base64',bb)});else go(text,'utf8',null)}",
-  "function makeSvg(useFonts,cb){var card=document.getElementById('card');var r=card.getBoundingClientRect(),w=Math.ceil(r.width),h=Math.ceil(r.height);",
-  "function build(fontCss){var css=(collectCss().replace(/@import url\\([^)]*\\)\\s*;?/g,'')+fontCss+varCss('rcexport')).replace(/]]>/g,'');",
-  "css=css.replace(/&/g,'&amp;').replace(/</g,'&lt;');",
-  "var xhtml=new XMLSerializer().serializeToString(card);",
-  "var svg='<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"'+w+'\" height=\"'+h+'\"><foreignObject width=\"100%\" height=\"100%\"><div xmlns=\"http://www.w3.org/1999/xhtml\" class=\"rcexport\"><style>'+css+'</style>'+xhtml+'</div></foreignObject></svg>';cb(svg,w,h)}",
-  "build('')}",
-  "function pngBlob(cb){function attempt(useFonts,next){makeSvg(useFonts,function(svg,w,h){",
-  "var img=new Image();",
-  "img.onload=function(){try{var c=document.createElement('canvas'),s=2;c.width=w*s;c.height=h*s;var x=c.getContext('2d');x.scale(s,s);x.drawImage(img,0,0);c.toBlob(function(b){if(b)cb(b,null);else next('canvas export blocked')},'image/png')}catch(e){next('canvas: '+e.message)}};",
-  "img.onerror=function(){next('svg render failed')};",
-  "img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}",
-  "attempt(false,function(e1){cb(null,e1)})}",
-  "function act(kind,btn){setState(btn,'busy');",
-  "if(kind==='copytext'){clipText(document.getElementById('card').innerText,function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed')});return}",
-  "if(kind==='copymd'){clipText(toMd(),function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed')});return}",
-  "if(kind==='copyhtml'){clipText(exportHtml(),function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed')});return}",
-  "if(kind==='copyimg'){pngBlob(function(b,err){if(!b){setState(btn,'err','Failed');toast('image: '+err);return}",
-  "if(navigator.clipboard&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){setState(btn,'ok','Copied')},function(){saveFile('readable-card.png',null,b,btn,'Saved instead')})}else saveFile('readable-card.png',null,b,btn,'Saved instead')});return}",
-  "if(kind==='dlpng'){pngBlob(function(b,err){if(!b){setState(btn,'err','Failed');toast('image: '+err);return}saveFile('readable-card.png',null,b,btn,'Saved')});return}",
-  "if(kind==='dlhtml'){saveFile('readable-card.html',exportHtml(),null,btn,'Saved');return}",
-  "if(kind==='dlmd'){saveFile('readable-card.md',toMd(),null,btn,'Saved');return}",
-  "if(kind==='dltxt'){saveFile('readable-card.txt',document.getElementById('card').innerText,null,btn,'Saved');return}}",
-  "menu.querySelector('.items').addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('button');if(b&&!b.classList.contains('busy'))act(b.getAttribute('data-act'),b)});",
-  "window.__rcCopy=clipText;",
-  "window.__rcExport={md:toMd,html:exportHtml,png:pngBlob};",
-  "})();",
-].filter(function (l) { return l.slice(0, 2) !== '/*'; }).join('');
+/* Card menu (5x2 copy/download matrix): single-sourced from assets/menu.js,
+ * shared verbatim with the standalone report shell (skills/report/build.py).
+ * Self-installing IIFE; comment lines are dropped and the rest joined with
+ * no separator to stay under the host's ~30KB resource ceiling. Menu.js's
+ * style contract (one statement per line, block comments on their own
+ * lines) makes that join safe. */
+const MENU_CANDIDATES = [
+  path.join(__dirname, '..', 'assets', 'menu.js'), // plugin layout
+  path.join(__dirname, 'menu.js'), // bundled layout (.mcpb extension)
+];
+const MENU_SRC = fs.readFileSync(MENU_CANDIDATES.find((p) => fs.existsSync(p)), 'utf8')
+  .split('\n').filter((l) => l.slice(0, 2) !== '/*').join('');
 
 const TEMPLATE_HTML =
   '<!DOCTYPE html><html><head><meta charset="utf-8"><style>\n' +
-  PALETTE + '\n' + KIT_CSS.replace(/\/\*[^]*?\*\//g, '') + '\n' + MENU_CSS +
+  PALETTE + '\n' + KIT_CSS.replace(/\/\*[^]*?\*\//g, '') + '\n' + FLUSH_CSS +
   '\n</style></head><body><div class="rc" id="card" dir="rtl"><p style="color:var(--text-secondary)">…</p></div>' +
-  MENU_HTML + '<script>' + BRIDGE_JS + MENU_JS + '</script></body></html>';
+  '<script>' + BRIDGE_JS + MENU_SRC + '</script></body></html>';
 
 const TOOL = {
   name: 'card',
@@ -264,6 +144,223 @@ const SAVE_TOOL = {
     required: ['filename', 'content'],
   },
 };
+
+/* render_email: server-side email transform (4.4). Email clients strip
+ * <style> and classes, so the card is rebuilt as inline-styled HTML: a
+ * static class->style map with the palette resolved to literal colors (the
+ * server owns rc.css, so the map is written down instead of measured),
+ * pseudo-element decorations materialized as real spans (list glyphs, h2
+ * underline bar, h3 square, trend arrows, flow arrows), flex/grid flattened
+ * to block, interactive bits dropped. Transform decisions ported from the
+ * 4.3.0 in-template emailHtml() (commit 8beb7e1). */
+const EMAIL_TOOL = {
+  name: 'render_email',
+  description:
+    'Internal: renders card content HTML as email-client-ready inline-styled HTML for the card UI menu (Email copy/download). Called by the embedded card interface, never by the assistant.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      html: { type: 'string', description: 'card content HTML (building blocks)' },
+      theme: { type: 'string', enum: ['light', 'dark'] },
+    },
+    required: ['html'],
+  },
+};
+
+const EMAIL_PAL = {
+  light: { tx: '#1f1f1f', sub: '#6f6f6a', ac: '#2f66c4', s1: '#ffffff', s2: '#f2f2ef', bd: '#dcdcd6', bs: '#b8b8b0', gok: '#e6f4ec', gac: '#e8effc', gwa: '#faf0d9', gda: '#fbe9e7' },
+  dark: { tx: '#ececea', sub: '#9f9f98', ac: '#82abec', s1: '#262624', s2: '#302f2c', bd: '#3e3e3a', bs: '#55554f', gok: '#143122', gac: '#16283f', gwa: '#382c13', gda: '#3a1d19' },
+};
+const EMAIL_CA = '#0f9d58', EMAIL_CB = '#3f8ac9', EMAIL_CC = '#e0a52e', EMAIL_CD = '#d96666';
+const EMAIL_MONO = 'ui-monospace,Menlo,monospace';
+const EMAIL_VOID = { br: 1, hr: 1, img: 1 };
+
+/* Minimal tag walker for the card's constrained building-block HTML
+ * (already validated upstream: no <style>/<script>). Zero dependencies. */
+function emailParse(html) {
+  const root = { tag: '#root', attrs: {}, children: [], parent: null };
+  let cur = root;
+  const re = /<!--[^]*?-->|<\/([a-zA-Z][a-zA-Z0-9]*)\s*>|<([a-zA-Z][a-zA-Z0-9]*)((?:"[^"]*"|'[^']*'|[^>])*?)(\/?)>|([^<]+)/g;
+  let m;
+  while ((m = re.exec(html))) {
+    if (m[1]) {
+      const t = m[1].toLowerCase();
+      let n = cur;
+      while (n && n.tag !== t) n = n.parent;
+      if (n && n.parent) cur = n.parent;
+    } else if (m[2]) {
+      const tag = m[2].toLowerCase();
+      const attrs = {};
+      const ar = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+      let am;
+      while ((am = ar.exec(m[3] || ''))) attrs[am[1].toLowerCase()] = am[2] != null ? am[2] : am[3] != null ? am[3] : am[4] || '';
+      const node = { tag: tag, attrs: attrs, children: [], parent: cur };
+      cur.children.push(node);
+      if (!EMAIL_VOID[tag] && m[4] !== '/') cur = node;
+    } else if (m[5]) {
+      cur.children.push({ text: m[5] });
+    }
+  }
+  return root;
+}
+
+function renderEmail(html, theme) {
+  const P = EMAIL_PAL[theme === 'dark' ? 'dark' : 'light'];
+  const has = (n, c) => (' ' + ((n.attrs && n.attrs['class']) || '') + ' ').indexOf(' ' + c + ' ') !== -1;
+
+  function children(n, ctx) {
+    let last = null;
+    for (const c of n.children) if (c.tag) last = c;
+    let out = '';
+    for (const c of n.children) out += emit(c, n, Object.assign({}, ctx, { isLast: c === last }));
+    return out;
+  }
+
+  /* .flow: the kit draws the arrows as ::after; here they become real spans between steps */
+  function flowChildren(n, ctx) {
+    let out = '', first = true;
+    for (const c of n.children) {
+      if (!c.tag) continue;
+      if (!first) out += '<span style="color:' + P.ac + ';padding:0 6px">←</span>';
+      out += emit(c, n, ctx);
+      first = false;
+    }
+    return out;
+  }
+
+  function emit(n, parent, ctx) {
+    if (n.text != null) return n.text;
+    const tag = n.tag;
+    const p = (c) => parent != null && has(parent, c);
+
+    /* interactive + undrawable bits are dropped; the donut legend survives */
+    if (has(n, 'btns') || has(n, 'cta') || tag === 'button' || has(n, 'donut')) return '';
+
+    let st = '', dir = 'rtl', pre = '', post = '', inner = null, next = ctx;
+
+    if (tag === 'h2') {
+      st = 'font-weight:800;font-size:15.5px;margin:0 0 2px;unicode-bidi:plaintext';
+      post = '<div style="width:28px;height:3px;background:' + P.ac + ';border-radius:2px;margin-top:6px"></div>';
+    } else if (tag === 'h3') {
+      st = 'font-weight:700;font-size:12.7px;margin:18px 0 6px';
+      pre = '<span style="display:inline-block;width:7px;height:7px;background:' + P.ac + ';border-radius:2px;margin-left:8px"></span>';
+    } else if (tag === 'h4') {
+      st = 'font-weight:700;font-size:11.5px;margin:12px 0 3px;unicode-bidi:plaintext';
+    } else if (tag === 'p') {
+      st = 'margin:' + (ctx.cal ? '2px' : '7px') + ' 0;unicode-bidi:plaintext';
+      if (has(n, 'lead')) st += ';color:' + P.sub + ';font-size:12.1px';
+    } else if (has(n, 'badge')) {
+      const bset = has(n, 'ok') ? [P.gok, EMAIL_CA] : has(n, 'warn') ? [P.gwa, '#c98a1a'] : has(n, 'info') ? [P.gac, EMAIL_CB] : [P.s2, P.sub];
+      st = 'display:inline-block;font-size:9px;font-weight:700;padding:1px 9px;border-radius:20px;background:' + bset[0] + ';color:' + bset[1];
+    } else if (has(n, 'trend')) {
+      const up = has(n, 'up');
+      st = 'display:inline-block;font-size:11.4px;font-weight:700;padding:1px 8px;border-radius:12px;vertical-align:2px;margin-right:7px;background:' + (up ? P.gok : P.gda) + ';color:' + (up ? EMAIL_CA : EMAIL_CD);
+      pre = up ? '▲ ' : '▼ ';
+    } else if (tag === 'strong' || (tag === 'b' && !ctx.kvRow && !ctx.tlRow)) {
+      st = 'font-weight:700';
+    } else if (tag === 'b' && ctx.kvRow) {
+      st = 'color:' + P.sub + ';font-weight:400';
+    } else if (tag === 'b' && ctx.tlRow) {
+      st = 'display:block;font-weight:700';
+    } else if (tag === 'code' && parent && parent.tag === 'pre') {
+      dir = 'ltr'; st = 'display:block';
+    } else if (tag === 'code') {
+      dir = 'ltr';
+      st = 'display:inline-block;direction:ltr;font-family:' + EMAIL_MONO + ';font-size:9.8px;color:' + P.ac + ';background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:5px;padding:1px 5px';
+    } else if (tag === 'a') {
+      st = 'color:' + P.ac + ';text-decoration:none';
+    } else if (tag === 'ul') {
+      st = 'list-style:none;padding:0 17px 0 0;margin:6px 0';
+    } else if (tag === 'ol') {
+      st = 'padding:0 17px 0 0;margin:6px 0';
+    } else if (tag === 'li') {
+      st = 'margin:4px 0;unicode-bidi:plaintext';
+      if (has(n, 'ok')) pre = '<span style="color:' + EMAIL_CA + ';font-weight:800">✓&nbsp;</span>';
+      else if (has(n, 'no')) pre = '<span style="color:#e05555;font-weight:800">✕&nbsp;</span>';
+      else if (parent && parent.tag === 'ul') pre = '<span style="color:' + P.ac + '">•&nbsp;</span>';
+    } else if (has(n, 'cal')) {
+      const edge = has(n, 'tip') ? EMAIL_CA : has(n, 'note') ? EMAIL_CB : has(n, 'warn') ? '#c98a1a' : has(n, 'danger') ? '#d64545' : P.bs;
+      const fill = has(n, 'tip') ? P.gok : has(n, 'note') ? P.gac : has(n, 'warn') ? P.gwa : has(n, 'danger') ? P.gda : P.s2;
+      st = 'display:block;background:' + fill + ';border-right:3px solid ' + edge + ';border-radius:10px;padding:9px 12px;margin:9px 0';
+      next = Object.assign({}, ctx, { cal: true });
+    } else if (tag === 'hr') {
+      st = 'border:none;border-top:.5px solid ' + P.bd + ';margin:15px 0';
+    } else if (tag === 'pre') {
+      dir = 'ltr';
+      st = 'direction:ltr;text-align:left;font-family:' + EMAIL_MONO + ';font-size:9.8px;background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:8px;padding:10px 12px;line-height:1.6;margin:8px 0;white-space:pre-wrap';
+    } else if (tag === 'table') {
+      st = 'border-collapse:collapse;width:100%;margin:9px 0;font-size:11px';
+    } else if (tag === 'tr') {
+      next = Object.assign({}, ctx, { lastRow: Boolean(ctx.isLast && parent && parent.tag === 'tbody') });
+    } else if (tag === 'th') {
+      st = 'color:' + P.sub + ';font-weight:700;font-size:9.7px;border-bottom:1.5px solid ' + P.bs + ';padding:5px 10px;text-align:right';
+    } else if (tag === 'td') {
+      st = 'padding:7px 10px;text-align:right;unicode-bidi:plaintext' + (ctx.lastRow ? '' : ';border-bottom:.5px solid ' + P.bd);
+    } else if (has(n, 'kv')) {
+      st = 'margin:9px 0';
+      next = Object.assign({}, ctx, { kv: true });
+    } else if (ctx.kv && tag === 'div') {
+      st = 'display:block;padding:6px 2px' + (ctx.isLast ? '' : ';border-bottom:.5px solid ' + P.bd);
+      next = Object.assign({}, ctx, { kv: false, kvRow: true });
+    } else if (ctx.kvRow && tag === 'span') {
+      st = 'font-weight:500';
+    } else if (has(n, 'grid')) {
+      st = 'margin:9px 0';
+    } else if (has(n, 'kpi')) {
+      st = 'display:block;background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:11px;padding:11px 13px;margin:0 0 8px;unicode-bidi:plaintext';
+    } else if (has(n, 'l') && p('kpi')) {
+      st = 'font-size:9.4px;color:' + P.sub + ';margin-bottom:3px';
+    } else if (has(n, 'n') && p('kpi')) {
+      st = 'font-size:20.7px;font-weight:800;line-height:1.2';
+    } else if (has(n, 'bars')) {
+      st = 'margin:9px 0';
+    } else if (has(n, 'bar') && p('bars')) {
+      st = 'display:block;margin:5px 0';
+    } else if (has(n, 'l') && p('bar')) {
+      st = 'display:inline-block;min-width:52px;margin-left:10px;color:' + P.sub;
+    } else if (has(n, 't') && p('bar')) {
+      st = 'display:inline-block;width:220px;height:7px;background:' + P.s2 + ';border-radius:4px;vertical-align:middle';
+    } else if (tag === 'i' && p('t')) {
+      const w = (String((n.attrs && n.attrs.style) || '').match(/width\s*:\s*([\d.]+%)/) || [])[1] || '0%';
+      st = 'display:block;width:' + w + ';height:7px;background:' + P.ac + ';border-radius:4px';
+    } else if (has(n, 'v') && p('bar')) {
+      st = 'display:inline-block;font-weight:700;font-size:10.4px;margin-right:10px';
+    } else if (has(n, 'donut-w')) {
+      st = 'margin:10px 0';
+    } else if (has(n, 'leg')) {
+      st = 'margin:4px 0';
+      next = Object.assign({}, ctx, { leg: true });
+    } else if (ctx.leg && tag === 'span') {
+      st = 'display:block;margin:3px 0';
+    } else if (tag === 'i' && ctx.leg) {
+      const sw = p('a') ? EMAIL_CA : p('b') ? EMAIL_CB : p('c') ? EMAIL_CC : EMAIL_CD;
+      st = 'display:inline-block;width:9px;height:9px;border-radius:3px;background:' + sw + ';margin-left:8px';
+    } else if (has(n, 'flow')) {
+      st = 'margin:10px 2px';
+      inner = flowChildren(n, next);
+    } else if (has(n, 's') && p('flow')) {
+      st = 'display:inline-block;background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:9px;padding:5px 13px;font-weight:500';
+    } else if (has(n, 'tl')) {
+      st = 'margin:10px 3px;padding:0 16px 0 0';
+      next = Object.assign({}, ctx, { tl: true });
+    } else if (ctx.tl && tag === 'div') {
+      st = 'margin:9px 0;unicode-bidi:plaintext';
+      next = Object.assign({}, ctx, { tl: false, tlRow: true });
+    }
+
+    if (EMAIL_VOID[tag]) return '<' + tag + (st ? ' style="' + st + '"' : '') + '>';
+    if (inner == null) inner = children(n, next);
+    let keep = '';
+    if (tag === 'a' && n.attrs.href) keep = ' href="' + String(n.attrs.href).replace(/"/g, '&quot;') + '"';
+    if (n.attrs.colspan) keep += ' colspan="' + n.attrs.colspan + '"';
+    if (n.attrs.rowspan) keep += ' rowspan="' + n.attrs.rowspan + '"';
+    return '<' + tag + ' dir="' + dir + '"' + keep + (st ? ' style="' + st + '"' : '') + '>' + pre + inner + post + '</' + tag + '>';
+  }
+
+  const rootStyle = 'font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:' + P.tx +
+    ';background:' + P.s1 + ';border:.5px solid ' + P.bd + ';border-radius:14px;padding:19px 22px;text-align:right;direction:rtl';
+  return '<div dir="rtl" style="' + rootStyle + '">' + children(emailParse(html), {}) + '</div>';
+}
 
 function saveDir() {
   if (process.env.READABLE_SAVE_DIR) return process.env.READABLE_SAVE_DIR;
@@ -333,7 +430,7 @@ function handle(msg) {
       return;
     }
     case 'tools/list':
-      respond({ tools: [TOOL, SAVE_TOOL] });
+      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL] });
       return;
     case 'tools/call': {
       if (params && params.name === 'save_card') {
@@ -346,6 +443,13 @@ function handle(msg) {
         } catch (e) {
           respond({ isError: true, content: [{ type: 'text', text: 'save failed: ' + String(e && e.message) }] });
         }
+        return;
+      }
+      if (params && params.name === 'render_email') {
+        const a = params.arguments || {};
+        if (typeof a.html !== 'string' || !a.html.trim()) return fail(-32602, 'html (string) is required');
+        if (/<\s*(style|script)\b/i.test(a.html)) return fail(-32602, 'html must not contain <style> or <script>');
+        respond({ content: [{ type: 'text', text: renderEmail(a.html, a.theme) }] });
         return;
       }
       if (!params || params.name !== 'card') return fail(-32602, 'unknown tool');
@@ -382,7 +486,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.3.8 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.4.0 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();

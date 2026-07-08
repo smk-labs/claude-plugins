@@ -66,10 +66,12 @@ function check(name, cond) {
   const tools = await rpc('tools/list', {});
   const card = tools.tools[0];
   const save = tools.tools[1];
-  check('two tools: card + save_card', tools.tools.length === 2 && card.name === 'card' && save.name === 'save_card');
+  const email = tools.tools[2];
+  check('three tools: card + save_card + render_email', tools.tools.length === 3 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email');
   check('tool links template via _meta.ui.resourceUri', card._meta.ui.resourceUri === 'ui://readable/card.html');
   check('inputSchema requires html', card.inputSchema.required[0] === 'html');
   check('save_card carries no ui meta (Desktop meta parser is fragile)', save._meta === undefined);
+  check('render_email carries no ui meta', email._meta === undefined);
 
   // 3. resources: template served with the exact MCP Apps mime
   const res = await rpc('resources/list', {});
@@ -81,7 +83,8 @@ function check(name, cond) {
   check('template carries dark palette', html.includes('data-theme="dark"'));
   check('template speaks MCP Apps bridge', html.includes('ui/initialize') && html.includes('ui/notifications/tool-input') && html.includes('size-changed'));
   check('template maps sendPrompt to ui/message', html.includes("rpc('ui/message'"));
-  check('template has 4x2 format/action matrix (email returns server-side in 4.4)', ['class="row"', 'class="fmt"', 'copyimg', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlhtml', 'dlmd', 'dltxt'].every((l) => html.includes(l)) && html.split('class="row"').length === 5);
+  check('template has 5x2 format/action matrix (Email row back in 4.4, rendered server-side)', ['class="row"', 'class="fmt"', 'copyimg', 'copyemail', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlemail', 'dlhtml', 'dlmd', 'dltxt'].every((l) => html.includes(l)) && html.split('row(I.').length === 6);
+  check('email export fetches render_email and rich-copies both flavors', html.includes("name:'render_email'") && html.includes("'text/html'") && html.includes("contentEditable"));
   check('template stays under the host resource-size ceiling', html.length < 30000);
   check('saves go through save_card then ui/download-file', html.includes("name:'save_card'") && html.includes('ui/download-file'));
   check('png export is dependency-free (foreignObject, blob URL)', html.includes('foreignObject') && html.includes('createObjectURL') && !html.includes('html2canvas'));
@@ -106,7 +109,25 @@ function check(name, cond) {
   );
   check('rejects missing html', empty);
 
-  // 6. save_card: writes to READABLE_SAVE_DIR, returns absolute path, dedupes, sanitizes
+  // 6. render_email: server-side inline-styled email HTML
+  const em = await rpc('tools/call', { name: 'render_email', arguments: {
+    html: '<h2>گزارش</h2><ul><li class="ok">پاس</li><li class="no">رد</li></ul><div class="cal tip"><div><p>نکته</p></div></div><p>متن <code>x=1</code></p><div class="btns"><button class="cta" onclick="sendPrompt(\'x\')">برو</button></div>',
+    theme: 'light',
+  } });
+  const emailOut = em.content[0].text;
+  check('render_email returns inline-styled rtl HTML', emailOut.indexOf('<div dir="rtl"') === 0 && emailOut.includes('style="'));
+  check('render_email strips every class attribute', !emailOut.includes('class='));
+  check('render_email materializes list glyphs', emailOut.includes('✓') && emailOut.includes('✕'));
+  check('render_email inlines the light callout fill', emailOut.includes('#e6f4ec'));
+  check('render_email drops interactive bits', !emailOut.includes('<button') && !emailOut.includes('onclick'));
+  check('render_email emits no style/script tags', !/<\s*(style|script)\b/i.test(emailOut));
+  const emBad = await rpc('tools/call', { name: 'render_email', arguments: { html: '<style>x</style><p>a</p>' } }).then(
+    () => false,
+    (e) => String(e.message).includes('-32602')
+  );
+  check('render_email rejects embedded <style>', emBad);
+
+  // 7. save_card: writes to READABLE_SAVE_DIR, returns absolute path, dedupes, sanitizes
   const s1 = await rpc('tools/call', { name: 'save_card', arguments: { filename: 'card.md', content: '# hi', encoding: 'utf8' } });
   check('save_card returns absolute path', s1.content[0].text.startsWith(SAVE_DIR));
   check('save_card wrote utf8 content', fs.readFileSync(s1.content[0].text, 'utf8') === '# hi');

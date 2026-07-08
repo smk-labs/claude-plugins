@@ -17,7 +17,7 @@ html,body{margin:0;background:var(--page-bg)}
 .meta{color:var(--text-secondary);font-family:inherit;font-size:11.5px;margin:10px 4px 0;text-align:end;font-family:Vazirmatn,Inter,Tahoma,sans-serif}
 .theme-toggle{position:fixed;top:16px;inset-inline-end:16px;width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:linear-gradient(90deg,var(--surface-1) 50%,var(--text-primary) 50%);cursor:pointer;padding:0}
 .theme-toggle:hover{border-color:var(--text-accent)}
-@media print{.theme-toggle{display:none}html,body{background:#fff}.rc{border:none;padding:0}.wrap{max-width:none;padding:0}}
+@media print{.theme-toggle,#rcmenu,#rctoast{display:none}html,body{background:#fff}.rc{border:none;padding:0}.wrap{max-width:none;padding:0}}
 </style>
 <style>
 {{EXTRA}}
@@ -27,10 +27,83 @@ html,body{margin:0;background:var(--page-bg)}
 <button class="theme-toggle" title="light / dark" onclick="(function(){var r=document.documentElement,d=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);r.setAttribute('data-theme',d?'light':'dark');try{localStorage.setItem('report-theme',r.getAttribute('data-theme'))}catch(e){}})()"></button>
 <script>try{var t=localStorage.getItem('report-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <div class="wrap">
-<div class="rc">
+<div class="rc" id="card">
 {{CONTENT}}
 </div>
 <div class="meta">{{DATE}}</div>
 </div>
+<script>
+{{MENU}}
+</script>
+<script>
+/* Email adapter for the shared menu (assets/menu.js): a standalone report has
+   no MCP server, so email HTML is computed from the live DOM instead of the
+   server's render_email: every element gets its computed styles inlined
+   (resolved against the LIGHT palette), pseudo-element decorations become real
+   spans, interactive bits are dropped. Same walker the 4.3.0 template shipped. */
+window.__rcEmail = function (cb) {
+  var EMAIL_PROPS = ['color', 'background-color', 'font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'text-align', 'direction', 'unicode-bidi', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right', 'border-radius', 'border-top', 'border-bottom', 'border-left', 'border-right', 'vertical-align', 'white-space', 'letter-spacing', 'border-collapse'];
+  var root = document.documentElement, prev = root.getAttribute('data-theme');
+  root.setAttribute('data-theme', 'light');
+  try {
+    var card = document.getElementById('card');
+    var srcEls = [card].concat([].slice.call(card.querySelectorAll('*')));
+    var clone = card.cloneNode(true);
+    var dstEls = [clone].concat([].slice.call(clone.querySelectorAll('*')));
+    var rtl = (getComputedStyle(card).direction === 'rtl');
+    var accent = getComputedStyle(card).getPropertyValue('--text-accent').trim() || '#2f66c4';
+    var jobs = [];
+    for (var i = 0; i < srcEls.length; i++) {
+      var s = srcEls[i], d = dstEls[i], cs = getComputedStyle(s), st = '';
+      for (var q = 0; q < EMAIL_PROPS.length; q++) {
+        var v = cs.getPropertyValue(EMAIL_PROPS[q]);
+        if (v && v !== 'none' && v !== 'normal' && v !== 'auto' && v.indexOf('0px none') === -1) st += EMAIL_PROPS[q] + ':' + v + ';';
+      }
+      var disp = cs.getPropertyValue('display');
+      if (disp && disp !== 'inline' && disp !== 'block') st += 'display:' + ((disp.indexOf('flex') > -1 || disp.indexOf('grid') > -1) ? 'block' : disp) + ';';
+      if (s.style && s.style.width && s.style.width.indexOf('%') > -1) st += 'width:' + s.style.width + ';background:' + cs.getPropertyValue('background-color') + ';display:block;';
+      var cls = s.className || '';
+      var tag = s.tagName;
+      if (/(^| )t( |$)/.test(cls) && s.parentNode && /(^| )bar( |$)/.test(s.parentNode.className || '')) st += 'width:220px;height:7px;display:inline-block;';
+      if (s.style && s.style.width && s.style.width.indexOf('%') > -1) st += 'height:7px;';
+      d.setAttribute('style', st); d.removeAttribute('class'); d.removeAttribute('onclick'); d.removeAttribute('id');
+      var dr = cs.getPropertyValue('direction');
+      if (dr) d.setAttribute('dir', dr);
+      if (tag === 'H2') jobs.push(['h2', d]); else if (tag === 'H3') jobs.push(['h3', d]);
+      else if (tag === 'LI') { if (/(^| )ok( |$)/.test(cls)) jobs.push(['ok', d]); else if (/(^| )no( |$)/.test(cls)) jobs.push(['no', d]); else if (s.parentNode.tagName === 'UL') jobs.push(['dot', d]); }
+      else if (/(^| )trend( |$)/.test(cls)) jobs.push([/(^| )up( |$)/.test(cls) ? 'up' : 'dn', d]);
+      else if (/(^| )flow( |$)/.test(cls)) jobs.push(['flow', d]);
+      else if (/(^| )donut( |$)/.test(cls)) jobs.push(['kill', d]);
+      else if (/(^| )btns( |$)/.test(cls)) jobs.push(['kill', d]);
+      else if (tag === 'I' && /(^| )leg( |$)/.test(s.parentNode.parentNode ? s.parentNode.parentNode.className || '' : '')) jobs.push(['sw', d, cs.getPropertyValue('background-color')]);
+    }
+    function mk(html) { var t = document.createElement('span'); t.innerHTML = html; return t.firstChild; }
+    for (var j = 0; j < jobs.length; j++) {
+      var kind = jobs[j][0], el = jobs[j][1];
+      if (kind === 'kill') { if (el.parentNode) el.parentNode.removeChild(el); }
+      else if (kind === 'h2') { el.appendChild(mk('<div style="width:28px;height:3px;background:' + accent + ';border-radius:2px;margin-top:6px"></div>')); }
+      else if (kind === 'h3') { el.insertBefore(mk('<span style="display:inline-block;width:7px;height:7px;background:' + accent + ';border-radius:2px;margin-' + (rtl ? 'left' : 'right') + ':8px"></span>'), el.firstChild); }
+      else if (kind === 'ok') { el.insertBefore(mk('<span style="color:#0f9d58;font-weight:800">✓&nbsp;</span>'), el.firstChild); el.style.listStyle = 'none'; }
+      else if (kind === 'no') { el.insertBefore(mk('<span style="color:#e05555;font-weight:800">✕&nbsp;</span>'), el.firstChild); el.style.listStyle = 'none'; }
+      else if (kind === 'dot') { el.insertBefore(mk('<span style="color:' + accent + '">•&nbsp;</span>'), el.firstChild); el.style.listStyle = 'none'; }
+      else if (kind === 'up') { el.insertBefore(document.createTextNode('▲ '), el.firstChild); }
+      else if (kind === 'dn') { el.insertBefore(document.createTextNode('▼ '), el.firstChild); }
+      else if (kind === 'sw') { el.setAttribute('style', (el.getAttribute('style') || '') + 'display:inline-block;width:9px;height:9px;border-radius:3px;background:' + jobs[j][2]); }
+      else if (kind === 'flow') { var kids = [].slice.call(el.children); for (var k = 1; k < kids.length; k++) el.insertBefore(mk('<span style="color:' + accent + ';padding:0 6px">' + (rtl ? '←' : '→') + '</span>'), kids[k]); }
+    }
+    cb(clone.outerHTML, null);
+  } catch (e) {
+    cb(null, String(e && e.message));
+  } finally {
+    if (prev) root.setAttribute('data-theme', prev); else root.removeAttribute('data-theme');
+  }
+};
+/* The menu installs itself top-right for the chat card iframe; in the report it
+   sits next to the theme toggle (same inline-end side in both directions). */
+(function () {
+  var m = document.getElementById('rcmenu');
+  if (m) m.style.cssText = 'top:16px;right:auto;inset-inline-end:62px';
+})();
+</script>
 </body>
 </html>

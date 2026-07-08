@@ -17,7 +17,16 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 KIT = HERE.parents[1] / "assets" / "rc.css"
+MENU = HERE.parents[1] / "assets" / "menu.js"
 SHELL = HERE / "assets" / "shell.html"
+
+
+def menu_js() -> str:
+    """The shared card menu (assets/menu.js, same single source the chat card
+    template inlines). Comment lines out per its style contract; newlines kept
+    (a report has no size ceiling)."""
+    lines = MENU.read_text(encoding="utf-8").split("\n")
+    return "\n".join(l for l in lines if not l.startswith("/*"))
 
 EN_EXTRA = (
     "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');\n"
@@ -57,6 +66,7 @@ def main():
         .replace("{{DIR}}", "rtl" if a.lang == "fa" else "ltr")
         .replace("{{TITLE}}", title)
         .replace("{{KIT}}", KIT.read_text(encoding="utf-8"))
+        .replace("{{MENU}}", menu_js())
         .replace("{{EXTRA}}", EN_EXTRA if a.lang == "en" else "")
         .replace("{{DATE}}", datetime.date.today().isoformat())
         .replace("{{CONTENT}}", content)
