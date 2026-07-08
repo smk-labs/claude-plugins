@@ -40,7 +40,7 @@ The endgame for token cost: the model sends only content and never outputs CSS a
 - Protocol-tested: `node plugins/readable/mcp/test.js` runs a 16-check JSON-RPC exchange, including capability negotiation (`io.modelcontextprotocol/ui`), template mime `text/html;profile=mcp-app`, `_meta.ui.resourceUri` linkage, and the no-UI-host fallback (tool answer tells the model to fall back and re-deliver as text/widget).
 - Template-tested: the bridge (`ui/initialize` → `ui/notifications/tool-input` → `ui/notifications/size-changed`) renders the card correctly in a sandboxed iframe; CTA buttons map `sendPrompt()` onto `ui/message`.
 - Production-verified (2026-07): Claude Desktop chat negotiates `mcp-apps=YES` for local servers and renders the card inline, light and dark.
-- Since 4.0.0 the server is bundled in the plugin manifest (`mcpServers` with `${CLAUDE_PLUGIN_ROOT}`), so installing the plugin wires the connector automatically. For Claude Desktop chat (which does not load Claude Code plugins), add it to `claude_desktop_config.json`; with multiple profiles, [claude-sync](https://github.com/smk-labs/claude-sync) v2.2+ propagates that entry everywhere.
+- Since 4.5.0 the plugin does NOT register the server itself. Root cause (field-debugged 2026-07): only the desktop app's own MCP client (`claude_desktop_config.json`) negotiates MCP Apps; servers spawned by the Claude Code CLI (plugin `mcpServers`, project `.mcp.json`, user scope) connect as `client=claude-code, mcp-apps=NO`, so their cards render as raw tool rows inside the grouped-tools container. Worse, a duplicate registration exposes two same-named `card` tools and the model picks one at random, which surfaced as "the widget sometimes does not render". One registration, the right one: `claude_desktop_config.json` (global to every project's desktop session); with multiple profiles, [claude-sync](https://github.com/smk-labs/claude-sync) v2.2+ propagates that entry everywhere.
 - Card menu (4.1.0): every card carries a three-dot menu styled after the host's code-block popover, entirely template-side (zero output tokens per reply): Copy image (hand-rolled foreignObject-to-PNG with best-effort inlined fonts), Copy HTML / Markdown / plain text (programmatic DOM-to-Markdown converter), Download PNG, and Save HTML via the spec's `ui/download-file` with `<a download>` fallback.
 - Small-model note (Haiku): tool descriptions alone do not reliably steer small models, and Desktop chat has no hooks. The fix there is one line in your Claude profile preferences (Settings → Profile): "For every Persian/RTL reply, and preferably for structured English replies, call the readable-card `card` tool with the entire reply as building-block HTML; the tool call is the whole reply."
 
@@ -57,7 +57,16 @@ Triggers ONLY on an explicit ask ("همین کارت رو ذخیره کن", "sav
 /plugin install readable@smk
 ```
 
-Restart the session after installing (the rule loads at session start).
+Then register the card server once in `~/Library/Application Support/Claude/claude_desktop_config.json` (the only MCP client that renders MCP Apps widgets; point it at a stable checkout of this repo, since the marketplace cache path changes on every version):
+
+```json
+"readable-card": {
+  "command": "node",
+  "args": ["/absolute/path/to/claude-plugins/plugins/readable/mcp/server.js"]
+}
+```
+
+Restart the session after installing (the rule loads at session start). Do NOT also add the server to plugin `mcpServers`, a project `.mcp.json`, or `claude mcp add`: those spawn a duplicate that cannot render widgets, and the model may pick it.
 
 ## Requirements and scope
 
