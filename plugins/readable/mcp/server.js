@@ -69,7 +69,7 @@ const TEMPLATE_HTML =
 const TOOL = {
   name: 'card',
   description:
-    'Render a Persian/RTL reply as a styled RTL card (readable kit). Pass ONLY the reply content as HTML built from the readable building blocks: <h2> title, <p class="lead">, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, <div class="cal tip|note|warn|danger"><div>…</div></div>, <table>, <span class="badge ok|warn|info">, kv/kpi/grid/bars/donut/flow/tl components, <code> around every LTR token, optional <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">…</button></div>. Do NOT include <style>, <script>, or a wrapper div: styling and RTL direction come from the card template. Use only when instructed by the readable rule or the user.',
+    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language: plain RTL chat text scrambles in this client, and this tool renders it as a correct, styled RTL card. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no Persian text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody>, <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, <code> around every path/URL/code token. NO <style>, NO <script>, NO wrapper div: the template styles everything. Short conversational answers are fine as plain <p> paragraphs inside the card. Not needed for English-only replies.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -136,7 +136,7 @@ function handle(msg) {
       try { process.stderr.write('[readable-card] tools/call card, mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') + ', html=' + html.length + 'B\n'); } catch (e) {}
       const note = clientSupportsUi
         ? 'Card rendered by the host UI. Do not repeat the content as text.'
-        : 'Host did not negotiate MCP Apps UI; card was NOT rendered. Fall back to the readable rule: deliver this content via mcp__visualize__show_widget with the BASE kit.';
+        : 'Host did not negotiate MCP Apps UI; the card was NOT rendered and the user saw nothing. Repeat the reply now as plain text (if an inline HTML widget tool like show_widget exists, use it with the readable kit instead), and stop calling this tool in this conversation.';
       respond({ content: [{ type: 'text', text: note }], structuredContent: { html } });
       return;
     }
