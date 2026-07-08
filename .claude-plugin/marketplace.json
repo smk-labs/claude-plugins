@@ -54,8 +54,8 @@
     {
       "name": "readable",
       "source": "./plugins/readable",
-      "description": "Persian/RTL replies as self-contained styled cards with a pay-per-use component kit (KPI, charts, timelines, callouts, CTA), plus a visualize skill for diagrams.",
-      "version": "3.2.0",
+      "description": "Replies as styled cards (Persian/RTL always, English by default) via a bundled MCP Apps card server: content-only output, template-side styling. Plus report export and a visualize skill.",
+      "version": "4.0.0",
       "category": "writing"
     },
     {

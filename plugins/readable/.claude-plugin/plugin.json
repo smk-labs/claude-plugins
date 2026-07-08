@@ -1,9 +1,15 @@
 {
   "name": "readable",
-  "description": "Beautiful Persian/RTL replies as self-contained cards with a pay-per-use component kit: KPI grids, donut and bar charts, timelines, flows, callouts, badges, CTA buttons. Plus a visualize skill for diagrams on demand.",
-  "version": "3.2.0",
+  "description": "Beautiful replies as styled cards (Persian/RTL always, English by default) via a bundled MCP Apps card server: the model sends content only, the template carries all styling. KPI grids, charts, timelines, flows, callouts, badges, CTA buttons. Plus report export and a visualize skill.",
+  "version": "4.0.0",
   "author": {
     "name": "Seyed M. Keramati",
     "url": "https://github.com/SMKeramati"
+  },
+  "mcpServers": {
+    "readable-card": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.js"]
+    }
   }
 }
