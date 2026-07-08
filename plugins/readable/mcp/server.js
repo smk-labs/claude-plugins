@@ -83,6 +83,8 @@ const MENU_CSS = [
   '#rcmenu .items button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:none;padding:10px 13px;border-radius:8px;font-size:14px;font-family:inherit;color:var(--text-primary);cursor:pointer;white-space:nowrap}',
   '#rcmenu .items button:hover{background:var(--surface-2)}',
   '#rcmenu .items svg{width:17px;height:17px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}',
+  '#rcmenu .items .grp{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-secondary);padding:7px 13px 3px;user-select:none}',
+  '#rcmenu .items .grp+.grp,#rcmenu .items button+.grp{margin-top:5px;padding-top:9px;border-top:.5px solid var(--border)}',
   '#rctoast{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:var(--text-primary);color:var(--surface-1);font-size:12px;font-family:system-ui,sans-serif;padding:5px 12px;border-radius:14px;opacity:0;transition:opacity .2s;pointer-events:none}',
 ].join('\n');
 
@@ -96,12 +98,14 @@ const I = {
 
 const MENU_HTML =
   '<div id="rcmenu"><button class="dots" title="card menu">⋯</button><div class="items">' +
-  '<button data-act="copyimg">' + I.image + 'Copy image</button>' +
-  '<button data-act="copyhtml">' + I.code + 'Copy HTML</button>' +
-  '<button data-act="copymd">' + I.filetext + 'Copy Markdown</button>' +
-  '<button data-act="copytext">' + I.type + 'Copy text</button>' +
-  '<button data-act="pngdl">' + I.download + 'Download PNG</button>' +
-  '<button data-act="savehtml">' + I.download + 'Save HTML</button>' +
+  '<div class="grp">Copy</div>' +
+  '<button data-act="copyimg">' + I.image + 'Image</button>' +
+  '<button data-act="copyhtml">' + I.code + 'HTML</button>' +
+  '<button data-act="copymd">' + I.filetext + 'Markdown</button>' +
+  '<button data-act="copytext">' + I.type + 'Plain text</button>' +
+  '<div class="grp">Download</div>' +
+  '<button data-act="pngdl">' + I.image + 'PNG image</button>' +
+  '<button data-act="savehtml">' + I.code + 'HTML file</button>' +
   '</div></div><div id="rctoast"></div>';
 
 const MENU_JS = [

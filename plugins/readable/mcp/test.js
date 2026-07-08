@@ -74,7 +74,7 @@ function check(name, cond) {
   check('template carries dark palette', html.includes('data-theme="dark"'));
   check('template speaks MCP Apps bridge', html.includes('ui/initialize') && html.includes('ui/notifications/tool-input') && html.includes('size-changed'));
   check('template maps sendPrompt to ui/message', html.includes("rpc('ui/message'"));
-  check('template has card menu with all exports', ['Copy image', 'Copy HTML', 'Copy Markdown', 'Copy text', 'Download PNG', 'Save HTML'].every((l) => html.includes(l)));
+  check('template has grouped card menu with all exports', ['<div class="grp">Copy</div>', '<div class="grp">Download</div>', 'copyimg', 'copyhtml', 'copymd', 'copytext', 'pngdl', 'savehtml'].every((l) => html.includes(l)));
   check('save-html uses spec ui/download-file', html.includes('ui/download-file'));
   check('png export is dependency-free (foreignObject)', html.includes('foreignObject') && !html.includes('html2canvas'));
 
