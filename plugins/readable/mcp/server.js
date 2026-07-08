@@ -45,8 +45,9 @@ const PALETTE = [
  * maps CTA buttons onto ui/message so kit buttons keep working. */
 const BRIDGE_JS = [
   "(function(){",
-  "var nextId=1,pending={};",
-  "function send(m){window.parent.postMessage(m,'*')}",
+  "var nextId=1,pending={},LOG=[];window.__rcLog=LOG;",
+  "function tap(d,m){try{LOG.push(Date.now()%1000000+d+(m.method||('#'+m.id))+(('result' in (m||{}))?'+r':'')+(m&&m.error?'+e':''));if(LOG.length>80)LOG.shift()}catch(e){}}",
+  "function send(m){tap('>',m);window.parent.postMessage(m,'*')}",
   "function rpc(method,params,cb){var id=nextId++;if(cb)pending[id]=cb;send({jsonrpc:'2.0',id:id,method:method,params:params||{}})}",
   "function notify(method,params){send({jsonrpc:'2.0',method:method,params:params||{}})}",
   "/* ui/message param shape differs across host snapshots: try the content-array form, then the single-object form; if both are rejected, copy the prompt text so the user can paste it, and keep the errors for the alt-click diagnostics dump. */",
@@ -58,12 +59,15 @@ const BRIDGE_JS = [
   "document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('#card [onclick]');if(!b||b.onclick)return;var m=String(b.getAttribute('onclick')).match(/^\\s*sendPrompt\\((['\"])([\\s\\S]*?)\\1\\)\\s*;?\\s*$/);if(m)window.sendPrompt(m[2])});",
   "var rendered=false;",
   "function render(html){if(rendered||!html)return;rendered=true;document.getElementById('card').innerHTML=html;notify('ui/notifications/size-changed',{height:document.documentElement.scrollHeight});}",
+  "window.__rcGotInput=false;",
+  "/* If the lifecycle stalls (no tool input within 5s), dump the message log to disk through save_card so the failure is diagnosable without reaching into the iframe. */",
+  "setTimeout(function(){if(window.__rcGotInput)return;try{rpc('tools/call',{name:'save_card',arguments:{filename:'rc-diagnostics.json',content:JSON.stringify({build:'4.3.5',log:LOG,host:window.__rcHost||null,rendered:rendered,vis:document.visibilityState},null,1),encoding:'utf8'}},function(){})}catch(e){}},5000);",
   "function applyTheme(ctx){if(ctx&&ctx.theme)document.documentElement.setAttribute('data-theme',ctx.theme==='dark'?'dark':'light')}",
   "window.__rcRpc=rpc;",
-  "window.addEventListener('message',function(e){var m=e.data;if(typeof m==='string'){try{m=JSON.parse(m)}catch(err){return}}if(!m||m.jsonrpc!=='2.0')return;",
+  "window.addEventListener('message',function(e){var m=e.data;if(typeof m==='string'){try{m=JSON.parse(m)}catch(err){return}}if(!m||m.jsonrpc!=='2.0')return;tap('<',m);",
   "/* A response is a message carrying result or error for a pending id. Do NOT discriminate on the absence of 'method': at least one real host echoes the method field in its responses, and treating those as requests silently kills the ui/initialize handshake, which keeps the iframe visibility:hidden forever (anthropics/claude-ai-mcp#61). */",
   "if(m.id!=null&&pending[m.id]&&(('result' in m)||('error' in m))){var cb=pending[m.id];delete pending[m.id];cb(m.result,m.error);return}",
-  "if(m.method==='ui/notifications/tool-input'&&m.params&&m.params.arguments){render(m.params.arguments.html)}",
+  "if(m.method==='ui/notifications/tool-input'&&m.params&&m.params.arguments){window.__rcGotInput=true;render(m.params.arguments.html)}",
   "else if(m.method==='ui/notifications/tool-result'&&m.params&&m.params.structuredContent){render(m.params.structuredContent.html)}",
   "else if(m.method&&m.method.indexOf('host-context-changed')!==-1&&m.params){applyTheme(m.params.hostContext||m.params)}",
   "else if(m.id!=null&&m.method){send({jsonrpc:'2.0',id:m.id,error:{code:-32601,message:'not supported'}})}",
@@ -422,6 +426,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
+try { process.stderr.write('[readable-card] build 4.3.5 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();
