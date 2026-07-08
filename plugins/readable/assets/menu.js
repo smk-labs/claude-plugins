@@ -120,7 +120,7 @@ if(kind==='copytext'){clipText(document.getElementById('card').innerText,functio
 if(kind==='copymd'){clipText(toMd(),function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed')});return}
 if(kind==='copyhtml'){clipText(exportHtml(),function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed')});return}
 if(kind==='copyemail'){withEmail(btn,function(h){richCopy(h,toMd(),function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed');if(ok)toast('paste into your email compose window')})});return}
-if(kind==='dlemail'){withEmail(btn,function(h){saveFile('readable-card.email.html','<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>readable card</title></head><body style="margin:0;padding:16px;background:#ffffff">'+h+'</body></html>',null,btn,'Saved')});return}
+if(kind==='dlemail'){withEmail(btn,function(h){var d=(h.match(/dir="(ltr|rtl)"/)||[])[1]||'rtl';saveFile('readable-card.email.html','<!DOCTYPE html><html dir="'+d+'"><head><meta charset="utf-8"><title>readable card</title></head><body style="margin:0;padding:16px;background:#ffffff">'+h+'</body></html>',null,btn,'Saved')});return}
 if(kind==='copyimg'){pngBlob(function(b,err){if(!b){setState(btn,'err','Failed');toast('image: '+err);return}
 if(navigator.clipboard&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){setState(btn,'ok','Copied')},function(){saveFile('readable-card.png',null,b,btn,'Saved instead')})}else saveFile('readable-card.png',null,b,btn,'Saved instead')});return}
 if(kind==='dlpng'){pngBlob(function(b,err){if(!b){setState(btn,'err','Failed');toast('image: '+err);return}saveFile('readable-card.png',null,b,btn,'Saved')});return}

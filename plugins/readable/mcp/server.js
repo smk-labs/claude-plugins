@@ -46,6 +46,28 @@ const PALETTE = [
  * hook-rule path, where the card floats bare in the chat column. */
 const FLUSH_CSS = '.rc{margin:0;border:none;border-radius:0;background:transparent}';
 
+/* English/LTR cards: the kit is Persian-first (text-align:right, RTL arrows),
+ * so the bridge stamps dir on #card from the content's majority script and
+ * this template-only block mirrors the sided rules, matching what the report
+ * shell's --lang en extra does. Same trigger set as skills/report/build.py. */
+const LTR_CSS = [
+  '.rc[dir=ltr]{text-align:left;font-family:Inter,system-ui,-apple-system,sans-serif}',
+  '.rc[dir=ltr] thead th,.rc[dir=ltr] tbody td{text-align:left}',
+  ".rc[dir=ltr] .cta::after{content:'\\2192'}",
+  '.rc[dir=ltr] .flow .s:not(:last-child)::before{transform:translateY(-50%) rotate(225deg)}',
+].join('\n');
+
+/* @import is only valid before all other rules; the kit's Vazirmatn import
+ * would die mid-sheet after PALETTE, so imports are hoisted to the top of the
+ * template <style> (and Inter added for LTR cards). */
+const KIT_BODY = KIT_CSS.replace(/\/\*[^]*?\*\//g, '');
+/* Line-anchored: the Google Fonts URL itself contains semicolons (wght@400;500;...),
+ * so matching up to the first ';' truncates mid-url and the leftover garbage
+ * eats the kit's first rule via CSS error recovery. Imports sit one per line. */
+const KIT_IMPORTS = (KIT_BODY.match(/@import[^\n]+/g) || []).join('\n') +
+  "\n@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');";
+const KIT_RULES = KIT_BODY.replace(/@import[^\n]+/g, '');
+
 /* JSON-RPC-over-postMessage bridge, per SEP-1865: ui/initialize handshake,
  * then render on ui/notifications/tool-input (arguments.html). sendPrompt()
  * maps CTA buttons onto ui/message so kit buttons keep working. */
@@ -66,7 +88,9 @@ const BRIDGE_JS = [
   "var finalGot=false,partialTimer=null;",
   "/* +2 covers fractional line-height rounding; overflow:hidden kills any residual scrollbar. Fonts (Vazirmatn) land late and change the height, so re-fit once they settle. */",
   "function fit(){notify('ui/notifications/size-changed',{height:Math.ceil(document.documentElement.scrollHeight)+2})}",
-  "function paint(html){if(!html)return;document.getElementById('card').innerHTML=html;fit();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)}",
+  "/* Card direction follows the content's majority script (the kit is Persian-first, ties go RTL); .rc[dir=ltr] overrides in the template CSS mirror the sided rules. */",
+  "function dirOf(h){var t=String(h).replace(/<[^>]*>/g,' ');var r=(t.match(/[\\u0591-\\u07FF\\uFB1D-\\uFDFD\\uFE70-\\uFEFC]/g)||[]).length;var l=(t.match(/[A-Za-z]/g)||[]).length;return r>=l?'rtl':'ltr'}",
+  "function paint(html){if(!html)return;var c=document.getElementById('card');c.setAttribute('dir',dirOf(html));c.innerHTML=html;fit();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)}",
   "function render(html,isFinal){if(isFinal){finalGot=true;if(partialTimer){clearTimeout(partialTimer);partialTimer=null}paint(html);return}",
   "if(finalGot)return;if(partialTimer)clearTimeout(partialTimer);partialTimer=setTimeout(function(){if(!finalGot)paint(html)},700)}",
   "/* The 4.3.5 stall auto-dump (save_card at 5s without input) is gone: the lifecycle bug it chased was fixed in 4.3.8, and its bytes now pay for the Email row. __rcLog + alt-click diagnostics remain. */",
@@ -107,7 +131,7 @@ const MENU_SRC = fs.readFileSync(MENU_CANDIDATES.find((p) => fs.existsSync(p)), 
 
 const TEMPLATE_HTML =
   '<!DOCTYPE html><html><head><meta charset="utf-8"><style>\n' +
-  PALETTE + '\n' + KIT_CSS.replace(/\/\*[^]*?\*\//g, '') + '\n' + FLUSH_CSS +
+  KIT_IMPORTS + '\n' + PALETTE + '\n' + KIT_RULES + '\n' + FLUSH_CSS + '\n' + LTR_CSS +
   '\n</style></head><body><div class="rc" id="card" dir="rtl"><p style="color:var(--text-secondary)">…</p></div>' +
   '<script>' + BRIDGE_JS + MENU_SRC + '</script></body></html>';
 
@@ -204,8 +228,21 @@ function emailParse(html) {
   return root;
 }
 
+/* Email direction follows the content's majority script, same rule as the
+ * template bridge (ties go RTL: the tool is Persian-first). */
+function emailDir(html) {
+  const t = String(html).replace(/<[^>]*>/g, ' ');
+  const r = (t.match(/[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g) || []).length;
+  const l = (t.match(/[A-Za-z]/g) || []).length;
+  return r >= l ? 'rtl' : 'ltr';
+}
+
 function renderEmail(html, theme) {
   const P = EMAIL_PAL[theme === 'dark' ? 'dark' : 'light'];
+  const DIR = emailDir(html);
+  const R = DIR === 'rtl';
+  const S = R ? 'right' : 'left'; // physical side of inline-start
+  const E = R ? 'left' : 'right'; // physical side of inline-end
   const has = (n, c) => (' ' + ((n.attrs && n.attrs['class']) || '') + ' ').indexOf(' ' + c + ' ') !== -1;
 
   function children(n, ctx) {
@@ -221,7 +258,7 @@ function renderEmail(html, theme) {
     let out = '', first = true;
     for (const c of n.children) {
       if (!c.tag) continue;
-      if (!first) out += '<span style="color:' + P.ac + ';padding:0 6px">←</span>';
+      if (!first) out += '<span style="color:' + P.ac + ';padding:0 6px">' + (R ? '\u2190' : '\u2192') + '</span>';
       out += emit(c, n, ctx);
       first = false;
     }
@@ -236,14 +273,14 @@ function renderEmail(html, theme) {
     /* interactive + undrawable bits are dropped; the donut legend survives */
     if (has(n, 'btns') || has(n, 'cta') || tag === 'button' || has(n, 'donut')) return '';
 
-    let st = '', dir = 'rtl', pre = '', post = '', inner = null, next = ctx;
+    let st = '', dir = DIR, pre = '', post = '', inner = null, next = ctx;
 
     if (tag === 'h2') {
       st = 'font-weight:800;font-size:15.5px;margin:0 0 2px;unicode-bidi:plaintext';
       post = '<div style="width:28px;height:3px;background:' + P.ac + ';border-radius:2px;margin-top:6px"></div>';
     } else if (tag === 'h3') {
       st = 'font-weight:700;font-size:12.7px;margin:18px 0 6px';
-      pre = '<span style="display:inline-block;width:7px;height:7px;background:' + P.ac + ';border-radius:2px;margin-left:8px"></span>';
+      pre = '<span style="display:inline-block;width:7px;height:7px;background:' + P.ac + ';border-radius:2px;margin-' + E + ':8px"></span>';
     } else if (tag === 'h4') {
       st = 'font-weight:700;font-size:11.5px;margin:12px 0 3px;unicode-bidi:plaintext';
     } else if (tag === 'p') {
@@ -254,7 +291,7 @@ function renderEmail(html, theme) {
       st = 'display:inline-block;font-size:9px;font-weight:700;padding:1px 9px;border-radius:20px;background:' + bset[0] + ';color:' + bset[1];
     } else if (has(n, 'trend')) {
       const up = has(n, 'up');
-      st = 'display:inline-block;font-size:11.4px;font-weight:700;padding:1px 8px;border-radius:12px;vertical-align:2px;margin-right:7px;background:' + (up ? P.gok : P.gda) + ';color:' + (up ? EMAIL_CA : EMAIL_CD);
+      st = 'display:inline-block;font-size:11.4px;font-weight:700;padding:1px 8px;border-radius:12px;vertical-align:2px;margin-' + S + ':7px;background:' + (up ? P.gok : P.gda) + ';color:' + (up ? EMAIL_CA : EMAIL_CD);
       pre = up ? '▲ ' : '▼ ';
     } else if (tag === 'strong' || (tag === 'b' && !ctx.kvRow && !ctx.tlRow)) {
       st = 'font-weight:700';
@@ -270,9 +307,9 @@ function renderEmail(html, theme) {
     } else if (tag === 'a') {
       st = 'color:' + P.ac + ';text-decoration:none';
     } else if (tag === 'ul') {
-      st = 'list-style:none;padding:0 17px 0 0;margin:6px 0';
+      st = 'list-style:none;padding:0 ' + (R ? '17px 0 0' : '0 0 17px') + ';margin:6px 0';
     } else if (tag === 'ol') {
-      st = 'padding:0 17px 0 0;margin:6px 0';
+      st = 'padding:0 ' + (R ? '17px 0 0' : '0 0 17px') + ';margin:6px 0';
     } else if (tag === 'li') {
       st = 'margin:4px 0;unicode-bidi:plaintext';
       if (has(n, 'ok')) pre = '<span style="color:' + EMAIL_CA + ';font-weight:800">✓&nbsp;</span>';
@@ -281,7 +318,7 @@ function renderEmail(html, theme) {
     } else if (has(n, 'cal')) {
       const edge = has(n, 'tip') ? EMAIL_CA : has(n, 'note') ? EMAIL_CB : has(n, 'warn') ? '#c98a1a' : has(n, 'danger') ? '#d64545' : P.bs;
       const fill = has(n, 'tip') ? P.gok : has(n, 'note') ? P.gac : has(n, 'warn') ? P.gwa : has(n, 'danger') ? P.gda : P.s2;
-      st = 'display:block;background:' + fill + ';border-right:3px solid ' + edge + ';border-radius:10px;padding:9px 12px;margin:9px 0';
+      st = 'display:block;background:' + fill + ';border-' + S + ':3px solid ' + edge + ';border-radius:10px;padding:9px 12px;margin:9px 0';
       next = Object.assign({}, ctx, { cal: true });
     } else if (tag === 'hr') {
       st = 'border:none;border-top:.5px solid ' + P.bd + ';margin:15px 0';
@@ -293,9 +330,9 @@ function renderEmail(html, theme) {
     } else if (tag === 'tr') {
       next = Object.assign({}, ctx, { lastRow: Boolean(ctx.isLast && parent && parent.tag === 'tbody') });
     } else if (tag === 'th') {
-      st = 'color:' + P.sub + ';font-weight:700;font-size:9.7px;border-bottom:1.5px solid ' + P.bs + ';padding:5px 10px;text-align:right';
+      st = 'color:' + P.sub + ';font-weight:700;font-size:9.7px;border-bottom:1.5px solid ' + P.bs + ';padding:5px 10px;text-align:' + S;
     } else if (tag === 'td') {
-      st = 'padding:7px 10px;text-align:right;unicode-bidi:plaintext' + (ctx.lastRow ? '' : ';border-bottom:.5px solid ' + P.bd);
+      st = 'padding:7px 10px;text-align:' + S + ';unicode-bidi:plaintext' + (ctx.lastRow ? '' : ';border-bottom:.5px solid ' + P.bd);
     } else if (has(n, 'kv')) {
       st = 'margin:9px 0';
       next = Object.assign({}, ctx, { kv: true });
@@ -317,14 +354,14 @@ function renderEmail(html, theme) {
     } else if (has(n, 'bar') && p('bars')) {
       st = 'display:block;margin:5px 0';
     } else if (has(n, 'l') && p('bar')) {
-      st = 'display:inline-block;min-width:52px;margin-left:10px;color:' + P.sub;
+      st = 'display:inline-block;min-width:52px;margin-' + E + ':10px;color:' + P.sub;
     } else if (has(n, 't') && p('bar')) {
       st = 'display:inline-block;width:220px;height:7px;background:' + P.s2 + ';border-radius:4px;vertical-align:middle';
     } else if (tag === 'i' && p('t')) {
       const w = (String((n.attrs && n.attrs.style) || '').match(/width\s*:\s*([\d.]+%)/) || [])[1] || '0%';
       st = 'display:block;width:' + w + ';height:7px;background:' + P.ac + ';border-radius:4px';
     } else if (has(n, 'v') && p('bar')) {
-      st = 'display:inline-block;font-weight:700;font-size:10.4px;margin-right:10px';
+      st = 'display:inline-block;font-weight:700;font-size:10.4px;margin-' + S + ':10px';
     } else if (has(n, 'donut-w')) {
       st = 'margin:10px 0';
     } else if (has(n, 'leg')) {
@@ -334,14 +371,14 @@ function renderEmail(html, theme) {
       st = 'display:block;margin:3px 0';
     } else if (tag === 'i' && ctx.leg) {
       const sw = p('a') ? EMAIL_CA : p('b') ? EMAIL_CB : p('c') ? EMAIL_CC : EMAIL_CD;
-      st = 'display:inline-block;width:9px;height:9px;border-radius:3px;background:' + sw + ';margin-left:8px';
+      st = 'display:inline-block;width:9px;height:9px;border-radius:3px;background:' + sw + ';margin-' + E + ':8px';
     } else if (has(n, 'flow')) {
       st = 'margin:10px 2px';
       inner = flowChildren(n, next);
     } else if (has(n, 's') && p('flow')) {
       st = 'display:inline-block;background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:9px;padding:5px 13px;font-weight:500';
     } else if (has(n, 'tl')) {
-      st = 'margin:10px 3px;padding:0 16px 0 0';
+      st = 'margin:10px 3px;padding:0 ' + (R ? '16px 0 0' : '0 0 16px');
       next = Object.assign({}, ctx, { tl: true });
     } else if (ctx.tl && tag === 'div') {
       st = 'margin:9px 0;unicode-bidi:plaintext';
@@ -357,9 +394,10 @@ function renderEmail(html, theme) {
     return '<' + tag + ' dir="' + dir + '"' + keep + (st ? ' style="' + st + '"' : '') + '>' + pre + inner + post + '</' + tag + '>';
   }
 
-  const rootStyle = 'font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:' + P.tx +
-    ';background:' + P.s1 + ';border:.5px solid ' + P.bd + ';border-radius:14px;padding:19px 22px;text-align:right;direction:rtl';
-  return '<div dir="rtl" style="' + rootStyle + '">' + children(emailParse(html), {}) + '</div>';
+  const rootStyle = 'font-family:' + (R ? 'Vazirmatn,Tahoma,sans-serif' : 'Inter,system-ui,-apple-system,sans-serif') +
+    ';font-size:11.5px;line-height:1.9;color:' + P.tx +
+    ';background:' + P.s1 + ';border:.5px solid ' + P.bd + ';border-radius:14px;padding:19px 22px;text-align:' + S + ';direction:' + DIR;
+  return '<div dir="' + DIR + '" style="' + rootStyle + '">' + children(emailParse(html), {}) + '</div>';
 }
 
 function saveDir() {
@@ -486,7 +524,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.4.0 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.4.1 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();

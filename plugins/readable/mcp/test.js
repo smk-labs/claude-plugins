@@ -81,6 +81,9 @@ function check(name, cond) {
   check('template mime exact', read.contents[0].mimeType === MIME);
   check('template carries kit css', html.includes('.rc{') && html.includes('.rc .kpi') && html.includes('unicode-bidi:plaintext'));
   check('template carries dark palette', html.includes('data-theme="dark"'));
+  check('template hoists @imports above all rules (mid-sheet imports are dead)', html.indexOf('@import') < html.indexOf(':root{') && html.includes('family=Inter'));
+  check('hoisted Vazirmatn import survives intact (its url contains semicolons)', html.includes("family=Vazirmatn:wght@400;500;700;800&display=swap')") && html.includes('.rc{--ca:'));
+  check('template stamps card dir from majority script + LTR overrides', html.includes('dirOf') && html.includes('.rc[dir=ltr]{text-align:left'));
   check('template speaks MCP Apps bridge', html.includes('ui/initialize') && html.includes('ui/notifications/tool-input') && html.includes('size-changed'));
   check('template maps sendPrompt to ui/message', html.includes("rpc('ui/message'"));
   check('template has 5x2 format/action matrix (Email row back in 4.4, rendered server-side)', ['class="row"', 'class="fmt"', 'copyimg', 'copyemail', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlemail', 'dlhtml', 'dlmd', 'dltxt'].every((l) => html.includes(l)) && html.split('row(I.').length === 6);
@@ -121,6 +124,12 @@ function check(name, cond) {
   check('render_email inlines the light callout fill', emailOut.includes('#e6f4ec'));
   check('render_email drops interactive bits', !emailOut.includes('<button') && !emailOut.includes('onclick'));
   check('render_email emits no style/script tags', !/<\s*(style|script)\b/i.test(emailOut));
+  const emEn = await rpc('tools/call', { name: 'render_email', arguments: {
+    html: '<h2>Weekly report</h2><p>All systems green.</p><div class="flow"><span class="s">plan</span><span class="s">ship</span></div>',
+  } });
+  const emEnOut = emEn.content[0].text;
+  check('render_email detects English content as ltr', emEnOut.indexOf('<div dir="ltr"') === 0 && emEnOut.includes('text-align:left') && !emEnOut.includes('Vazirmatn'));
+  check('render_email flips flow arrows for ltr', emEnOut.includes('→') && !emEnOut.includes('←'));
   const emBad = await rpc('tools/call', { name: 'render_email', arguments: { html: '<style>x</style><p>a</p>' } }).then(
     () => false,
     (e) => String(e.message).includes('-32602')
