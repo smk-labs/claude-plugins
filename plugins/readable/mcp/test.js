@@ -69,7 +69,7 @@ function check(name, cond) {
   check('two tools: card + save_card', tools.tools.length === 2 && card.name === 'card' && save.name === 'save_card');
   check('tool links template via _meta.ui.resourceUri', card._meta.ui.resourceUri === 'ui://readable/card.html');
   check('inputSchema requires html', card.inputSchema.required[0] === 'html');
-  check('save_card is app-only', save._meta.ui.visibility.length === 1 && save._meta.ui.visibility[0] === 'app');
+  check('save_card carries no ui meta (Desktop meta parser is fragile)', save._meta === undefined);
 
   // 3. resources: template served with the exact MCP Apps mime
   const res = await rpc('resources/list', {});

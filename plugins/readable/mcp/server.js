@@ -306,7 +306,6 @@ const SAVE_TOOL = {
     },
     required: ['filename', 'content'],
   },
-  _meta: { ui: { visibility: ['app'] } },
 };
 
 function saveDir() {
