@@ -2,9 +2,14 @@
 /** Protocol test for readable-card: full JSON-RPC exchange over stdio, zero deps. Run: node test.js */
 'use strict';
 const { spawn } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
-const srv = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'] });
+const SAVE_DIR = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-save-'));
+const srv = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
+  stdio: ['pipe', 'pipe', 'inherit'],
+  env: Object.assign({}, process.env, { READABLE_SAVE_DIR: SAVE_DIR }),
+});
 const pending = new Map();
 let buf = '';
 let nextId = 1;
@@ -57,12 +62,14 @@ function check(name, cond) {
   check('server declares ui extension', init.capabilities.extensions[UI_EXT].mimeTypes[0] === MIME);
   notify('notifications/initialized', {});
 
-  // 2. tools/list: card tool linked to the ui:// template
+  // 2. tools/list: card tool linked to the ui:// template + app-only save_card
   const tools = await rpc('tools/list', {});
   const card = tools.tools[0];
-  check('one tool named card', tools.tools.length === 1 && card.name === 'card');
+  const save = tools.tools[1];
+  check('two tools: card + save_card', tools.tools.length === 2 && card.name === 'card' && save.name === 'save_card');
   check('tool links template via _meta.ui.resourceUri', card._meta.ui.resourceUri === 'ui://readable/card.html');
   check('inputSchema requires html', card.inputSchema.required[0] === 'html');
+  check('save_card is app-only', save._meta.ui.visibility.length === 1 && save._meta.ui.visibility[0] === 'app');
 
   // 3. resources: template served with the exact MCP Apps mime
   const res = await rpc('resources/list', {});
@@ -74,9 +81,12 @@ function check(name, cond) {
   check('template carries dark palette', html.includes('data-theme="dark"'));
   check('template speaks MCP Apps bridge', html.includes('ui/initialize') && html.includes('ui/notifications/tool-input') && html.includes('size-changed'));
   check('template maps sendPrompt to ui/message', html.includes("rpc('ui/message'"));
-  check('template has grouped card menu with all exports', ['<div class="grp">Copy</div>', '<div class="grp">Download</div>', 'copyimg', 'copyhtml', 'copymd', 'copytext', 'pngdl', 'savehtml'].every((l) => html.includes(l)));
-  check('save-html uses spec ui/download-file', html.includes('ui/download-file'));
-  check('png export is dependency-free (foreignObject)', html.includes('foreignObject') && !html.includes('html2canvas'));
+  check('template has 2x4 grouped menu', ['<div class="grp">Copy</div>', '<div class="grp">Download</div>', 'copyimg', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlhtml', 'dlmd', 'dltxt'].every((l) => html.includes(l)));
+  check('saves go through save_card then ui/download-file', html.includes("name:'save_card'") && html.includes('ui/download-file'));
+  check('png export is dependency-free (foreignObject, blob URL)', html.includes('foreignObject') && html.includes('createObjectURL') && !html.includes('html2canvas'));
+  check('menu has per-item states (spinner/ok/err)', html.includes('rcspin .7s') && html.includes('ICON_OK') && html.includes('classList.add(st)'));
+  check('clipboard has execCommand fallback', html.includes("execCommand('copy')"));
+  check('CTA clicks survive blocked inline handlers (delegation)', html.includes("closest('#card [onclick]')"));
 
   // 4. tools/call happy path
   const ok = await rpc('tools/call', { name: 'card', arguments: { html: '<h2>سلام</h2><p>تست</p>' } });
@@ -95,7 +105,19 @@ function check(name, cond) {
   );
   check('rejects missing html', empty);
 
-  // 6. fallback path: a second server WITHOUT ui capability gets the fallback note
+  // 6. save_card: writes to READABLE_SAVE_DIR, returns absolute path, dedupes, sanitizes
+  const s1 = await rpc('tools/call', { name: 'save_card', arguments: { filename: 'card.md', content: '# hi', encoding: 'utf8' } });
+  check('save_card returns absolute path', s1.content[0].text.startsWith(SAVE_DIR));
+  check('save_card wrote utf8 content', fs.readFileSync(s1.content[0].text, 'utf8') === '# hi');
+  const s2 = await rpc('tools/call', { name: 'save_card', arguments: { filename: 'card.md', content: 'x', encoding: 'utf8' } });
+  check('save_card dedupes existing names', s2.content[0].text.endsWith('card-1.md'));
+  const s3 = await rpc('tools/call', { name: 'save_card', arguments: { filename: '../../evil.sh', content: 'x', encoding: 'utf8' } });
+  check('save_card sanitizes path traversal', s3.content[0].text.startsWith(SAVE_DIR) && !s3.content[0].text.includes('..'));
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64');
+  const s4 = await rpc('tools/call', { name: 'save_card', arguments: { filename: 'card.png', content: png, encoding: 'base64' } });
+  check('save_card decodes base64', fs.readFileSync(s4.content[0].text)[0] === 0x89);
+
+  // 7. fallback path: a second server WITHOUT ui capability gets the fallback note
   const srv2 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'] });
   const out2 = new Promise((resolve) => {
     let b = '';
