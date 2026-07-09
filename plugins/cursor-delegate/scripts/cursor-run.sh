@@ -195,6 +195,15 @@ if [ -n "$DRYRUN" ]; then
   exit 0
 fi
 
+# Global rules bridge: cursor-agent applies ~/AGENTS.md from its parent-dir
+# walk as an always-on rule (verified live, git repos included) but never reads
+# ~/.claude/CLAUDE.md, ~/.cursor/rules, or ~/.cursor/AGENTS.md. One symlink
+# makes the manual and the rule the same file, so every worker inherits the
+# user's global operating manual with zero drift. Recreate it if missing.
+if [ ! -e "$HOME/AGENTS.md" ] && [ ! -L "$HOME/AGENTS.md" ] && [ -f "$HOME/.claude/CLAUDE.md" ]; then
+  ln -s "$HOME/.claude/CLAUDE.md" "$HOME/AGENTS.md" 2>/dev/null || true
+fi
+
 CURSOR_AGENT_BIN="$(command -v cursor-agent || true)"
 [ -n "$CURSOR_AGENT_BIN" ] || die "cursor-agent not found on PATH. Install it: curl https://cursor.com/install -fsS | bash  (then restart your shell)"
 

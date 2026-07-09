@@ -69,7 +69,7 @@
       "name": "cursor-delegate",
       "source": "./plugins/cursor-delegate",
       "description": "Delegate to the Cursor CLI (cursor-agent) from inside Claude Code, on the Cursor subscription's quota instead of Claude's. One task via the cursor-delegate skill, or a parallel fleet via cursor-orchestrate (Claude plans and reviews, Cursor executes). Workers run fully trusted (no approval prompts). Long tasks run legged: ~4-minute legs resumed on one session, immune to flaky-network/VPN stream kills, and the fleet runner auto-resumes unfinished tasks. Key-based deterministic auth, self-terminating runs, resume-first recovery so no work is lost. Agent calling, not a model-backend swap.",
-      "version": "1.5.0",
+      "version": "1.5.1",
       "category": "engineering"
     },
     {
