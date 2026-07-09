@@ -20,10 +20,12 @@ You hand ONE self-contained task to Cursor and return its result. cursor-agent d
 
 Exit `1` means the leg budget ran out — rerun the same command to continue (state: `~/.claude-deck/cursor/legs/<id>`). `--worktree` isolates parallel edits; `--force` is automatic.
 
-1. **Account is optional.** Omit it to use the machine's single `cursor-agent login` (the normal case). Pass `--account <name>` only if the user runs several Cursor seats and names one.
+1. **Account is optional.** Omit it and auth comes from the `default` entry of `~/.claude-deck/cursor/agent-keys.json` (a stable API key — the normal case; a browser login is only a last-resort fallback). Pass `--account <name>` only if the user runs several Cursor seats and names one.
 2. **Task must be self-contained.** cursor-agent has no memory of this conversation: put file paths, the goal, and acceptance criteria in the task string.
 3. **Model:** `--model auto` is unlimited on paid plans (no quota drawn); a named model draws the pool. Say which you used.
 4. Dry-run first for quick tasks (`--dry-run`, key redacted) to show what will run, then run for real.
+5. **Resume, never restart.** Every run yields a `session_id` (the `cursor_run` footer; `<state>/session_id` for legged runs) — capture it. On any failure or interruption, harvest the partial output (`last_result.txt`, `leg-N.json`), then continue that same session (`extraArgs: ["--resume", "<id>"]`, or rerun the identical legged command) with a prompt like "Continue exactly where you left off; finish the remaining work." Start over only if no session was ever created (auth/CLI setup failure).
+6. **Runs close themselves.** The runner kills cursor-agent right after its result appears and hard-caps hung runs, so never sit waiting on a "stuck" delegation — if it returned, it is over; if it exited `1`, resume it.
 
 ## Reporting back
 

@@ -122,13 +122,16 @@ leg_field() {
 [ -z "$SESSION" ] && [ -f "$STATE/session_id" ] && SESSION="$(cat "$STATE/session_id")"
 LEGBASE=0
 while [ -f "$STATE/leg-$((LEGBASE+1)).json" ]; do LEGBASE=$((LEGBASE+1)); done
-LEG_TIMEOUT=$(( (LEG_MINUTES + 4) * 60 ))   # hard kill for a hung (not dropped) stream
+LEG_TIMEOUT=$(( (LEG_MINUTES + 4) * 60 ))   # hard cap for a hung (not dropped) stream
 RESULT=""; DONE=""
 
 for n in $(seq 1 "$MAX_LEGS"); do
   i=$((LEGBASE + n))
   LEGOUT="$STATE/leg-$i.json"
-  ARGS=(--json --model "$MODEL")
+  # cursor-run supervises the leg itself: it kills cursor-agent ~1.5s after the
+  # result object appears (the CLI sometimes never exits on its own) and
+  # hard-kills at --timeout. No watchdog needed here.
+  ARGS=(--json --model "$MODEL" --timeout "$LEG_TIMEOUT")
   [ -n "$ACCOUNT" ] && ARGS+=(--account "$ACCOUNT")
   [ -n "$CWD" ] && ARGS+=(--cwd "$CWD")
   if [ -z "$SESSION" ]; then
@@ -138,16 +141,7 @@ for n in $(seq 1 "$MAX_LEGS"); do
   fi
   [ ${#EXTRA[@]} -gt 0 ] && ARGS+=("${EXTRA[@]}")
 
-  "$RUNNER" "${ARGS[@]}" > "$LEGOUT" 2>"$STATE/leg-$i.err" &
-  LEG_PID=$!
-  # Watchdog detached from our stdio: it must not hold this script's pipes open
-  # (a parent reading our stdout would otherwise wait on the sleeping child).
-  ( sleep "$LEG_TIMEOUT" && kill "$LEG_PID" 2>/dev/null ) >/dev/null 2>&1 &
-  WATCHDOG=$!
-  wait "$LEG_PID" 2>/dev/null
-  pkill -P "$WATCHDOG" 2>/dev/null   # the sleep first (children reparent once the subshell dies)
-  kill "$WATCHDOG" 2>/dev/null
-  wait "$WATCHDOG" 2>/dev/null
+  "$RUNNER" "${ARGS[@]}" > "$LEGOUT" 2>"$STATE/leg-$i.err"
 
   NEWSESSION="$(leg_field "$LEGOUT" session_id)"
   RESULT="$(leg_field "$LEGOUT" result)"

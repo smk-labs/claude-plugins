@@ -38,22 +38,18 @@ Leg state (per-leg JSON, `session_id`, `last_result.txt`) lives in `~/.claude-de
 
 ## Setup
 
-1. Install the Cursor CLI and sign in your default account:
+1. Install the Cursor CLI:
    ```bash
    curl https://cursor.com/install -fsS | bash
-   cursor-agent login
    ```
-2. Install this plugin from the `smk` marketplace. Done — for a single account, no other config.
+2. Store Cursor API keys (Cursor dashboard → Integrations → API Keys) in `~/.claude-deck/cursor/agent-keys.json` (chmod 600), and name the **default** account:
 
-### Multiple accounts (optional)
+   ```json
+   { "work": "key_...", "personal": "key_...", "default": "work" }
+   ```
 
-Give each named account a Cursor API key (Cursor dashboard → Integrations → API Keys), then store them in `~/.claude-deck/cursor/agent-keys.json` (chmod 600):
-
-```json
-{ "work": "key_...", "personal": "key_..." }
-```
-
-Now `account: "work"` (tool) or `--account work` (script) uses that key. A key overrides the default login; with no account, the default login is used.
+   The `default` entry (an alias to another label, or a raw key) is what every run uses when no account is given. This makes auth deterministic — no dependence on a browser login that may be absent or expired. `account: "work"` (tool) or `--account work` (script) targets a specific seat; a plain `cursor-agent login` still works as a last-resort fallback.
+3. Install this plugin from the `smk` marketplace.
 
 ## Usage
 
@@ -73,5 +69,7 @@ Or drive the script directly:
 
 - **Billing:** Cursor **Auto** (`model: auto`) is unlimited on paid plans (no quota drawn); named models draw the monthly pool. To rule out surprise charges, turn off on-demand spending in Cursor's billing settings.
 - **Self-contained tasks only:** `cursor-agent` starts with a blank context, so include file paths, the goal, and acceptance criteria in the task.
+- **Runs close themselves:** `cursor-agent` sometimes never exits after printing its result. `cursor-run.sh` supervises every run: in JSON mode it kills the process ~1.5s after the result object appears (the run still exits 0 with full output), and `--timeout` (default 900s) hard-kills anything hung before a result. No delegation can hang open.
+- **Resume beats restart:** every run yields a `session_id` (the `cursor_run` reply footer; `<state>/session_id` for legged runs). On any failure, harvest the partial output (`last_result.txt`, `leg-N.json`) and continue the same session (`--resume`) with a "continue where you left off" prompt — restart only when no session ever existed.
 - **Workers run fully trusted, like Claude Code subagents:** every runner passes `--force --approve-mcps`, and setting `approvalMode: "unrestricted"` in `~/.cursor/cli-config.json` makes it machine-wide. Full file, shell, and MCP access, no approval prompts; tasks may carry credentials and do direct server work (deploys, SSH) when needed.
 - **Context sync (verified):** headless workers read the repo-root `CLAUDE.md`/`AGENTS.md`, load the user's `~/.claude/skills` as agent skills, and see installed Claude plugins' MCP servers. The user-level `~/.claude/CLAUDE.md` and global `~/.cursor/rules` do NOT reach them: put global rules that matter into the repo's `CLAUDE.md`/`AGENTS.md` or the task text.

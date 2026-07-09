@@ -33,6 +33,8 @@ Bad: "add the auth we discussed." Good: "In `src/auth/session.ts`, add `refresh(
 
 **One rule overrides everything: no single cursor-agent stream may live past ~4 minutes.** Flaky networks (VPNs especially) kill streams at ~5-6 minutes — measured, not theoretical. Quick slices (< ~4 min) may use `cursor_run`; every longer slice runs **legged**: short legs on one `--resume`d session until the worker prints `DONE-ALL` (see the cursor-delegate skill).
 
+Two guarantees every runner gives you: **auth is deterministic** (with no `account`, the `default` entry of `~/.claude-deck/cursor/agent-keys.json` supplies the API key — no dependence on a browser login), and **runs close themselves** (the process is killed ~1.5s after its result object; hung runs die at a hard timeout — a worker can never hang a turn open).
+
 ### Mode A-simple
 One quick task → the `cursor_run` tool (or the `cursor-worker` subagent). One long task → the legged runner:
 
@@ -44,6 +46,8 @@ One quick task → the `cursor_run` tool (or the `cursor-worker` subagent). One 
 Quick slices: several `cursor_run` calls **in a single turn** so they run concurrently (proven: multiple cursor-agent runs on one account run in parallel fine). Long slices: one `legged-run.sh` per slice via Bash `run_in_background`. For slices that **edit files in the same repo**, give each legged run `--worktree` (persistent git worktree, branch `legs/<id>`) or disjoint directories, so they never collide. Collect all results, then go to Step 4.
 
 **Persevere on exit `1`.** A legged run that exits `1` is unfinished, not failed: its leg budget ran out with the session saved. Rerun the exact same command and it resumes where it stopped. Keep resuming until `DONE-ALL` or a real blocker (auth, quota); only then report the stall.
+
+**Resume beats restart, in every failure mode.** Any worker that ever produced a `session_id` (the `cursor_run` reply footer, `results.json`, or `<state>/session_id`) can be continued with its full context: harvest its partial output first (`last_result.txt`, `leg-N.json`), then resume with a continue-style prompt ("Continue exactly where you left off; finish the remaining work"). Restart from scratch only when no session ever existed (auth/CLI setup failure). Never let a worker's done-but-unreported work go to waste.
 
 ### Mode B — the JS harness
 Write a `tasks.json` and run the bundled fleet runner (it executes **every task legged** through `legged-run.sh`):
@@ -76,9 +80,9 @@ Read each worker's output and **accept or fix it yourself** — you are the qual
 Proven behavior of headless `cursor-agent` (verified live on this machine):
 - It **reads `CLAUDE.md` and `AGENTS.md`** at the project root. Put your conventions there and every worker in that repo inherits them for free.
 - It **loads the user's `~/.claude/skills` as agent skills** and **sees the MCP servers of installed Claude plugins**, natively. The Claude side's skills and plugin MCPs are already in sync; nothing to copy.
-- What does NOT reach workers: the user-level `~/.claude/CLAUDE.md` and global `~/.cursor/rules`. A global rule that matters for a slice goes into the repo's `CLAUDE.md`/`AGENTS.md` or the task text.
+- The global operating manual reaches workers via the `~/AGENTS.md -> ~/.claude/CLAUDE.md` symlink: cursor-agent applies `~/AGENTS.md` from its parent-dir walk as an always-on rule (git repos included). `~/.cursor/rules` and `~/.cursor/AGENTS.md` are never read. Before fanning out, ensure the bridge exists: `[ -e ~/AGENTS.md ] || ln -s ~/.claude/CLAUDE.md ~/AGENTS.md`.
 - Workers can also use MCP servers listed in the project `.cursor/mcp.json` (or `~/.cursor/mcp.json`); add one if a slice must reach a database/API during execution.
 
 ## Setup
 
-Requires the `cursor-delegate` plugin (this skill ships with it): the Cursor CLI installed (`curl https://cursor.com/install -fsS | bash`), a login or API key, and — for multiple seats — `~/.claude-deck/cursor/agent-keys.json`. See the plugin README.
+Requires the `cursor-delegate` plugin (this skill ships with it): the Cursor CLI installed (`curl https://cursor.com/install -fsS | bash`) and API keys in `~/.claude-deck/cursor/agent-keys.json` (chmod 600) with a `default` entry naming the account every run uses when none is given — e.g. `{ "tech-c": "key_...", "default": "tech-c" }`. A browser `cursor-agent login` is only a last-resort fallback. See the plugin README.

@@ -15,7 +15,7 @@ const fs = require('fs');
 const readline = require('readline');
 const { execFile } = require('child_process');
 
-const SERVER_INFO = { name: 'cursor-mcp', version: '1.4.0' };
+const SERVER_INFO = { name: 'cursor-mcp', version: '1.5.0' };
 const DEFAULT_PROTOCOL = '2025-06-18';
 
 // Locate cursor-run.sh: explicit override, canonical install path, then a
@@ -41,17 +41,23 @@ const TOOL = {
     "on flaky networks/VPNs — run those with the plugin's legged runner (scripts/legged-run.sh, see " +
     'the cursor-delegate skill), which chains ~4-minute legs on one resumed session. The task must be ' +
     'fully self-contained (cursor-agent starts with a blank context): include file paths, the goal, ' +
-    'and acceptance criteria. Cursor "auto" model is unlimited on paid plans; named models draw ' +
-    'the monthly pool. The worker runs fully trusted, like a Claude Code subagent: file edits, shell, ' +
-    'and MCPs are auto-approved (--force --approve-mcps always passed), and the task may include ' +
-    'credentials or keys when the job needs them (e.g. a direct server deploy).',
+    'and acceptance criteria. Auth is deterministic: the "default" entry of ' +
+    '~/.claude-deck/cursor/agent-keys.json picks the API key when account is omitted (no dependence ' +
+    'on a browser login). Every reply ends with a [cursor …] footer carrying the session_id: SAVE IT. ' +
+    'To continue or fix that same worker with its full context, call this tool again with ' +
+    'extraArgs: ["--resume", "<session_id>"] — always prefer resuming over restarting, so no work is ' +
+    'lost. Runs self-terminate (the process is killed right after its result; hung runs die at a hard ' +
+    'timeout), so a call can never hang open. Cursor "auto" model is unlimited on paid plans; named ' +
+    'models draw the monthly pool. The worker runs fully trusted, like a Claude Code subagent: file ' +
+    'edits, shell, and MCPs are auto-approved (--force --approve-mcps always passed), and the task ' +
+    'may include credentials or keys when the job needs them (e.g. a direct server deploy).',
   inputSchema: {
     type: 'object',
     properties: {
       task: { type: 'string', description: 'The self-contained task text.' },
-      account: { type: 'string', description: 'Account label from agent-keys.json. Omit to use the CURSOR_API_KEY env var.' },
+      account: { type: 'string', description: 'Account label from agent-keys.json. Omit to use the keys file\'s "default" entry.' },
       model: { type: 'string', description: 'Model for cursor-agent, e.g. "auto" (unlimited) or a specific model. Omit for Cursor default.' },
-      json: { type: 'boolean', description: 'Request JSON output from cursor-agent instead of text.' },
+      json: { type: 'boolean', description: 'Return the raw result JSON object (result, session_id, usage, duration_ms) instead of the formatted text.' },
       cwd: { type: 'string', description: 'Directory to run in. Defaults to the server process cwd.' },
       dryRun: { type: 'boolean', description: 'Print the exact command (key redacted) without executing.' },
       extraArgs: { type: 'array', items: { type: 'string' }, description: 'Extra flags passed straight to cursor-agent (after --).' },
@@ -71,16 +77,29 @@ function replyError(id, code, message) {
   send({ jsonrpc: '2.0', id: id, error: { code: code, message: message } });
 }
 
+// Last line of `text` that parses as a JSON object, or null.
+function lastJson(text) {
+  const lines = (text || '').trim().split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const t = lines[i].trim();
+    if (!t || t[0] !== '{') continue;
+    try { return JSON.parse(t); } catch (e) { /* not this line */ }
+  }
+  return null;
+}
+
 function runCursor(args) {
   return new Promise((resolve) => {
     const runner = resolveRunner();
     if (!runner) {
       return resolve({ ok: false, text: 'cursor-run.sh not found. Set CURSOR_RUN_BIN or install it to ~/.claude-deck/bin/cursor-run.sh.' });
     }
-    const argv = [];
+    // Always run --json underneath: it gives cursor-run its kill-on-result
+    // signal (cursor-agent sometimes never exits on its own) and carries the
+    // session_id every reply must surface so the caller can --resume later.
+    const argv = ['--json', '--timeout', '480'];
     if (args.account) argv.push('--account', String(args.account));
     if (args.model) argv.push('--model', String(args.model));
-    if (args.json) argv.push('--json');
     if (args.cwd) argv.push('--cwd', String(args.cwd));
     if (args.dryRun) argv.push('--dry-run');
     argv.push(String(args.task));
@@ -88,16 +107,28 @@ function runCursor(args) {
       argv.push('--');
       for (const a of args.extraArgs) argv.push(String(a));
     }
-    // 10 min: agent runs can be long. Big buffer for verbose output.
+    // 10 min outer cap; cursor-run's own --timeout 480 fires first, so a hung
+    // run still returns whatever it produced. Big buffer for verbose output.
     execFile(runner, argv, { maxBuffer: 32 * 1024 * 1024, timeout: 10 * 60 * 1000 }, (err, stdout, stderr) => {
       const out = (stdout || '').trim();
       const errText = (stderr || '').trim();
       if (err && !out) {
         return resolve({ ok: false, text: errText || ('cursor-run failed: ' + err.message) });
       }
-      // Surface stderr alongside stdout when both exist (cursor-agent warnings).
-      const text = errText && errText !== out ? out + '\n\n[stderr]\n' + errText : out;
-      resolve({ ok: !err, text: text || '(no output)' });
+      if (args.dryRun) return resolve({ ok: !err, text: out || '(no output)' });
+      const parsed = lastJson(out);
+      if (!parsed || parsed.result === undefined) {
+        // No result object — a real failure. Show everything for diagnosis.
+        const text = errText && errText !== out ? out + '\n\n[stderr]\n' + errText : out;
+        return resolve({ ok: false, text: (text || '(no output)') + '\n\n[cursor: no result object — if a session_id appeared above, resume it with extraArgs ["--resume", "<session_id>"] instead of restarting]' });
+      }
+      if (args.json) return resolve({ ok: !parsed.is_error, text: JSON.stringify(parsed) });
+      const u = parsed.usage || {};
+      const footer = '[cursor: session_id ' + (parsed.session_id || 'unknown')
+        + ' | ' + (u.inputTokens || 0) + ' in / ' + (u.outputTokens || 0) + ' out tokens'
+        + ' | ' + Math.round((parsed.duration_ms || 0) / 1000) + 's'
+        + ' — to continue this worker with its context intact, pass extraArgs ["--resume", "' + (parsed.session_id || '') + '"]]';
+      resolve({ ok: !parsed.is_error, text: String(parsed.result || '(empty result)') + '\n\n' + footer });
     });
   });
 }
