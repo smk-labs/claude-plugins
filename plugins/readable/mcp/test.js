@@ -67,11 +67,13 @@ function check(name, cond) {
   const card = tools.tools[0];
   const save = tools.tools[1];
   const email = tools.tools[2];
-  check('three tools: card + save_card + render_email', tools.tools.length === 3 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email');
+  const readf = tools.tools[3];
+  check('four tools: card + save_card + render_email + read_card_file', tools.tools.length === 4 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email' && readf.name === 'read_card_file');
   check('tool links template via _meta.ui.resourceUri', card._meta.ui.resourceUri === 'ui://readable/card.html');
-  check('inputSchema requires html', card.inputSchema.required[0] === 'html');
+  check('inputSchema offers html or htmlFile, neither hard-required', Boolean(card.inputSchema.properties.html && card.inputSchema.properties.htmlFile) && card.inputSchema.required === undefined);
   check('save_card carries no ui meta (Desktop meta parser is fragile)', save._meta === undefined);
   check('render_email carries no ui meta', email._meta === undefined);
+  check('read_card_file carries no ui meta', readf._meta === undefined);
 
   // 3. resources: template served with the exact MCP Apps mime
   const res = await rpc('resources/list', {});
@@ -96,11 +98,21 @@ function check(name, cond) {
   check('menu has per-item states (spinner/ok/err)', html.includes('rcspin .7s') && html.includes('ICON_OK') && html.includes('classList.add(st)'));
   check('clipboard has execCommand fallback', html.includes("execCommand('copy')"));
   check('CTA clicks survive blocked inline handlers (delegation)', html.includes("closest('#card [onclick]')"));
+  check('template fetches htmlFile via read_card_file (never via model context)', html.includes("name:'read_card_file'") && html.includes('htmlFile'));
 
   // 4. tools/call happy path
   const ok = await rpc('tools/call', { name: 'card', arguments: { html: '<h2>سلام</h2><p>تست</p>' } });
   check('call returns model-facing text', ok.content[0].type === 'text' && ok.content[0].text.includes('rendered'));
   check('call mirrors html into structuredContent', ok.structuredContent.html === '<h2>سلام</h2><p>تست</p>');
+
+  // 4b. htmlFile mode: card renders from a pre-written *-card.html file
+  const CARD_FILE = path.join(SAVE_DIR, 'worker-report-card.html');
+  fs.writeFileSync(CARD_FILE, '<h2>گزارش کارگر</h2><p>تمام شد</p>');
+  const okf = await rpc('tools/call', { name: 'card', arguments: { htmlFile: CARD_FILE } });
+  check('htmlFile call returns model-facing text', okf.content[0].type === 'text' && okf.content[0].text.includes('rendered'));
+  check('htmlFile call carries only the path in structuredContent (no html echo to the model)', okf.structuredContent.htmlFile === CARD_FILE && okf.structuredContent.html === undefined);
+  const rf = await rpc('tools/call', { name: 'read_card_file', arguments: { path: CARD_FILE } });
+  check('read_card_file returns the file content for the bridge', rf.content[0].text === '<h2>گزارش کارگر</h2><p>تمام شد</p>' && !rf.isError);
 
   // 5. guardrails
   const bad = await rpc('tools/call', { name: 'card', arguments: { html: '<style>x</style><p>a</p>' } }).then(
@@ -113,6 +125,30 @@ function check(name, cond) {
     (e) => String(e.message).includes('-32602')
   );
   check('rejects missing html', empty);
+  const both = await rpc('tools/call', { name: 'card', arguments: { html: '<p>a</p>', htmlFile: CARD_FILE } }).then(
+    () => false,
+    (e) => String(e.message).includes('not both')
+  );
+  check('rejects html and htmlFile together', both);
+  const wrongName = await rpc('tools/call', { name: 'card', arguments: { htmlFile: path.join(SAVE_DIR, 'evil.html') } }).then(
+    () => false,
+    (e) => String(e.message).includes('-card.html')
+  );
+  check('rejects htmlFile without the -card.html suffix', wrongName);
+  const missing = await rpc('tools/call', { name: 'card', arguments: { htmlFile: path.join(SAVE_DIR, 'ghost-card.html') } }).then(
+    () => false,
+    (e) => String(e.message).includes('not found')
+  );
+  check('rejects missing htmlFile with an actionable error', missing);
+  const STYLED_FILE = path.join(SAVE_DIR, 'styled-card.html');
+  fs.writeFileSync(STYLED_FILE, '<style>x</style><p>a</p>');
+  const styledFile = await rpc('tools/call', { name: 'card', arguments: { htmlFile: STYLED_FILE } }).then(
+    () => false,
+    (e) => String(e.message).includes('style')
+  );
+  check('rejects htmlFile containing <style>', styledFile);
+  const relPath = await rpc('tools/call', { name: 'read_card_file', arguments: { path: 'relative-card.html' } });
+  check('read_card_file rejects relative paths', relPath.isError && relPath.content[0].text.includes('absolute'));
 
   // 6. render_email: server-side inline-styled email HTML
   const em = await rpc('tools/call', { name: 'render_email', arguments: {

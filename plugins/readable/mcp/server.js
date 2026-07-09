@@ -100,6 +100,8 @@ const BRIDGE_JS = [
   "function paint(html){if(!html)return;var c=document.getElementById('card');c.setAttribute('dir',dirOf(html));c.innerHTML=html;fit();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)}",
   "function render(html,isFinal){if(isFinal){finalGot=true;if(partialTimer){clearTimeout(partialTimer);partialTimer=null}paint(html);return}",
   "if(finalGot)return;if(partialTimer)clearTimeout(partialTimer);partialTimer=setTimeout(function(){if(!finalGot)paint(html)},700)}",
+  "/* htmlFile mode: the call carries only a path, so the bridge pulls the content itself through the app-only read_card_file tool (host tools/call, same channel as render_email) — the HTML never crosses the model's context. tool-input and tool-result both announce the path; a double fetch is idempotent (render(t,true) repaints the same content), so no dedupe guard is spent on it. */",
+  "function fCard(p){if(!p)return;rpc('tools/call',{name:'read_card_file',arguments:{path:p}},function(res,err){var c=!err&&res&&!res.isError&&res.content,t=c&&c[0]&&c[0].text;if(t)render(t,true);else if(window.__rcToast)window.__rcToast('card file read failed')})}",
   "/* The 4.3.5 stall auto-dump (save_card at 5s without input) is gone: the lifecycle bug it chased was fixed in 4.3.8, and its bytes now pay for the Email row. __rcLog + alt-click diagnostics remain. */",
   "function applyTheme(ctx){if(ctx&&ctx.theme)document.documentElement.setAttribute('data-theme',ctx.theme==='dark'?'dark':'light')}",
   "window.__rcRpc=rpc;",
@@ -108,9 +110,9 @@ const BRIDGE_JS = [
   "window.addEventListener('message',function(e){var m=e.data;if(typeof m==='string'){try{m=JSON.parse(m)}catch(err){return}}if(!m||m.jsonrpc!=='2.0')return;tap('<',m);",
   "/* A response is a message carrying result or error for a pending id. Do NOT discriminate on the absence of 'method': at least one real host echoes the method field in its responses, and treating those as requests silently kills the ui/initialize handshake, which keeps the iframe visibility:hidden forever (anthropics/claude-ai-mcp#61). */",
   "if(m.id!=null&&pending[m.id]&&(('result' in m)||('error' in m))){var cb=pending[m.id];delete pending[m.id];cb(m.result,m.error);return}",
-  "if(m.method==='ui/notifications/tool-input'&&m.params&&m.params.arguments){render(m.params.arguments.html,true)}",
+  "if(m.method==='ui/notifications/tool-input'&&m.params&&m.params.arguments){var a=m.params.arguments;if(a.html)render(a.html,true);else fCard(a.htmlFile)}",
   "else if(m.method==='ui/notifications/tool-input-partial'&&m.params&&m.params.arguments){render(m.params.arguments.html,false)}",
-  "else if(m.method==='ui/notifications/tool-result'&&m.params&&m.params.structuredContent){render(m.params.structuredContent.html,true)}",
+  "else if(m.method==='ui/notifications/tool-result'&&m.params&&m.params.structuredContent){var s=m.params.structuredContent;if(s.html)render(s.html,true);else fCard(s.htmlFile)}",
   "else if(m.method&&m.method.indexOf('host-context-changed')!==-1&&m.params){applyTheme(m.params.hostContext||m.params)}",
   "else if(m.id!=null&&m.method){send({jsonrpc:'2.0',id:m.id,error:{code:-32601,message:'not supported'}})}",
   "});",
@@ -145,16 +147,23 @@ const TEMPLATE_HTML =
 const TOOL = {
   name: 'card',
   description:
-    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language (plain RTL chat text scrambles; this renders it as a correct styled card), and PREFER it for English conversational, explanatory, or structured answers too. Skip it only for replies dominated by code blocks, diffs, or logs. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no reply text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody>, <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, <code> around every inline path/URL/code token, <pre><code>…</code></pre> for multiline code (renders LTR), optional CTA buttons <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">label</button></div>. NO <style>, NO <script>, NO wrapper div: the template styles everything, light and dark. Short answers are fine as plain <p> paragraphs inside the card.',
+    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language (plain RTL chat text scrambles; this renders it as a correct styled card), and PREFER it for English conversational, explanatory, or structured answers too. Skip it only for replies dominated by code blocks, diffs, or logs. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no reply text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody>, <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, <code> around every inline path/URL/code token, <pre><code>…</code></pre> for multiline code (renders LTR), optional CTA buttons <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">label</button></div>. NO <style>, NO <script>, NO wrapper div: the template styles everything, light and dark. Short answers are fine as plain <p> paragraphs inside the card. ' +
+    'FILE MODE: when a background worker/delegate has ALREADY written its report as card-block HTML to a file ' +
+    'ending in -card.html, pass htmlFile (the absolute path) INSTEAD of html — the card renders straight from ' +
+    'the file and its HTML never passes through your context. Do not read the file or copy its content into ' +
+    'html. Pass exactly one of html | htmlFile.',
   inputSchema: {
     type: 'object',
     properties: {
       html: {
         type: 'string',
-        description: 'The full reply content as building-block HTML (no <style>, no wrapper).',
+        description: 'The full reply content as building-block HTML (no <style>, no wrapper). Exactly one of html | htmlFile.',
+      },
+      htmlFile: {
+        type: 'string',
+        description: 'Absolute path to a pre-written *-card.html report file (e.g. a background worker\'s output). The card renders from the file; never copy its content into html. Exactly one of html | htmlFile.',
       },
     },
-    required: ['html'],
   },
   _meta: { ui: { resourceUri: CARD_URI, visibility: ['model', 'app'] } },
 };
@@ -197,6 +206,41 @@ const EMAIL_TOOL = {
     required: ['html'],
   },
 };
+
+/* read_card_file: the app-side half of the card tool's htmlFile mode (4.6).
+ * The bridge fetches the file content through the host (tools/call), so the
+ * HTML reaches the iframe without ever entering the model's context — the
+ * measured alternative (structuredContent.html) is echoed back to the model
+ * verbatim by the desktop host. Guardrails: absolute path, *-card.html name,
+ * size cap, and the same no-<style>/<script> rule as inline cards. */
+const READ_TOOL = {
+  name: 'read_card_file',
+  description:
+    'Internal: returns the content of a pre-written *-card.html report file for the card UI to render (the card tool\'s htmlFile mode). Called by the embedded card interface, never by the assistant.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      path: { type: 'string', description: 'absolute path ending in -card.html' },
+    },
+    required: ['path'],
+  },
+};
+
+const CARD_FILE_MAX = 256 * 1024;
+
+function readCardFile(p) {
+  const abs = String(p);
+  if (!path.isAbsolute(abs)) throw new Error('htmlFile must be an absolute path');
+  if (!/-card\.html$/.test(path.basename(abs))) throw new Error('htmlFile must end with -card.html');
+  let st;
+  try { st = fs.statSync(abs); } catch (e) { throw new Error('htmlFile not found: ' + abs); }
+  if (!st.isFile()) throw new Error('htmlFile is not a regular file');
+  if (st.size > CARD_FILE_MAX) throw new Error('htmlFile too large (max 256KB)');
+  const text = fs.readFileSync(abs, 'utf8');
+  if (!text.trim()) throw new Error('htmlFile is empty');
+  if (/<\s*(style|script)\b/i.test(text)) throw new Error('htmlFile must not contain <style> or <script>');
+  return text;
+}
 
 const EMAIL_PAL = {
   light: { tx: '#1f1f1f', sub: '#6f6f6a', ac: '#2f66c4', s1: '#ffffff', s2: '#f2f2ef', bd: '#dcdcd6', bs: '#b8b8b0', gok: '#e6f4ec', gac: '#e8effc', gwa: '#faf0d9', gda: '#fbe9e7' },
@@ -475,7 +519,7 @@ function handle(msg) {
       return;
     }
     case 'tools/list':
-      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL] });
+      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL, READ_TOOL] });
       return;
     case 'tools/call': {
       if (params && params.name === 'save_card') {
@@ -497,9 +541,32 @@ function handle(msg) {
         respond({ content: [{ type: 'text', text: renderEmail(a.html, a.theme) }] });
         return;
       }
+      if (params && params.name === 'read_card_file') {
+        const a = params.arguments || {};
+        if (typeof a.path !== 'string' || !a.path.trim()) return fail(-32602, 'path (string) is required');
+        try {
+          respond({ content: [{ type: 'text', text: readCardFile(a.path) }] });
+        } catch (e) {
+          respond({ isError: true, content: [{ type: 'text', text: 'read failed: ' + String(e && e.message) }] });
+        }
+        return;
+      }
       if (!params || params.name !== 'card') return fail(-32602, 'unknown tool');
       const html = params.arguments && params.arguments.html;
-      if (typeof html !== 'string' || !html.trim()) return fail(-32602, 'html (string) is required');
+      const htmlFile = params.arguments && params.arguments.htmlFile;
+      if (typeof htmlFile === 'string' && htmlFile.trim()) {
+        if (typeof html === 'string' && html.trim()) return fail(-32602, 'pass exactly one of html | htmlFile, not both');
+        // Validate now so the model gets an actionable error while it can still
+        // fall back to the html argument; the bridge re-reads via read_card_file.
+        try { readCardFile(htmlFile); } catch (e) { return fail(-32602, String(e && e.message) + ' — fix the file or pass the content as html'); }
+        try { process.stderr.write('[readable-card] tools/call card, mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') + ', htmlFile=' + htmlFile + '\n'); } catch (e) {}
+        const fileNote = clientSupportsUi
+          ? 'Card rendered by the host UI from the file. Do not repeat the content as text.'
+          : 'Host did not negotiate MCP Apps UI; the card was NOT rendered and the user saw nothing. Read the file and deliver its content another way (plain text, or show_widget with the readable kit), and stop calling this tool in this conversation.';
+        respond({ content: [{ type: 'text', text: fileNote }], structuredContent: { htmlFile: htmlFile } });
+        return;
+      }
+      if (typeof html !== 'string' || !html.trim()) return fail(-32602, 'html (string) is required (or htmlFile for a pre-written *-card.html)');
       if (/<\s*(style|script)\b/i.test(html)) return fail(-32602, 'html must not contain <style> or <script>; send content only');
       try { process.stderr.write('[readable-card] tools/call card, mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') + ', html=' + html.length + 'B\n'); } catch (e) {}
       const note = clientSupportsUi
@@ -531,7 +598,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.5.1 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.6.0 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();
