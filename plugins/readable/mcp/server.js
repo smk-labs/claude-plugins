@@ -85,7 +85,7 @@ const BRIDGE_JS = [
   "/* ui/message param shape differs across host snapshots: try the content-array form, then the single-object form; if both are rejected, copy the prompt text so the user can paste it, and keep the errors for the alt-click diagnostics dump. */",
   "window.sendPrompt=function(t){var text=String(t);var shapes=[{role:'user',content:[{type:'text',text:text}]},{role:'user',content:{type:'text',text:text}}];var errs=[];",
   "(function tryNext(i){if(i>=shapes.length){window.__rcErrs=(window.__rcErrs||[]).concat(errs);",
-  "if(window.__rcCopy){window.__rcCopy(text,function(ok){if(window.__rcToast)window.__rcToast(ok?'host refused ui/message ('+errs[errs.length-1]+') - message copied, paste it in the chat box':'ui/message rejected: '+errs[errs.length-1])})}else if(window.__rcToast)window.__rcToast('ui/message rejected: '+errs[errs.length-1]);return}",
+  "if(window.__rcCopy){window.__rcCopy(text,function(ok){if(window.__rcToast)window.__rcToast(ok?'ui/message refused ('+errs[errs.length-1]+') - copied, paste it':'rejected: '+errs[errs.length-1])})}else if(window.__rcToast)window.__rcToast('rejected: '+errs[errs.length-1]);return}",
   "rpc('ui/message',shapes[i],function(res,err){if(err){errs.push(String(err.code||'')+' '+String(err.message||'').slice(0,80));tryNext(i+1)}})})(0)};",
   "/* Host CSP in MCP Apps iframes blocks inline onclick attributes (unlike the old widget host), so CTA clicks are re-dispatched by delegation; blocked attributes leave .onclick null, which doubles as the no-double-fire guard. */",
   "document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('#card [onclick]');if(!b||b.onclick)return;var m=String(b.getAttribute('onclick')).match(/^\\s*sendPrompt\\((['\"])([\\s\\S]*?)\\1\\)\\s*;?\\s*$/);if(m)window.sendPrompt(m[2])});",
@@ -95,8 +95,8 @@ const BRIDGE_JS = [
   "/* Measure the .items panel itself: #rcmenu's own rect is just the dots button, absolute children never grow it. */",
   "function fit(){var h=document.documentElement.scrollHeight;var m=document.getElementById('rcmenu');var it=m&&m.querySelector('.items');if(it&&m.className.indexOf('open')>-1){var b=it.getBoundingClientRect().bottom+10;if(b>h)h=b}notify('ui/notifications/size-changed',{height:Math.ceil(h)+2})}",
   "window.__rcFit=fit;",
-  "/* Card direction follows the content's majority script (the kit is Persian-first, ties go RTL); .rc[dir=ltr] overrides in the template CSS mirror the sided rules. */",
-  "function dirOf(h){var t=String(h).replace(/<[^>]*>/g,' ');var r=(t.match(/[\\u0591-\\u07FF\\uFB1D-\\uFDFD\\uFE70-\\uFEFC]/g)||[]).length;var l=(t.match(/[A-Za-z]/g)||[]).length;return r>=l?'rtl':'ltr'}",
+  "/* Card direction follows the content's majority script (the kit is Persian-first, ties go RTL); .rc[dir=ltr] overrides in the template CSS mirror the sided rules. code/pre spans are stripped BEFORE counting: paths and commands are direction-neutral, and one long /Users/... path outvoting the Persian prose flipped whole cards to LTR (field bug, 4.6.1). */",
+  "function dirOf(h){var t=String(h).replace(/<(code|pre)[^>]*>[^]*?<\\/\\1>/gi,' ').replace(/<[^>]*>/g,' ');var r=(t.match(/[\\u0591-\\u07FF\\uFB1D-\\uFDFD\\uFE70-\\uFEFC]/g)||[]).length;var l=(t.match(/[A-Za-z]/g)||[]).length;return r>=l?'rtl':'ltr'}",
   "function paint(html){if(!html)return;var c=document.getElementById('card');c.setAttribute('dir',dirOf(html));c.innerHTML=html;fit();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)}",
   "function render(html,isFinal){if(isFinal){finalGot=true;if(partialTimer){clearTimeout(partialTimer);partialTimer=null}paint(html);return}",
   "if(finalGot)return;if(partialTimer)clearTimeout(partialTimer);partialTimer=setTimeout(function(){if(!finalGot)paint(html)},700)}",
@@ -280,9 +280,13 @@ function emailParse(html) {
 }
 
 /* Email direction follows the content's majority script, same rule as the
- * template bridge (ties go RTL: the tool is Persian-first). */
+ * template bridge (ties go RTL: the tool is Persian-first). code/pre spans
+ * are stripped before counting — paths and commands are direction-neutral
+ * and must not outvote the prose (same 4.6.1 fix as the bridge dirOf). */
 function emailDir(html) {
-  const t = String(html).replace(/<[^>]*>/g, ' ');
+  const t = String(html)
+    .replace(/<(code|pre)[^>]*>[^]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ');
   const r = (t.match(/[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g) || []).length;
   const l = (t.match(/[A-Za-z]/g) || []).length;
   return r >= l ? 'rtl' : 'ltr';
@@ -598,7 +602,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.6.0 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.6.1 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();

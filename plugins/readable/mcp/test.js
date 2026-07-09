@@ -87,6 +87,7 @@ function check(name, cond) {
   check('template hoists @imports above all rules (mid-sheet imports are dead)', html.indexOf('@import') < html.indexOf(':root{') && html.includes('family=Inter'));
   check('hoisted Vazirmatn import survives intact (its url contains semicolons)', html.includes("family=Vazirmatn:wght@400;500;700;800&display=swap')") && html.includes('.rc{--ca:'));
   check('template stamps card dir from majority script + LTR overrides', html.includes('dirOf') && html.includes('.rc[dir=ltr]{text-align:left'));
+  check('dir detection ignores code/pre content (long paths must not flip Persian cards to LTR)', html.includes('<(code|pre)'));
   check('template speaks MCP Apps bridge', html.includes('ui/initialize') && html.includes('ui/notifications/tool-input') && html.includes('size-changed'));
   check('template maps sendPrompt to ui/message', html.includes("rpc('ui/message'"));
   check('template has 5x2 format/action matrix (Email row back in 4.4, rendered server-side)', ['class="row"', 'class="fmt"', 'copyimg', 'copyemail', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlemail', 'dlhtml', 'dlmd', 'dltxt'].every((l) => html.includes(l)) && html.split('row(I.').length === 6);
@@ -167,6 +168,10 @@ function check(name, cond) {
   } });
   const emEnOut = emEn.content[0].text;
   check('render_email detects English content as ltr', emEnOut.indexOf('<div dir="ltr"') === 0 && emEnOut.includes('text-align:left') && !emEnOut.includes('Vazirmatn'));
+  const emPath = await rpc('tools/call', { name: 'render_email', arguments: {
+    html: '<h2>گزارش</h2><p>خروجی <code>/Users/seyed/projects/very/long/latin/path/that/would/outvote/the/persian/prose/abcdefghijklmnopqrstuvwxyz.js</code> آماده شد</p>',
+  } });
+  check('render_email keeps Persian cards rtl despite long code paths', emPath.content[0].text.indexOf('<div dir="rtl"') === 0);
   check('render_email flips flow arrows for ltr', emEnOut.includes('→') && !emEnOut.includes('←'));
   const emBad = await rpc('tools/call', { name: 'render_email', arguments: { html: '<style>x</style><p>a</p>' } }).then(
     () => false,
