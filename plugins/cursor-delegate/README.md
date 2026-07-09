@@ -18,6 +18,7 @@ Works with your single Cursor login out of the box. An optional account input ta
 | `scripts/legged-run.sh` | **The canonical runner for anything longer**: chains ~4-minute legs of `cursor-run.sh` on ONE resumed session until the worker prints `DONE-ALL`. Survives connection drops; rerun the same command to continue. |
 | `scripts/orchestrator.js` | Zero-dep fleet runner (Mode B): a concurrency pool that runs **every task legged** from a `tasks.json` and writes `results.json` (each with `ok`, `result`, `session_id`, `legs`, summed token `usage`). Perseveres: tasks that stop without `DONE-ALL` are automatically resumed for extra passes (`--rounds`, default 2); rerunning the same command later continues from the saved sessions. |
 | `assets/report-card.md` | The report-card contract workers follow to author their own completion report as readable card-block HTML (`*-card.html`). With the [readable](../readable) plugin (>= 4.6.0), the main agent renders that file as a chat widget with one ~50-token `card` call (`htmlFile` mode) — the report's HTML is written on Cursor's quota and never enters Claude's context. |
+| `scripts/card-header.sh` | Stamps the standard status header onto a finished worker's card: the official Cursor logo (`cursor-icon.svg`, the verbatim cursor.com path in a ~700 B gradient wrapper) floated into the corner, plus "تمام شد کارگر Cursor — نشست … — … ثانیه — مدل …" from the run's footer facts. Idempotent; workers never write this line themselves. |
 
 ## Two ways to use it
 

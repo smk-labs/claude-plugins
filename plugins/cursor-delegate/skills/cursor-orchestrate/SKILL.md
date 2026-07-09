@@ -63,7 +63,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrator.js" tasks.json \
 
 ### Fleet report cards (live progress widgets)
 
-When the readable `card` tool is available (`mcp__readable-card__card`, readable >= 4.6.0), give every slice its own report-card path (`~/.claude-deck/cursor/cards/<id>-card.html`) plus the contract pointer from the cursor-delegate skill's "Report cards" section (`${CLAUDE_PLUGIN_ROOT}/assets/report-card.md`). As each background run's completion notification fires, make one `card` call with `htmlFile: "<path>"` — the finished worker's report pops up as a widget mid-chat while the rest of the fleet keeps running, and the HTML never touches Claude's context (the worker authored it on Cursor's quota). Acceptance still happens on the worker's actual output (`results.json` / chat result), never on the card.
+When the readable `card` tool is available (`mcp__readable-card__card`, readable >= 4.6.0), give every slice its own report-card path (`~/.claude-deck/cursor/cards/<id>-card.html`) plus the contract pointer from the cursor-delegate skill's "Report cards" section (`${CLAUDE_PLUGIN_ROOT}/assets/report-card.md`). As each background run's completion notification fires, stamp the status header (`"${CLAUDE_PLUGIN_ROOT}/scripts/card-header.sh" <path> <session_id> <seconds> <model>` — Cursor logo + "تمام شد" line, idempotent), then make one `card` call with `htmlFile: "<path>"` — the finished worker's report pops up as a widget mid-chat while the rest of the fleet keeps running, and the HTML never touches Claude's context (the worker authored it on Cursor's quota). Acceptance still happens on the worker's actual output (`results.json` / chat result), never on the card.
 
 ## Step 4 — review and iterate (Claude's job)
 

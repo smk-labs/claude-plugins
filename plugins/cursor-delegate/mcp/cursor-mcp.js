@@ -15,7 +15,7 @@ const fs = require('fs');
 const readline = require('readline');
 const { execFile } = require('child_process');
 
-const SERVER_INFO = { name: 'cursor-mcp', version: '1.6.0' };
+const SERVER_INFO = { name: 'cursor-mcp', version: '1.6.1' };
 const DEFAULT_PROTOCOL = '2025-06-18';
 
 // Locate cursor-run.sh: explicit override, canonical install path, then a

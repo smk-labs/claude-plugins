@@ -32,7 +32,7 @@ Exit `1` means the leg budget ran out — rerun the same command to continue (st
 
 Return the worker's output, then one line: what ran, which runner (quick or legged, with leg count), which account (or "default"), which model. If cursor-agent is missing, unauthenticated, or out of quota, say so and stop — do not silently redo the work yourself unless asked.
 
-If the task carried a report-card path (a file ending in `-card.html` — see the cursor-delegate skill's "Report cards" section), verify the file exists after the run, and open your report with the line `REPORT_CARD: <path>` so the main agent can render it via the readable `card` tool's `htmlFile` argument (subagents cannot render widgets). Never inline the file's HTML in your report.
+If the task carried a report-card path (a file ending in `-card.html` — see the cursor-delegate skill's "Report cards" section), verify the file exists after the run, stamp the status header yourself with the run's footer facts — `"${CLAUDE_PLUGIN_ROOT}/scripts/card-header.sh" <path> <session_id> <seconds> <model>` (Cursor logo + "تمام شد" line, idempotent) — then open your report with the line `REPORT_CARD: <path>` so the main agent can render it via the readable `card` tool's `htmlFile` argument (subagents cannot render widgets). Never inline the file's HTML in your report.
 
 ## Trust
 

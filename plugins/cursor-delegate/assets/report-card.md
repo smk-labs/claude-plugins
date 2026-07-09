@@ -9,6 +9,7 @@ Your task told you to write a report card file. Follow this contract exactly; th
 - Keep it compact: a title, one lead line, then only the structures the content genuinely needs. Stay under ~60 lines and 256 KB.
 - Write in the language of your task. For Persian (or any RTL) content, start the `<h2>` title with an RTL word.
 - The card is the USER-facing completion report of your task: what was done, key numbers and file paths, pass/fail status, anything a human must act on.
+- Do NOT write a status header line (worker name, session id, elapsed time, model) — the runner prepends the standard header with the Cursor logo after your run (`scripts/card-header.sh`). Start the file directly with your `<h2>` title.
 - Your CHAT reply stays separate and short — exactly what the task asks for (typically one line `DONE <path>`). Never paste the card HTML into the chat reply.
 
 ## Block vocabulary (nothing else)

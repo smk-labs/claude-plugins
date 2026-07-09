@@ -53,7 +53,13 @@ When the readable `card` tool is available (`mcp__readable-card__card`, readable
 
 1. Pick an absolute path ending in `-card.html`, e.g. `~/.claude-deck/cursor/cards/<slice>-card.html` or the session scratchpad.
 2. Append to the task: *"When done, read `${CLAUDE_PLUGIN_ROOT}/assets/report-card.md` and write your completion report to exactly `<path>` following that contract. Your entire chat reply: one line `DONE <path>`."*
-3. When the run returns (or its background completion notification fires), call `card` with `htmlFile: "<path>"`. Do NOT Read the file and do NOT copy its HTML into the call — the widget renders straight from the file; Claude's total cost is one ~50-token call.
+3. When the run returns (or its background completion notification fires), stamp the standard status header — Cursor logo in the corner plus "تمام شد کارگر Cursor — نشست … — … ثانیه — مدل …" — using the footer facts:
+
+   ```bash
+   "${CLAUDE_PLUGIN_ROOT}/scripts/card-header.sh" <path> <session_id> <seconds> <model>
+   ```
+
+   (idempotent; workers never write this line themselves). Then call `card` with `htmlFile: "<path>"`. Do NOT Read the file and do NOT copy its HTML into the call — the widget renders straight from the file; Claude's total cost is one short Bash call plus one ~50-token card call.
 4. Fallbacks: a missing/invalid file makes the `card` call error with the reason — report the worker's plain-text result instead. If the `card` tool is absent (or predates `htmlFile`), skip the contract entirely.
 
 The card is a status widget in the middle of the work ("this worker finished, here is its report"); your own final reply to the user still gets its own card.
