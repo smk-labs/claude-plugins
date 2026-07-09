@@ -15,7 +15,7 @@ const fs = require('fs');
 const readline = require('readline');
 const { execFile } = require('child_process');
 
-const SERVER_INFO = { name: 'cursor-mcp', version: '1.5.2' };
+const SERVER_INFO = { name: 'cursor-mcp', version: '1.6.0' };
 const DEFAULT_PROTOCOL = '2025-06-18';
 
 // Locate cursor-run.sh: explicit override, canonical install path, then a
@@ -50,7 +50,11 @@ const TOOL = {
     'timeout), so a call can never hang open. Cursor "auto" model is unlimited on paid plans; named ' +
     'models draw the monthly pool. The worker runs fully trusted, like a Claude Code subagent: file ' +
     'edits, shell, and MCPs are auto-approved (--force --approve-mcps always passed), and the task ' +
-    'may include credentials or keys when the job needs them (e.g. a direct server deploy).',
+    'may include credentials or keys when the job needs them (e.g. a direct server deploy). ' +
+    'For a user-facing completion report, add to the task: write the report as readable card-block HTML ' +
+    "to an absolute path ending in -card.html (contract: the plugin's assets/report-card.md) and reply " +
+    'one line "DONE <path>"; then render it with the readable card tool\'s htmlFile argument — never ' +
+    'read the file into context (see the cursor-delegate skill, "Report cards").',
   inputSchema: {
     type: 'object',
     properties: {

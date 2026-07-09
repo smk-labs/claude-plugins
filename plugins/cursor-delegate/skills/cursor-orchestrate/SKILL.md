@@ -61,6 +61,10 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrator.js" tasks.json \
 
 `tasks.json` is an array of `{ id, prompt, model?, account?, cwd?, worktree?, resume?, legMinutes?, maxLegs?, extraArgs? }`. The runner pools the fleet, passes `--force` automatically, and keeps each task's leg state under `<out dir>/cursor-legs/<id>`. It perseveres on its own: any task that stops without `DONE-ALL` but holds a saved session is automatically resumed in extra passes (`--rounds`, default 2); setup failures (auth/CLI broken, no session ever) are not retried. It writes `results.json` with each task's `ok`, `result`, `session_id`, `legs`, and summed token `usage`. If tasks are still unfinished when rounds run out, rerun the same command: it resumes them from the same saved sessions. Then review `results.json` (Step 4). Full field docs are in the header of `scripts/orchestrator.js`.
 
+### Fleet report cards (live progress widgets)
+
+When the readable `card` tool is available (`mcp__readable-card__card`, readable >= 4.6.0), give every slice its own report-card path (`~/.claude-deck/cursor/cards/<id>-card.html`) plus the contract pointer from the cursor-delegate skill's "Report cards" section (`${CLAUDE_PLUGIN_ROOT}/assets/report-card.md`). As each background run's completion notification fires, make one `card` call with `htmlFile: "<path>"` — the finished worker's report pops up as a widget mid-chat while the rest of the fleet keeps running, and the HTML never touches Claude's context (the worker authored it on Cursor's quota). Acceptance still happens on the worker's actual output (`results.json` / chat result), never on the card.
+
 ## Step 4 — review and iterate (Claude's job)
 
 Read each worker's output and **accept or fix it yourself** — you are the quality gate. To correct a worker, **resume its session** instead of restarting: pass its `session_id` back (`legged-run.sh --resume <id>` for anything non-trivial, a `tasks.json` entry with `"resume": "<id>"`, or `cursor_run` → `extraArgs: ["--resume", "<id>"]` for a quick nudge). The worker keeps its prior context, so "also handle the empty-input case" just works. Loop until every slice passes, then integrate.

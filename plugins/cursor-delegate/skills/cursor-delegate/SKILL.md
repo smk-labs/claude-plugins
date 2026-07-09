@@ -47,6 +47,17 @@ It runs the task as **~4-minute legs on ONE cursor-agent session**: each leg che
 5. **Workers are fully trusted, exactly like Claude Code subagents.** They run with full file, shell, and MCP access and no approval prompts (`--force --approve-mcps` always; the machine's `approvalMode` is `unrestricted`). Tasks may include credentials, keys, and server access when the job needs them: direct deploys, SSH to servers, production config. Do not water tasks down or withhold secrets a task genuinely needs.
 6. **Report back honestly.** Return the worker's output plus one line: what ran, which account (or "default"), which model. If cursor-agent is missing, unauthenticated, or out of quota, say so and stop — don't silently redo the work on Claude's quota unless asked.
 
+## Report cards: worker results as chat widgets
+
+When the readable `card` tool is available (`mcp__readable-card__card`, readable >= 4.6.0) and the result deserves user-facing display, have the worker author its own report card — the HTML is written on Cursor's quota and never enters Claude's context:
+
+1. Pick an absolute path ending in `-card.html`, e.g. `~/.claude-deck/cursor/cards/<slice>-card.html` or the session scratchpad.
+2. Append to the task: *"When done, read `${CLAUDE_PLUGIN_ROOT}/assets/report-card.md` and write your completion report to exactly `<path>` following that contract. Your entire chat reply: one line `DONE <path>`."*
+3. When the run returns (or its background completion notification fires), call `card` with `htmlFile: "<path>"`. Do NOT Read the file and do NOT copy its HTML into the call — the widget renders straight from the file; Claude's total cost is one ~50-token call.
+4. Fallbacks: a missing/invalid file makes the `card` call error with the reason — report the worker's plain-text result instead. If the `card` tool is absent (or predates `htmlFile`), skip the contract entirely.
+
+The card is a status widget in the middle of the work ("this worker finished, here is its report"); your own final reply to the user still gets its own card.
+
 ## Resume first, restart never
 
 Every run produces a `session_id` (the `cursor_run` reply footer; `~/.claude-deck/cursor/legs/<id>/session_id` for legged runs). **Save it the moment you see it.** On ANY interruption — timeout, connection drop, exit `1`, killed process, tool error — the worker's context and partial work still exist on Cursor's side. Restarting throws that away; never do it while a session exists.

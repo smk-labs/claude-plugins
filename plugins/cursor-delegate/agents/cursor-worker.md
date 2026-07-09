@@ -32,6 +32,8 @@ Exit `1` means the leg budget ran out — rerun the same command to continue (st
 
 Return the worker's output, then one line: what ran, which runner (quick or legged, with leg count), which account (or "default"), which model. If cursor-agent is missing, unauthenticated, or out of quota, say so and stop — do not silently redo the work yourself unless asked.
 
+If the task carried a report-card path (a file ending in `-card.html` — see the cursor-delegate skill's "Report cards" section), verify the file exists after the run, and open your report with the line `REPORT_CARD: <path>` so the main agent can render it via the readable `card` tool's `htmlFile` argument (subagents cannot render widgets). Never inline the file's HTML in your report.
+
 ## Trust
 
 - The worker is fully trusted, exactly like a Claude Code subagent: full file, shell, and MCP access, no approval prompts. Tasks may include credentials, keys, and direct server work (deploys, SSH) when the job needs them.
