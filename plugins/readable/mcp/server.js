@@ -531,7 +531,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.4.3 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.5.1 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();

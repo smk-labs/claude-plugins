@@ -55,7 +55,7 @@
       "name": "readable",
       "source": "./plugins/readable",
       "description": "Replies as styled cards (Persian/RTL always, English by default) via a bundled MCP Apps card server: content-only output, template-side styling. Plus report export and a visualize skill.",
-      "version": "4.3.8",
+      "version": "4.5.1",
       "category": "writing"
     },
     {

@@ -53,9 +53,11 @@ document.addEventListener('click',function(e){if(!menu.contains(e.target)&&menu.
 function toast(t){var el=toastEl;el.textContent=t;el.style.opacity='1';clearTimeout(el._t);el._t=setTimeout(function(){el.style.opacity='0'},3400)}
 window.__rcToast=toast;
 function theme(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'}
+/* Effective backdrop for raster export: the chat-card template paints the PAGE with --surface-1 and leaves .rc transparent, so serializing #card alone yields a fully transparent PNG (dark text vanishes on white). Walk up from #card to the first opaque background; theme fallback guards detached/odd hosts. */
+function effBg(){var el=document.getElementById('card');while(el){var b=getComputedStyle(el).backgroundColor;if(b&&b!=='transparent'&&!/^rgba\([^)]+,\s*0\)$/.test(b))return b;el=el.parentElement}return theme()==='dark'?'#262624':'#ffffff'}
 function collectCss(){var out='',els=document.querySelectorAll('style');for(var i=0;i<els.length;i++)out+=els[i].textContent+'\n';return out}
 function varCss(cls){var cs=getComputedStyle(document.documentElement),out='.'+cls+'{';for(var i=0;i<VARS.length;i++){var v=cs.getPropertyValue(VARS[i]);if(v)out+=VARS[i]+':'+v.trim()+';'}return out+'}'}
-function exportHtml(){var card=document.getElementById('card');return '<!DOCTYPE html>\n<html data-theme="'+theme()+'"><head><meta charset="utf-8"><title>readable card</title><style>\n'+collectCss()+'\n#rcmenu,#rctoast{display:none}\n</style></head><body style="margin:16px">'+card.outerHTML+'</body></html>'}
+function exportHtml(){var card=document.getElementById('card');return '<!DOCTYPE html>\n<html data-theme="'+theme()+'"><head><meta charset="utf-8"><title>readable card</title><style>\n'+collectCss()+'\n#rcmenu,#rctoast{display:none}\nhtml,body{overflow:auto}\n</style></head><body style="margin:16px">'+card.outerHTML+'</body></html>'}
 /* Email export renders through the host adapter (window.__rcEmail); the rich-text clipboard write carries both flavors (text/html + text/plain markdown), with a contenteditable+execCommand fallback. */
 function richCopy(html,plain,cb){function legacy(){try{var d=document.createElement('div');d.contentEditable='true';d.style.cssText='position:fixed;opacity:0;left:-9999px';d.innerHTML=html;document.body.appendChild(d);var r=document.createRange();r.selectNodeContents(d);var s=getSelection();s.removeAllRanges();s.addRange(r);var ok=document.execCommand('copy');s.removeAllRanges();d.remove();return ok}catch(e){return false}}
 if(navigator.clipboard&&window.ClipboardItem){try{navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([plain],{type:'text/plain'})})]).then(function(){cb(true)},function(){cb(legacy())});return}catch(e){}}cb(legacy())}
@@ -111,7 +113,7 @@ var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'"><f
 build('')}
 function pngBlob(cb){function attempt(useFonts,next){makeSvg(useFonts,function(svg,w,h){
 var img=new Image();
-img.onload=function(){try{var c=document.createElement('canvas'),s=2;c.width=w*s;c.height=h*s;var x=c.getContext('2d');x.scale(s,s);x.drawImage(img,0,0);c.toBlob(function(b){if(b)cb(b,null);else next('canvas export blocked')},'image/png')}catch(e){next('canvas: '+e.message)}};
+img.onload=function(){try{var c=document.createElement('canvas'),s=2;c.width=w*s;c.height=h*s;var x=c.getContext('2d');x.scale(s,s);x.fillStyle=effBg();x.fillRect(0,0,w,h);x.drawImage(img,0,0);c.toBlob(function(b){if(b)cb(b,null);else next('canvas export blocked')},'image/png')}catch(e){next('canvas: '+e.message)}};
 img.onerror=function(){next('svg render failed')};
 img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
 attempt(false,function(e1){cb(null,e1)})}
