@@ -5,7 +5,7 @@
 // of the cursor-orchestrate skill: Fable (the caller) writes a tasks file and a
 // review step; this script just executes the fan-out deterministically.
 //
-// Every task runs through legged-run.sh — the plugin's canonical runner — as a
+// Every task runs through legged-run.sh (the plugin's canonical runner) as a
 // chain of short ~4-minute legs resumed on ONE cursor-agent session. Why:
 // flaky networks (VPNs especially) kill any single stream older than ~5
 // minutes, so a classic long run dies at minute ~6; legs make a drop cost one
@@ -13,10 +13,17 @@
 // count, and summed token usage for review and iteration. Nothing here decides
 // WHAT to build; the caller owns decomposition and acceptance.
 //
+// Perseverance: a task that stops without DONE-ALL (leg budget spent, wall-cap
+// kill) but holds a saved session is NOT failed, only unfinished. After each
+// pass the pool automatically reruns those tasks (legged-run resumes them from
+// its state dir), up to --rounds passes total. Setup failures (no session was
+// ever obtained: auth/CLI broken) are not retried. If rounds run out, rerunning
+// the same command later continues from the same saved sessions.
+//
 // Usage:
 //   node orchestrator.js tasks.json [--concurrency 4] [--account NAME] \
 //                        [--model auto] [--leg-minutes 4] [--max-legs 15] \
-//                        [--out results.json]
+//                        [--rounds 2] [--out results.json]
 //
 // tasks.json: a non-empty array of
 //   { "id": "api",                       // label for logs/results/state dir
@@ -55,6 +62,7 @@ const ACCOUNT = flag('--account', '');
 const MODEL = flag('--model', 'auto');
 const LEG_MINUTES = Math.max(1, Number(flag('--leg-minutes', 4)) || 4);
 const MAX_LEGS = Math.max(1, Number(flag('--max-legs', 15)) || 15);
+const ROUNDS = Math.max(1, Number(flag('--rounds', 2)) || 2);
 const OUT = flag('--out', 'results.json');
 const STATE_ROOT = path.resolve(path.dirname(path.resolve(OUT)), 'cursor-legs');
 
@@ -126,27 +134,49 @@ function runTask(t, index) {
   });
 }
 
+// Unfinished-but-resumable: no DONE-ALL yet, but a session exists to resume
+// (in the result, or persisted by legged-run in the task's state dir after a
+// wall-cap kill). Setup failures never got a session and are not retried.
+function resumable(r, t, i) {
+  if (!r || r.ok) return false;
+  if (r.session_id) return true;
+  const id = String(t.id || 'task-' + i);
+  try { return fs.existsSync(path.join(STATE_ROOT, id, 'session_id')); } catch (e) { return false; }
+}
+
 (async () => {
   const results = new Array(tasks.length);
-  let next = 0, done = 0;
-  log(`fleet: ${tasks.length} tasks, concurrency ${CONCURRENCY}, model ${MODEL}${ACCOUNT ? ', account ' + ACCOUNT : ''}, legs ≤${MAX_LEGS}×${LEG_MINUTES}min`);
-  async function worker() {
-    while (next < tasks.length) {
-      const i = next++;
-      const t = tasks[i];
-      const label = t.id || i;
-      log(`▸ start [${label}]`);
-      results[i] = await runTask(t, i);
-      done++;
-      const r = results[i];
-      const tok = r.usage ? (r.usage.inputTokens || 0) + (r.usage.outputTokens || 0) : 0;
-      log(`${r.ok ? '✓' : '✗'} [${label}] ${done}/${tasks.length}${r.legs ? ` (${r.legs} legs)` : ''}${tok ? ` (${tok} tok)` : ''}${r.ok ? '' : ' — ' + String(r.error || 'no DONE-ALL, rerun to continue').slice(0, 120)}`);
+  log(`fleet: ${tasks.length} tasks, concurrency ${CONCURRENCY}, model ${MODEL}${ACCOUNT ? ', account ' + ACCOUNT : ''}, legs ≤${MAX_LEGS}×${LEG_MINUTES}min, rounds ≤${ROUNDS}`);
+
+  async function runPass(indices) {
+    let next = 0, done = 0;
+    async function worker() {
+      while (next < indices.length) {
+        const i = indices[next++];
+        const t = tasks[i];
+        const label = t.id || i;
+        log(`▸ start [${label}]`);
+        results[i] = await runTask(t, i);
+        done++;
+        const r = results[i];
+        const tok = r.usage ? (r.usage.inputTokens || 0) + (r.usage.outputTokens || 0) : 0;
+        log(`${r.ok ? '✓' : '✗'} [${label}] ${done}/${indices.length}${r.legs ? ` (${r.legs} legs)` : ''}${tok ? ` (${tok} tok)` : ''}${r.ok ? '' : ': ' + String(r.error || 'no DONE-ALL yet').slice(0, 120)}`);
+      }
     }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, indices.length) }, worker));
   }
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, tasks.length) }, worker));
+
+  let pending = tasks.map((_, i) => i);
+  for (let round = 1; round <= ROUNDS && pending.length; round++) {
+    if (round > 1) log(`round ${round}/${ROUNDS}: resuming ${pending.length} unfinished task(s) from saved sessions`);
+    await runPass(pending);
+    pending = pending.filter((i) => resumable(results[i], tasks[i], i));
+  }
+
   fs.writeFileSync(OUT, JSON.stringify(results, null, 2));
   const okN = results.filter((r) => r && r.ok).length;
   const tok = results.reduce((s, r) => s + (r && r.usage ? (r.usage.inputTokens || 0) + (r.usage.outputTokens || 0) : 0), 0);
   log(`done: ${okN}/${tasks.length} ok, ${tok} tokens total, results -> ${OUT}`);
+  if (pending.length) log(`still unfinished (resumable): ${pending.map((i) => tasks[i].id || i).join(', ')}. Rerun the same command to keep going; state under ${STATE_ROOT}`);
   process.exit(okN === tasks.length ? 0 : 1);
 })();

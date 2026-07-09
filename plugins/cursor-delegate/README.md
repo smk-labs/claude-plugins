@@ -16,7 +16,7 @@ Works with your single Cursor login out of the box. An optional account input ta
 | `cursor-worker` subagent | Owns one delegation end-to-end and reports back. |
 | `scripts/cursor-run.sh` | The shared auth/invocation primitive everything calls: one cursor-agent run. Quick tasks only. |
 | `scripts/legged-run.sh` | **The canonical runner for anything longer**: chains ~4-minute legs of `cursor-run.sh` on ONE resumed session until the worker prints `DONE-ALL`. Survives connection drops; rerun the same command to continue. |
-| `scripts/orchestrator.js` | Zero-dep fleet runner (Mode B): a concurrency pool that runs **every task legged** from a `tasks.json` and writes `results.json` (each with `ok`, `result`, `session_id`, `legs`, summed token `usage`). |
+| `scripts/orchestrator.js` | Zero-dep fleet runner (Mode B): a concurrency pool that runs **every task legged** from a `tasks.json` and writes `results.json` (each with `ok`, `result`, `session_id`, `legs`, summed token `usage`). Perseveres: tasks that stop without `DONE-ALL` are automatically resumed for extra passes (`--rounds`, default 2); rerunning the same command later continues from the saved sessions. |
 
 ## Two ways to use it
 

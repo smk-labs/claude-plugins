@@ -43,6 +43,8 @@ One quick task → the `cursor_run` tool (or the `cursor-worker` subagent). One 
 ### Mode A-fan-out
 Quick slices: several `cursor_run` calls **in a single turn** so they run concurrently (proven: multiple cursor-agent runs on one account run in parallel fine). Long slices: one `legged-run.sh` per slice via Bash `run_in_background`. For slices that **edit files in the same repo**, give each legged run `--worktree` (persistent git worktree, branch `legs/<id>`) or disjoint directories, so they never collide. Collect all results, then go to Step 4.
 
+**Persevere on exit `1`.** A legged run that exits `1` is unfinished, not failed: its leg budget ran out with the session saved. Rerun the exact same command and it resumes where it stopped. Keep resuming until `DONE-ALL` or a real blocker (auth, quota); only then report the stall.
+
 ### Mode B — the JS harness
 Write a `tasks.json` and run the bundled fleet runner (it executes **every task legged** through `legged-run.sh`):
 
@@ -51,7 +53,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrator.js" tasks.json \
   --account <name> --concurrency 4 --model auto --out results.json
 ```
 
-`tasks.json` is an array of `{ id, prompt, model?, account?, cwd?, worktree?, resume?, legMinutes?, maxLegs?, extraArgs? }`. The runner pools the fleet, passes `--force` automatically, keeps each task's leg state under `<out dir>/cursor-legs/<id>` (rerunning the same command resumes unfinished tasks), and writes `results.json` with each task's `ok`, `result`, `session_id`, `legs`, and summed token `usage`. Then review `results.json` (Step 4). Full field docs are in the header of `scripts/orchestrator.js`.
+`tasks.json` is an array of `{ id, prompt, model?, account?, cwd?, worktree?, resume?, legMinutes?, maxLegs?, extraArgs? }`. The runner pools the fleet, passes `--force` automatically, and keeps each task's leg state under `<out dir>/cursor-legs/<id>`. It perseveres on its own: any task that stops without `DONE-ALL` but holds a saved session is automatically resumed in extra passes (`--rounds`, default 2); setup failures (auth/CLI broken, no session ever) are not retried. It writes `results.json` with each task's `ok`, `result`, `session_id`, `legs`, and summed token `usage`. If tasks are still unfinished when rounds run out, rerun the same command: it resumes them from the same saved sessions. Then review `results.json` (Step 4). Full field docs are in the header of `scripts/orchestrator.js`.
 
 ## Step 4 — review and iterate (Claude's job)
 
