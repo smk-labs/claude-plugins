@@ -123,9 +123,19 @@ leg_field() {
 LEGBASE=0
 while [ -f "$STATE/leg-$((LEGBASE+1)).json" ]; do LEGBASE=$((LEGBASE+1)); done
 LEG_TIMEOUT=$(( (LEG_MINUTES + 4) * 60 ))   # hard cap for a hung (not dropped) stream
-RESULT=""; DONE=""
+RESULT=""; DONE=""; KILLED=""
+
+# Already finished in a previous invocation: return the saved result instead of
+# burning a leg to make the worker say DONE-ALL again. This makes "rerun the
+# same command" free for completed tasks (the fleet runner relies on it).
+if [ -f "$STATE/done" ]; then
+  RESULT="$(cat "$STATE/last_result.txt" 2>/dev/null || true)"
+  DONE=1
+  echo "[legged $ID] already complete (done marker in state); returning saved result" >&2
+fi
 
 for n in $(seq 1 "$MAX_LEGS"); do
+  [ -n "$DONE" ] && break
   i=$((LEGBASE + n))
   LEGOUT="$STATE/leg-$i.json"
   # cursor-run supervises the leg itself: it kills cursor-agent ~1.5s after the
@@ -141,7 +151,14 @@ for n in $(seq 1 "$MAX_LEGS"); do
   fi
   [ ${#EXTRA[@]} -gt 0 ] && ARGS+=("${EXTRA[@]}")
 
-  "$RUNNER" "${ARGS[@]}" > "$LEGOUT" 2>"$STATE/leg-$i.err"
+  # Background + wait so a SIGTERM/SIGINT to this script reaches the leg: the
+  # cursor-run supervisor forwards it to cursor-agent, so the whole chain dies
+  # together and the saved session stays resumable.
+  "$RUNNER" "${ARGS[@]}" > "$LEGOUT" 2>"$STATE/leg-$i.err" &
+  LEG_PID=$!
+  trap 'KILLED=1; kill -TERM "$LEG_PID" 2>/dev/null' TERM INT
+  wait "$LEG_PID" 2>/dev/null
+  trap - TERM INT
 
   NEWSESSION="$(leg_field "$LEGOUT" session_id)"
   RESULT="$(leg_field "$LEGOUT" result)"
@@ -151,13 +168,33 @@ for n in $(seq 1 "$MAX_LEGS"); do
   fi
   echo "[legged $ID leg $i] session=${SESSION:0:8} chars=${#RESULT}" >&2
 
-  if printf '%s' "$RESULT" | grep -q "DONE-ALL"; then DONE=1; break; fi
+  if [ -n "$KILLED" ]; then
+    echo "[legged $ID leg $i] terminated by signal; session ${SESSION:-none} saved — rerun the same command to resume" >&2
+    break
+  fi
+
+  if printf '%s' "$RESULT" | grep -q "DONE-ALL"; then
+    DONE=1
+    : > "$STATE/done"   # marker: reruns return the saved result, no extra leg
+    break
+  fi
   if [ -z "$RESULT" ] && [ -z "$NEWSESSION" ]; then
     echo "[legged $ID leg $i] hard failure (no result, no session); err tail:" >&2
     tail -3 "$STATE/leg-$i.err" >&2 || true
-    # With no session ever obtained this is a setup error (auth/CLI), not a drop:
-    # three fresh attempts, then stop instead of burning the leg budget.
-    if [ -z "$SESSION" ] && [ "$n" -ge 3 ]; then break; fi
+    if grep -Eq 'Security command failed|Password not found|code: 45' "$STATE/leg-$i.err" 2>/dev/null; then
+      # Transient: concurrent cursor-agent STARTUPS race on the macOS keychain
+      # (measured: 1 in 4 simultaneous starts dies with "Password not found"
+      # even with CURSOR_API_KEY set; sandboxed shells die the same way every
+      # time). Decorrelate with a random pause and retry — it costs a leg from
+      # the budget, never the job.
+      PAUSE=$(( 5 + (RANDOM % 15) ))
+      echo "[legged $ID leg $i] keychain race at startup; retrying in ${PAUSE}s" >&2
+      sleep "$PAUSE"
+    elif [ -z "$SESSION" ] && [ "$n" -ge 3 ]; then
+      # No session ever and not the keychain signature: a real setup error
+      # (auth/CLI). Three fresh attempts, then stop instead of burning legs.
+      break
+    fi
   fi
 done
 

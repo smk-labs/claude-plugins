@@ -18,12 +18,19 @@
 // pass the pool automatically reruns those tasks (legged-run resumes them from
 // its state dir), up to --rounds passes total. Setup failures (no session was
 // ever obtained: auth/CLI broken) are not retried. If rounds run out, rerunning
-// the same command later continues from the same saved sessions.
+// the same command later continues from the same saved sessions — and tasks
+// that already finished return their saved result instantly (legged-run keeps
+// a done marker), so a rerun costs nothing for completed work.
+//
+// Crash safety: results.json is rewritten (atomically) after every finished
+// task, so a killed run leaves a usable partial file; SIGINT/SIGTERM kill the
+// whole fleet (no orphaned cursor-agent keeps spending quota) with state
+// saved for the next rerun.
 //
 // Usage:
 //   node orchestrator.js tasks.json [--concurrency 4] [--account NAME] \
 //                        [--model auto] [--leg-minutes 4] [--max-legs 15] \
-//                        [--rounds 2] [--out results.json]
+//                        [--rounds 2] [--spawn-gap 4] [--out results.json]
 //
 // tasks.json: a non-empty array of
 //   { "id": "api",                       // label for logs/results/state dir
@@ -64,7 +71,19 @@ const LEG_MINUTES = Math.max(1, Number(flag('--leg-minutes', 4)) || 4);
 const MAX_LEGS = Math.max(1, Number(flag('--max-legs', 15)) || 15);
 const ROUNDS = Math.max(1, Number(flag('--rounds', 2)) || 2);
 const OUT = flag('--out', 'results.json');
+const SPAWN_GAP_MS = Math.max(0, (Number(flag('--spawn-gap', 4)) || 0) * 1000);
 const STATE_ROOT = path.resolve(path.dirname(path.resolve(OUT)), 'cursor-legs');
+
+// Concurrent cursor-agent STARTUPS race on the macOS keychain (measured: 1 in
+// 4 simultaneous starts dies with "Password not found" even with an API key in
+// the env). Stagger task starts a few seconds apart so fleet launches don't
+// collide; legged-run's own retry covers mid-run leg collisions.
+let spawnQueue = Promise.resolve();
+function staggered() {
+  const turn = spawnQueue;
+  spawnQueue = turn.then(() => new Promise((r) => setTimeout(r, SPAWN_GAP_MS)));
+  return turn;
+}
 
 function resolveRunner() {
   const cands = [
@@ -82,6 +101,28 @@ let tasks;
 try { tasks = JSON.parse(fs.readFileSync(tasksFile, 'utf8')); }
 catch (e) { log('bad tasks file: ' + e.message); process.exit(2); }
 if (!Array.isArray(tasks) || !tasks.length) { log('tasks.json must be a non-empty array'); process.exit(2); }
+
+// Live children, so killing the orchestrator kills the whole fleet: without
+// this, legged-run/cursor-agent processes would survive as orphans and keep
+// spending quota after the pool is gone.
+const live = new Set();
+let aborting = false;
+// Tasks are spawned detached (own process group), so one negative-pid kill
+// takes down the whole chain: legged-run -> cursor-run supervisor ->
+// cursor-agent. Killing only the direct child would orphan the in-flight leg.
+function killTree(child, sig) {
+  try { process.kill(-child.pid, sig || 'SIGTERM'); }
+  catch (e) { try { child.kill(sig || 'SIGTERM'); } catch (e2) {} }
+}
+function abort(sig) {
+  if (aborting) return;
+  aborting = true;
+  log(`received ${sig}: killing ${live.size} running task(s); state is saved, rerun the same command to resume`);
+  for (const c of live) killTree(c);
+  setTimeout(() => process.exit(130), 2000);
+}
+process.on('SIGINT', () => abort('SIGINT'));
+process.on('SIGTERM', () => abort('SIGTERM'));
 
 function runTask(t, index) {
   return new Promise((resolve) => {
@@ -104,19 +145,22 @@ function runTask(t, index) {
     const started = Date.now();
     // Whole-task wall cap: legged-run already hard-caps each leg at legMinutes+4.
     const timeoutMs = maxLegs * (legMinutes + 5) * 60 * 1000;
-    const child = spawn(RUNNER, argv, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(RUNNER, argv, { stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     let stdout = '';
     child.stdout.on('data', (d) => { stdout += d; });
     // Relay leg progress live, prefixed per task.
     child.stderr.on('data', (d) => {
       for (const line of String(d).split('\n')) if (line.trim()) log(`  [${id}] ${line}`);
     });
-    const timer = setTimeout(() => { try { child.kill(); } catch (e) {} }, timeoutMs);
+    live.add(child);
+    const timer = setTimeout(() => killTree(child), timeoutMs);
     child.on('error', (e) => {
+      live.delete(child);
       clearTimeout(timer);
       resolve({ id: t.id, ok: false, error: e.message, wall_ms: Date.now() - started });
     });
     child.on('close', () => {
+      live.delete(child);
       clearTimeout(timer);
       const wall = Date.now() - started;
       // legged-run --json prints one summary object; take the last line that parses.
@@ -148,16 +192,35 @@ function resumable(r, t, i) {
   const results = new Array(tasks.length);
   log(`fleet: ${tasks.length} tasks, concurrency ${CONCURRENCY}, model ${MODEL}${ACCOUNT ? ', account ' + ACCOUNT : ''}, legs ≤${MAX_LEGS}×${LEG_MINUTES}min, rounds ≤${ROUNDS}`);
 
+  // Persist after every task (atomic rename): a killed run leaves a usable
+  // partial results file, and finished work is never lost to a crash.
+  function flushResults() {
+    try {
+      fs.writeFileSync(OUT + '.tmp', JSON.stringify(results.filter(Boolean), null, 2));
+      fs.renameSync(OUT + '.tmp', OUT);
+    } catch (e) { /* best effort */ }
+  }
+
   async function runPass(indices) {
     let next = 0, done = 0;
     async function worker() {
-      while (next < indices.length) {
+      while (next < indices.length && !aborting) {
         const i = indices[next++];
         const t = tasks[i];
         const label = t.id || i;
+        // Only real cursor-agent startups need the anti-race stagger; a task
+        // whose state already holds a done marker returns instantly from disk.
+        const isDone = (() => {
+          try { return fs.existsSync(path.join(STATE_ROOT, String(t.id || 'task-' + i), 'done')); } catch (e) { return false; }
+        })();
+        if (!isDone) {
+          await staggered();
+          if (aborting) break;
+        }
         log(`▸ start [${label}]`);
         results[i] = await runTask(t, i);
         done++;
+        flushResults();
         const r = results[i];
         const tok = r.usage ? (r.usage.inputTokens || 0) + (r.usage.outputTokens || 0) : 0;
         log(`${r.ok ? '✓' : '✗'} [${label}] ${done}/${indices.length}${r.legs ? ` (${r.legs} legs)` : ''}${tok ? ` (${tok} tok)` : ''}${r.ok ? '' : ': ' + String(r.error || 'no DONE-ALL yet').slice(0, 120)}`);
@@ -167,7 +230,7 @@ function resumable(r, t, i) {
   }
 
   let pending = tasks.map((_, i) => i);
-  for (let round = 1; round <= ROUNDS && pending.length; round++) {
+  for (let round = 1; round <= ROUNDS && pending.length && !aborting; round++) {
     if (round > 1) log(`round ${round}/${ROUNDS}: resuming ${pending.length} unfinished task(s) from saved sessions`);
     await runPass(pending);
     pending = pending.filter((i) => resumable(results[i], tasks[i], i));

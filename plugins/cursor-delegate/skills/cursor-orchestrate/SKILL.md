@@ -35,6 +35,8 @@ Bad: "add the auth we discussed." Good: "In `src/auth/session.ts`, add `refresh(
 
 Two guarantees every runner gives you: **auth is deterministic** (with no `account`, the `default` entry of `~/.claude-deck/cursor/agent-keys.json` supplies the API key — no dependence on a browser login), and **runs close themselves** (the process is killed ~1.5s after its result object; hung runs die at a hard timeout — a worker can never hang a turn open).
 
+**Sandbox off for every runner invocation, and don't fear keychain noise.** cursor-agent touches the macOS Keychain at startup even with `CURSOR_API_KEY` set. Sandboxed Bash kills it every time (`Security command failed: … code: 45`) — run `legged-run.sh`/`orchestrator.js`/`cursor-run.sh` with `dangerouslyDisableSandbox: true`. Concurrent startups also race on the keychain (measured: 1 in 4 simultaneous starts dies with `Password not found`); that is self-healing — legs retry with a random pause and the fleet runner staggers startups (`--spawn-gap`, default 4s). Neither error means auth is broken.
+
 ### Mode A-simple
 One quick task → the `cursor_run` tool (or the `cursor-worker` subagent). One long task → the legged runner:
 

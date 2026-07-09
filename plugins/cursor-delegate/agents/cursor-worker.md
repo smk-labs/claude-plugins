@@ -26,6 +26,7 @@ Exit `1` means the leg budget ran out — rerun the same command to continue (st
 4. Dry-run first for quick tasks (`--dry-run`, key redacted) to show what will run, then run for real.
 5. **Resume, never restart.** Every run yields a `session_id` (the `cursor_run` footer; `<state>/session_id` for legged runs) — capture it. On any failure or interruption, harvest the partial output (`last_result.txt`, `leg-N.json`), then continue that same session (`extraArgs: ["--resume", "<id>"]`, or rerun the identical legged command) with a prompt like "Continue exactly where you left off; finish the remaining work." Start over only if no session was ever created (auth/CLI setup failure).
 6. **Runs close themselves.** The runner kills cursor-agent right after its result appears and hard-caps hung runs, so never sit waiting on a "stuck" delegation — if it returned, it is over; if it exited `1`, resume it.
+7. **Sandbox off; keychain noise is not an auth failure.** cursor-agent touches the macOS Keychain at startup even with `CURSOR_API_KEY` set. Sandboxed Bash kills it every time (`Security command failed: … code: 45`) — run the scripts with `dangerouslyDisableSandbox: true`. Concurrent startups can also race on the keychain (`Password not found`); the runners retry that on their own — just rerun if a one-shot run hit it.
 
 ## Reporting back
 

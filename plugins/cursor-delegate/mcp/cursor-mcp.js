@@ -15,7 +15,7 @@ const fs = require('fs');
 const readline = require('readline');
 const { execFile } = require('child_process');
 
-const SERVER_INFO = { name: 'cursor-mcp', version: '1.5.1' };
+const SERVER_INFO = { name: 'cursor-mcp', version: '1.5.2' };
 const DEFAULT_PROTOCOL = '2025-06-18';
 
 // Locate cursor-run.sh: explicit override, canonical install path, then a
@@ -109,9 +109,16 @@ function runCursor(args) {
     }
     // 10 min outer cap; cursor-run's own --timeout 480 fires first, so a hung
     // run still returns whatever it produced. Big buffer for verbose output.
-    execFile(runner, argv, { maxBuffer: 32 * 1024 * 1024, timeout: 10 * 60 * 1000 }, (err, stdout, stderr) => {
+    let retried = false;
+    const exec = () => execFile(runner, argv, { maxBuffer: 32 * 1024 * 1024, timeout: 10 * 60 * 1000 }, (err, stdout, stderr) => {
       const out = (stdout || '').trim();
       const errText = (stderr || '').trim();
+      // Concurrent cursor-agent startups race on the macOS keychain (measured);
+      // one decorrelated retry turns that transient into a non-event.
+      if (err && !out && !retried && /Security command failed|Password not found|code: 45/.test(errText)) {
+        retried = true;
+        return setTimeout(exec, 4000 + Math.floor(Math.random() * 6000));
+      }
       if (err && !out) {
         return resolve({ ok: false, text: errText || ('cursor-run failed: ' + err.message) });
       }
@@ -130,6 +137,7 @@ function runCursor(args) {
         + ' — to continue this worker with its context intact, pass extraArgs ["--resume", "' + (parsed.session_id || '') + '"]]';
       resolve({ ok: !parsed.is_error, text: String(parsed.result || '(empty result)') + '\n\n' + footer });
     });
+    exec();
   });
 }
 
