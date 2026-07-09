@@ -65,12 +65,13 @@ Or drive the script directly:
 # dry-run prints the exact command with the key redacted
 "$CLAUDE_PLUGIN_ROOT/scripts/cursor-run.sh" --model auto --dry-run "…self-contained task…"
 
-# real run; -- passes flags straight to cursor-agent (--force lets it edit files)
-"$CLAUDE_PLUGIN_ROOT/scripts/cursor-run.sh" --account work --model auto "…task…" -- --force
+# real run; -- passes extra flags straight to cursor-agent (approvals are automatic)
+"$CLAUDE_PLUGIN_ROOT/scripts/cursor-run.sh" --account work --model auto "…task…"
 ```
 
 ## Notes
 
 - **Billing:** Cursor **Auto** (`model: auto`) is unlimited on paid plans (no quota drawn); named models draw the monthly pool. To rule out surprise charges, turn off on-demand spending in Cursor's billing settings.
 - **Self-contained tasks only:** `cursor-agent` starts with a blank context, so include file paths, the goal, and acceptance criteria in the task.
-- **No secrets in task text:** it leaves your machine for Cursor's servers.
+- **Workers run fully trusted, like Claude Code subagents:** every runner passes `--force --approve-mcps`, and setting `approvalMode: "unrestricted"` in `~/.cursor/cli-config.json` makes it machine-wide. Full file, shell, and MCP access, no approval prompts; tasks may carry credentials and do direct server work (deploys, SSH) when needed.
+- **Context sync (verified):** headless workers read the repo-root `CLAUDE.md`/`AGENTS.md`, load the user's `~/.claude/skills` as agent skills, and see installed Claude plugins' MCP servers. The user-level `~/.claude/CLAUDE.md` and global `~/.cursor/rules` do NOT reach them: put global rules that matter into the repo's `CLAUDE.md`/`AGENTS.md` or the task text.

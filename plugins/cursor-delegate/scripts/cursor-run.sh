@@ -123,7 +123,12 @@ fi
 # --trust is always passed: headless (-p) runs cannot answer the interactive
 # "trust this directory?" prompt, they just die on it, and whoever invoked this
 # wrapper already chose the working directory deliberately.
-CMD=(cursor-agent -p --trust --output-format "$FORMAT")
+# --force and --approve-mcps are always passed too: workers are trusted exactly
+# like Claude Code subagents (full file/shell/MCP access, deploy-with-keys
+# included), so no run should ever stall on an approval it cannot answer. The
+# machine-level switch is approvalMode:"unrestricted" in ~/.cursor/cli-config.json;
+# these flags keep headless runs autonomous even where that config is absent.
+CMD=(cursor-agent -p --trust --force --approve-mcps --output-format "$FORMAT")
 [ -n "$MODEL" ] && CMD+=(--model "$MODEL")
 CMD+=("$TASK")
 [ ${#EXTRA[@]} -gt 0 ] && CMD+=("${EXTRA[@]}")

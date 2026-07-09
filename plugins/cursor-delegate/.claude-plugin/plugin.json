@@ -1,7 +1,7 @@
 {
   "name": "cursor-delegate",
-  "description": "Delegate self-contained coding/research tasks to the Cursor CLI (cursor-agent) from inside Claude Code, so they run on the Cursor subscription's quota instead of Claude's. One task via the cursor-delegate skill, or a whole fleet via cursor-orchestrate (Claude plans and reviews, Cursor executes in parallel). Long tasks run legged: ~4-minute legs resumed on one session, so flaky networks/VPNs cannot kill the stream. Works with your single Cursor login out of the box; an optional account input targets a specific seat. Agent calling, not a model-backend swap.",
-  "version": "1.3.0",
+  "description": "Delegate self-contained coding/research tasks to the Cursor CLI (cursor-agent) from inside Claude Code, so they run on the Cursor subscription's quota instead of Claude's. One task via the cursor-delegate skill, or a whole fleet via cursor-orchestrate (Claude plans and reviews, Cursor executes in parallel). Workers run fully trusted (no approval prompts, like Claude Code subagents). Long tasks run legged: ~4-minute legs resumed on one session, so flaky networks/VPNs cannot kill the stream. Works with your single Cursor login out of the box; an optional account input targets a specific seat. Agent calling, not a model-backend swap.",
+  "version": "1.4.0",
   "author": {
     "name": "Seyed M. Keramati",
     "url": "https://github.com/SMKeramati"
@@ -9,7 +9,9 @@
   "mcpServers": {
     "cursor-delegate": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/cursor-mcp.js"],
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcp/cursor-mcp.js"
+      ],
       "env": {
         "CURSOR_RUN_BIN": "${CLAUDE_PLUGIN_ROOT}/scripts/cursor-run.sh"
       }

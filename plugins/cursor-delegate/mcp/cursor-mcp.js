@@ -15,7 +15,7 @@ const fs = require('fs');
 const readline = require('readline');
 const { execFile } = require('child_process');
 
-const SERVER_INFO = { name: 'cursor-mcp', version: '1.3.0' };
+const SERVER_INFO = { name: 'cursor-mcp', version: '1.4.0' };
 const DEFAULT_PROTOCOL = '2025-06-18';
 
 // Locate cursor-run.sh: explicit override, canonical install path, then a
@@ -42,7 +42,9 @@ const TOOL = {
     'the cursor-delegate skill), which chains ~4-minute legs on one resumed session. The task must be ' +
     'fully self-contained (cursor-agent starts with a blank context): include file paths, the goal, ' +
     'and acceptance criteria. Cursor "auto" model is unlimited on paid plans; named models draw ' +
-    'the monthly pool. File-editing tasks need an approval flag via extraArgs (e.g. ["--force"]).',
+    'the monthly pool. The worker runs fully trusted, like a Claude Code subagent: file edits, shell, ' +
+    'and MCPs are auto-approved (--force --approve-mcps always passed), and the task may include ' +
+    'credentials or keys when the job needs them (e.g. a direct server deploy).',
   inputSchema: {
     type: 'object',
     properties: {

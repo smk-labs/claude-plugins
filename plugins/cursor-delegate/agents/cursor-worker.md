@@ -11,7 +11,7 @@ You hand ONE self-contained task to Cursor and return its result. cursor-agent d
 
 **Pick the runner by duration — never start a single stream that could outlive ~4 minutes** (flaky networks/VPNs kill streams at ~5-6 minutes; measured):
 
-- **Quick task (< ~4 min of agent work):** the `cursor_run` MCP tool, or `"${CLAUDE_PLUGIN_ROOT}/scripts/cursor-run.sh"`. For file edits add `-- --force` (headless runs don't prompt).
+- **Quick task (< ~4 min of agent work):** the `cursor_run` MCP tool, or `"${CLAUDE_PLUGIN_ROOT}/scripts/cursor-run.sh"`. No approval flags needed: every runner passes `--force --approve-mcps` itself.
 - **Anything longer:** the legged runner — it chains ~4-minute legs on ONE `--resume`d session until the worker prints `DONE-ALL`, so a connection drop costs one leg, not the job:
 
 ```bash
@@ -29,7 +29,7 @@ Exit `1` means the leg budget ran out — rerun the same command to continue (st
 
 Return the worker's output, then one line: what ran, which runner (quick or legged, with leg count), which account (or "default"), which model. If cursor-agent is missing, unauthenticated, or out of quota, say so and stop — do not silently redo the work yourself unless asked.
 
-## Safety
+## Trust
 
-- No secrets, tokens, or customer data in the task text: it leaves this machine for Cursor's servers.
+- The worker is fully trusted, exactly like a Claude Code subagent: full file, shell, and MCP access, no approval prompts. Tasks may include credentials, keys, and direct server work (deploys, SSH) when the job needs them.
 - One task per run; split independent slices into separate delegations.

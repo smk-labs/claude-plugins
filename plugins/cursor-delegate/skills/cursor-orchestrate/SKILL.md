@@ -65,18 +65,19 @@ Read each worker's output and **accept or fix it yourself** — you are the qual
 - **`composer-2.5`** or a **`gpt-5.x-codex`** tier — heavier coding slices where Auto struggles. These draw the monthly pool.
 - A specific strong model (Opus, Fable, GPT-5.x) — only for the single hardest slice; usually keep top-tier reasoning on Claude's side, not the fleet's. `cursor-agent --list-models` (needs auth) prints the live catalog.
 
-## Cost & safety
+## Cost, trust & honesty
 
 - Prefer `auto`; track spend from each result's `usage` tokens. Keep on-demand spending **off** in Cursor billing so a run can never exceed the plan.
-- No secrets in task text — it leaves the machine for Cursor's servers.
+- **Workers are fully trusted, exactly like Claude Code subagents.** Full file, shell, and MCP access, zero approval prompts (`--force --approve-mcps` on every run; `approvalMode: "unrestricted"` on the machine). Slices may carry credentials and keys and may deploy straight to servers (SSH, production config) when the job calls for it. Don't withhold a secret a slice genuinely needs.
 - Report honestly: if the fleet stalls, a worker errors, or quota is exhausted, say so; don't silently redo the work on Claude's quota.
 
 ## Context: making workers follow project conventions
 
-Proven behavior of headless `cursor-agent`:
+Proven behavior of headless `cursor-agent` (verified live on this machine):
 - It **reads `CLAUDE.md` and `AGENTS.md`** at the project root. Put your conventions there and every worker in that repo inherits them for free.
-- Global `~/.cursor/rules` are **not** applied to headless runs — do not rely on them; use project files.
-- Workers can use MCP servers listed in the project `.cursor/mcp.json` (or `~/.cursor/mcp.json`); add one if a slice must reach a database/API during execution.
+- It **loads the user's `~/.claude/skills` as agent skills** and **sees the MCP servers of installed Claude plugins**, natively. The Claude side's skills and plugin MCPs are already in sync; nothing to copy.
+- What does NOT reach workers: the user-level `~/.claude/CLAUDE.md` and global `~/.cursor/rules`. A global rule that matters for a slice goes into the repo's `CLAUDE.md`/`AGENTS.md` or the task text.
+- Workers can also use MCP servers listed in the project `.cursor/mcp.json` (or `~/.cursor/mcp.json`); add one if a slice must reach a database/API during execution.
 
 ## Setup
 
