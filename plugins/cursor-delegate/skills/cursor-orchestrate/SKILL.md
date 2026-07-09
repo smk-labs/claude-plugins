@@ -49,6 +49,8 @@ Quick slices: several `cursor_run` calls **in a single turn** so they run concur
 
 **Persevere on exit `1`.** A legged run that exits `1` is unfinished, not failed: its leg budget ran out with the session saved. Rerun the exact same command and it resumes where it stopped. Keep resuming until `DONE-ALL` or a real blocker (auth, quota); only then report the stall.
 
+**Stop safely.** Official stop: `legged-run.sh --stop --id <id>`. Never `pkill -f legged-run` (matches your shell, orphans live legs, risks parallel deploys). Optional: `CURSOR_NET_PROBE_URL` / `CURSOR_NET_MIN_BPS` / `CURSOR_TUNNEL_REVIVE` for legged-run; orchestrator `--wait-online [URL]` waits for connectivity before each round.
+
 **Resume beats restart, in every failure mode.** Any worker that ever produced a `session_id` (the `cursor_run` reply footer, `results.json`, or `<state>/session_id`) can be continued with its full context: harvest its partial output first (`last_result.txt`, `leg-N.json`), then resume with a continue-style prompt ("Continue exactly where you left off; finish the remaining work"). Restart from scratch only when no session ever existed (auth/CLI setup failure). Never let a worker's done-but-unreported work go to waste.
 
 ### Mode B — the JS harness

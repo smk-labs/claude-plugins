@@ -35,7 +35,8 @@ If the MCP tool is unavailable, the same logic is a script at `${CLAUDE_PLUGIN_R
 It runs the task as **~4-minute legs on ONE cursor-agent session**: each leg checkpoints (`PROGRESS:`/`NEXT:`) and exits before the network can kill the stream, then the loop `--resume`s the same session (context preserved) until the worker prints `DONE-ALL`. A connection drop costs one leg, never the job.
 
 - stdout = the worker's final result. Exit `1` = leg budget spent; **rerun the exact same command to continue** (state: `~/.claude-deck/cursor/legs/<id>`).
-- Options: `--account`, `--model` (default `auto`), `--worktree` (parallel-safe edits: persistent git worktree + branch `legs/<id>` beside the repo), `--id`, `--leg-minutes`, `--max-legs`, `--json` (summary with `ok`, `legs`, `session_id`, `result`, summed `usage`), `-- <extra cursor-agent flags>`. `--force` is always passed.
+- Options: `--account`, `--model` (default `auto`), `--worktree` (parallel-safe edits: persistent git worktree + branch `legs/<id>` beside the repo), `--id`, `--leg-minutes`, `--max-legs`, `--json` (summary with `ok`, `legs`, `session_id`, `result`, summed `usage`), `--stop --id <id>` (official stop for a live run; never `pkill -f legged-run`), `-- <extra cursor-agent flags>`. `--force` is always passed.
+- Opt-in network: set `CURSOR_NET_PROBE_URL` (+ optional `CURSOR_NET_MIN_BPS`, `CURSOR_TUNNEL_REVIVE`) so legged-run probes download speed before the first leg and on hard failures instead of burning legs on a dead tunnel.
 - Run it with Bash `run_in_background` and follow progress in the state dir; don't block a turn waiting on many legs.
 
 ## Rules that make it work

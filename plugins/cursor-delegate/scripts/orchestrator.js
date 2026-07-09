@@ -57,11 +57,34 @@ function flag(name, def) {
   const i = process.argv.indexOf(name);
   return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : def;
 }
+function hasFlag(name) { return process.argv.indexOf(name) !== -1; }
 function log(m) { process.stderr.write(m + '\n'); }
+
+const WAIT_ONLINE = hasFlag('--wait-online');
+let WAIT_ONLINE_URL = '';
+if (WAIT_ONLINE) {
+  const i = process.argv.indexOf('--wait-online');
+  const val = process.argv[i + 1];
+  WAIT_ONLINE_URL = (val && !val.startsWith('--')) ? val : (process.env.CURSOR_NET_PROBE_URL || '');
+}
+
+async function waitOnline() {
+  if (!WAIT_ONLINE || !WAIT_ONLINE_URL) return;
+  let delay = 5;
+  for (;;) {
+    try {
+      await fetch(WAIT_ONLINE_URL, { signal: AbortSignal.timeout(10000) });
+      return;
+    } catch (e) { /* retry */ }
+    log(`waiting for network: retry in ${delay}s`);
+    await new Promise((r) => setTimeout(r, delay * 1000));
+    delay = Math.min(delay * 2, 300);
+  }
+}
 
 const tasksFile = process.argv[2];
 if (!tasksFile || tasksFile.slice(0, 2) === '--') {
-  log('usage: node orchestrator.js tasks.json [--concurrency N] [--account NAME] [--model auto] [--leg-minutes 4] [--max-legs 15] [--out results.json]');
+  log('usage: node orchestrator.js tasks.json [--concurrency N] [--account NAME] [--model auto] [--leg-minutes 4] [--max-legs 15] [--wait-online [URL]] [--out results.json]');
   process.exit(2);
 }
 const CONCURRENCY = Math.max(1, Number(flag('--concurrency', 4)) || 4);
@@ -190,7 +213,9 @@ function resumable(r, t, i) {
 
 (async () => {
   const results = new Array(tasks.length);
-  log(`fleet: ${tasks.length} tasks, concurrency ${CONCURRENCY}, model ${MODEL}${ACCOUNT ? ', account ' + ACCOUNT : ''}, legs ≤${MAX_LEGS}×${LEG_MINUTES}min, rounds ≤${ROUNDS}`);
+  log(`fleet: ${tasks.length} tasks, concurrency ${CONCURRENCY}, model ${MODEL}${ACCOUNT ? ', account ' + ACCOUNT : ''}, legs ≤${MAX_LEGS}×${LEG_MINUTES}min, rounds ≤${ROUNDS}${WAIT_ONLINE && WAIT_ONLINE_URL ? ', wait-online ' + WAIT_ONLINE_URL : ''}`);
+
+  await waitOnline();
 
   // Persist after every task (atomic rename): a killed run leaves a usable
   // partial results file, and finished work is never lost to a crash.
@@ -231,7 +256,10 @@ function resumable(r, t, i) {
 
   let pending = tasks.map((_, i) => i);
   for (let round = 1; round <= ROUNDS && pending.length && !aborting; round++) {
-    if (round > 1) log(`round ${round}/${ROUNDS}: resuming ${pending.length} unfinished task(s) from saved sessions`);
+    if (round > 1) {
+      log(`round ${round}/${ROUNDS}: resuming ${pending.length} unfinished task(s) from saved sessions`);
+      await waitOnline();
+    }
     await runPass(pending);
     pending = pending.filter((i) => resumable(results[i], tasks[i], i));
   }

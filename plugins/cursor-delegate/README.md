@@ -38,6 +38,12 @@ So the plugin's canonical long-task runner is `legged-run.sh`: the task runs as 
 
 Leg state (per-leg JSON, `session_id`, `last_result.txt`) lives in `~/.claude-deck/cursor/legs/<id>`, so the run is resumable even after a crash. `--worktree` gives the worker a persistent git worktree (branch `legs/<id>`) for parallel-safe edits; `--json` prints a machine-readable summary; `--force` is always passed. The fleet runner (`orchestrator.js`) uses this for every task automatically.
 
+## Stopping a fleet safely
+
+Never `pkill -f legged-run`: it matches your own shell's command line and kills the whole fleet, and it orphans live `cursor-agent` legs that keep spending quota and can double-run on a server. The official stop is `legged-run.sh --stop --id <id>` (or `--state <dir>`). Killing the orchestrator pid group-kills its tree.
+
+Optional network hardening (opt-in; unset = no change): `CURSOR_NET_PROBE_URL` makes legged-run curl-test download speed before the first leg and on hard failures; `CURSOR_NET_MIN_BPS` sets the minimum bytes/sec (default 102400); `CURSOR_TUNNEL_REVIVE` runs a shell command when the probe fails (e.g. restart a VPN script). The fleet runner accepts `--wait-online [URL]` (defaults to `CURSOR_NET_PROBE_URL`) to wait for connectivity before each round instead of burning tasks on a dead tunnel.
+
 ## Setup
 
 1. Install the Cursor CLI:

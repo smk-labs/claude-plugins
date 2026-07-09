@@ -1,7 +1,7 @@
 {
   "name": "cursor-delegate",
   "description": "Delegate self-contained coding/research tasks to the Cursor CLI (cursor-agent) from inside Claude Code, so they run on the Cursor subscription's quota instead of Claude's. One task via the cursor-delegate skill, or a whole fleet via cursor-orchestrate (Claude plans and reviews, Cursor executes in parallel). Workers run fully trusted (no approval prompts, like Claude Code subagents). Long tasks run legged: ~4-minute legs resumed on one session, so flaky networks/VPNs cannot kill the stream. Auth is key-based and deterministic (agent-keys.json default entry); runs self-terminate the moment their result lands; every session is resumable so no work is ever lost. Workers can author their own report cards (*-card.html) that render as chat widgets via the readable plugin at near-zero context cost. Agent calling, not a model-backend swap.",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "author": {
     "name": "Seyed M. Keramati",
     "url": "https://github.com/SMKeramati"

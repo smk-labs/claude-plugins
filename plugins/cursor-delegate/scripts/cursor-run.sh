@@ -156,6 +156,13 @@ else
   fi
 fi
 
+if [ -n "${HTTPS_PROXY:-}" ]; then EFFECTIVE_PROXY="$HTTPS_PROXY"
+elif [ -n "${https_proxy:-}" ]; then EFFECTIVE_PROXY="$https_proxy"
+elif [ -n "${HTTP_PROXY:-}" ]; then EFFECTIVE_PROXY="$HTTP_PROXY"
+elif [ -n "${http_proxy:-}" ]; then EFFECTIVE_PROXY="$http_proxy"
+else EFFECTIVE_PROXY="none"
+fi
+
 # --- build the cursor-agent command ---
 # --trust is always passed: headless (-p) runs cannot answer the interactive
 # "trust this directory?" prompt, they just die on it, and whoever invoked this
@@ -176,6 +183,7 @@ if [ -n "$DRYRUN" ]; then
   echo "  cwd:     ${CWD:-$(pwd)}"
   echo "  account: ${ACCOUNT:-<default>}"
   echo "  timeout: ${TIMEOUT}s"
+  echo "  proxy:   $EFFECTIVE_PROXY"
   if [ -n "$API_KEY" ]; then
     echo "  auth:    $AUTH_DESC ${API_KEY:0:4}***(${#API_KEY} chars)"
     ENV_PREFIX='CURSOR_API_KEY=***'
@@ -207,7 +215,7 @@ fi
 CURSOR_AGENT_BIN="$(command -v cursor-agent || true)"
 [ -n "$CURSOR_AGENT_BIN" ] || die "cursor-agent not found on PATH. Install it: curl https://cursor.com/install -fsS | bash  (then restart your shell)"
 
-echo "cursor-run: auth = $AUTH_DESC" >&2
+echo "cursor-run: auth = $AUTH_DESC, proxy = $EFFECTIVE_PROXY" >&2
 
 [ -n "$CWD" ] && cd "$CWD"
 CMD[0]="$CURSOR_AGENT_BIN"
