@@ -30,6 +30,9 @@
 .rc thead th{color:var(--text-secondary);font-weight:700;font-size:.88em;border-bottom:1.5px solid var(--border-strong);padding:5px 10px;text-align:right}
 .rc tbody td{padding:7px 10px;border-bottom:.5px solid var(--border);text-align:right}
 .rc tbody tr:last-child td{border-bottom:none}.rc tbody tr:hover td{background:var(--surface-2)}
+.rc .scroll-table{max-height:82vh;overflow:auto;border:1px solid var(--border);border-radius:10px;margin:.8em 0}.rc .scroll-table table{margin:0}
+.rc .scroll-table thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);box-shadow:0 1px 0 var(--border)}
+@media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}}
 /*@KV*/
 .rc .kv{margin:.8em 0}.rc .kv>div{display:flex;justify-content:space-between;gap:14px;padding:6px 2px;border-bottom:.5px solid var(--border)}.rc .kv>div:last-child{border:none}.rc .kv b{color:var(--text-secondary);font-weight:400}.rc .kv span{font-weight:500}
 /*@KPI*/
@@ -42,13 +45,6 @@
 .rc .trend.dn{background:var(--bg-danger);color:var(--cd)}.rc .trend.dn::before{content:'▼ '}
 /*@BARS*/
 .rc .bars{margin:.8em 0}.rc .bar{display:flex;align-items:center;gap:10px;margin:.45em 0}.rc .bar .l{flex:0 0 auto;min-width:4.5em;color:var(--text-secondary)}.rc .bar .t{flex:1;height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden}.rc .bar .t i{display:block;height:100%;background:var(--text-accent);border-radius:4px}.rc .bar .v{flex:0 0 auto;font-weight:700;font-size:.9em}
-/*@DONUT*/
-.rc .donut-w{display:flex;align-items:center;gap:20px;margin:.9em 0;flex-wrap:wrap}
-.rc .donut{width:92px;height:92px;border-radius:50%;flex:0 0 auto;background:conic-gradient(var(--ca) 0 calc(var(--a)*1%),var(--cb) 0 calc((var(--a) + var(--b))*1%),var(--cc) 0 100%);-webkit-mask:radial-gradient(circle,transparent 56%,#000 57%);mask:radial-gradient(circle,transparent 56%,#000 57%)}
-.rc .leg{display:flex;flex-direction:column;gap:5px}
-.rc .leg>span{display:flex;align-items:center;gap:8px}
-.rc .leg i{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
-.rc .leg .a i{background:var(--ca)}.rc .leg .b i{background:var(--cb)}.rc .leg .c i{background:var(--cc)}.rc .leg .d i{background:var(--cd)}
 /*@FLOW*/
 .rc .flow{display:flex;flex-wrap:wrap;align-items:center;gap:34px;margin:.9em .2em}
 .rc .flow .s{position:relative;background:var(--surface-2);border:.5px solid var(--border);border-radius:9px;padding:5px 13px;font-weight:500}
@@ -66,10 +62,17 @@
 /*@CTA*/
 .rc .cta{display:inline-flex;align-items:center;gap:6px;background:var(--text-accent);color:var(--surface-1);border:none;border-radius:9px;padding:7px 15px;font-family:inherit;font-size:1em;font-weight:700;cursor:pointer;margin-top:.4em}.rc .cta::after{content:'←';font-weight:400}.rc .cta:hover{opacity:.88}
 .rc .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:.6em}.rc .cta.ghost{background:transparent;color:var(--text-accent);border:1px solid var(--border-strong)}
-/*@REPORT - report tier from here down: dense stat variants for the report skill, hosted kit, and inline snippets. NOT in the chat card template (mcp/server.js cuts the sheet at this marker, 30KB host ceiling; the chat rule does not offer these).*/
+/*@REPORT - report tier from here down: components the chat rule does not offer (dense stat variants + donut), for the report skill, hosted kit, and inline snippets. NOT in the chat card template (mcp/server.js cuts the sheet at this marker, 30KB host ceiling).*/
 .rc table.zebra tbody tr:nth-child(2n) td{background:var(--surface-2)}
 .rc table.zebra tbody tr:hover td{background:var(--border)}
 .rc table.dense{font-size:.9em}.rc table.dense thead th,.rc table.dense tbody td{padding:4px 8px}
 .rc .kpi .f{font-size:.74em;color:var(--text-secondary);line-height:1.7;margin-top:3px}
 .rc .bar.duo .t{position:relative}.rc .bar.duo .t i{background:var(--ca)}.rc .bar.duo .t i+i{position:absolute;inset-inline-start:0;top:0;background:var(--cb)}
 .rc .bars .leg{display:flex;flex-flow:row wrap;gap:4px 16px;margin:.2em 0 .5em;font-size:.9em}
+/*@DONUT*/
+.rc .donut-w{display:flex;align-items:center;gap:20px;margin:.9em 0;flex-wrap:wrap}
+.rc .donut{width:92px;height:92px;border-radius:50%;flex:0 0 auto;background:conic-gradient(var(--ca) 0 calc(var(--a)*1%),var(--cb) 0 calc((var(--a) + var(--b))*1%),var(--cc) 0 100%);-webkit-mask:radial-gradient(circle,transparent 56%,#000 57%);mask:radial-gradient(circle,transparent 56%,#000 57%)}
+.rc .leg{display:flex;flex-direction:column;gap:5px}
+.rc .leg>span{display:flex;align-items:center;gap:8px}
+.rc .leg i{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+.rc .leg .a i{background:var(--ca)}.rc .leg .b i{background:var(--cb)}.rc .leg .c i{background:var(--cc)}.rc .leg .d i{background:var(--cd)}

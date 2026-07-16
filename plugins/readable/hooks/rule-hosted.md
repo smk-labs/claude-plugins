@@ -35,7 +35,7 @@ If CONTENT uses ANY component below, add exactly this one line right before </st
 @import url('https://cdn.jsdelivr.net/gh/smk-labs/claude-plugins@main/plugins/readable/assets/rc.css');
 
 Components (HTML shapes only; their CSS comes from that import):
-- Table: plain <table><thead><tbody>; status chips inside cells: <span class="badge ok|warn|info">. 10+ row stat tables: <table class="zebra dense"> (striped rows + tight padding, combinable).
+- Table: plain <table><thead><tbody>; status chips inside cells: <span class="badge ok|warn|info">. 10+ row stat tables: <table class="zebra dense"> (striped rows + tight padding, combinable). Long tables (100+ rows): wrap as <div class="scroll-table"><table>...</table></div> (scrollbox with pinned header; expands fully in print).
 - Key-value rows: <div class="kv"><div><b>label</b><span>value</span></div>...</div>.
 - KPI cards: <div class="grid c3"> (or c2, or plain grid) of <div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div>; trend classes up/dn. Optional compact caveat under the number: <div class="f">one short line</div> last inside the kpi.
 - Horizontal bars: <div class="bars"><div class="bar"><span class="l">label</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div>...</div>.

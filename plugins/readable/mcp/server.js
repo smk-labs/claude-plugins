@@ -63,10 +63,11 @@ const LTR_CSS = [
   '.rc[dir=ltr] .flow .s:not(:last-child)::before{transform:translateY(-50%) rotate(225deg)}',
 ].join('\n');
 
-/* The kit's @REPORT tail (report-tier variants: zebra/dense tables, kpi
- * footnote, duo bars) is cut here: the template sits ~10 bytes under the
- * host's 30KB resource ceiling, and the chat rule does not offer those
- * variants. The report shell and the hosted @import ship the full sheet. */
+/* The kit's @REPORT tail (components the chat rule does not offer:
+ * zebra/dense tables, kpi footnote, duo bars, donut) is cut here to keep
+ * the template under the host's 30KB resource ceiling. Relocating donut
+ * there (4.8.0) paid for scroll-table in the chat tier. The report shell
+ * and the hosted @import ship the full sheet. */
 const KIT_CHAT = KIT_CSS.split('/*@REPORT')[0];
 /* @import is only valid before all other rules; the kit's Vazirmatn import
  * would die mid-sheet after PALETTE, so imports are hoisted to the top of the
@@ -154,7 +155,7 @@ const TEMPLATE_HTML =
 const TOOL = {
   name: 'card',
   description:
-    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language (plain RTL chat text scrambles; this renders it as a correct styled card), and PREFER it for English conversational, explanatory, or structured answers too. Skip it only for replies dominated by code blocks, diffs, or logs. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no reply text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody>, <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, <code> around every inline path/URL/code token, <pre><code>…</code></pre> for multiline code (renders LTR), optional CTA buttons <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">label</button></div>. NO <style>, NO <script>, NO wrapper div: the template styles everything, light and dark. Short answers are fine as plain <p> paragraphs inside the card. ' +
+    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language (plain RTL chat text scrambles; this renders it as a correct styled card), and PREFER it for English conversational, explanatory, or structured answers too. Skip it only for replies dominated by code blocks, diffs, or logs. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no reply text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody> (long tables, 100+ rows: wrap as <div class="scroll-table"><table>…</table></div> for a scrollbox with pinned header), <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, <code> around every inline path/URL/code token, <pre><code>…</code></pre> for multiline code (renders LTR), optional CTA buttons <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">label</button></div>. NO <style>, NO <script>, NO wrapper div: the template styles everything, light and dark. Short answers are fine as plain <p> paragraphs inside the card. ' +
     'FILE MODE: when a background worker/delegate has ALREADY written its report as card-block HTML to a file ' +
     'ending in -card.html, pass htmlFile (the absolute path) INSTEAD of html — the card renders straight from ' +
     'the file and its HTML never passes through your context. Do not read the file or copy its content into ' +
@@ -609,7 +610,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.7.0 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.8.0 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();
