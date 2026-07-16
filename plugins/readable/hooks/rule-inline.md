@@ -33,14 +33,15 @@ BASE already styles all text content, so these blocks need nothing extra: <h2> o
 
 Everything else is pay-per-use. Each component below has a CSS snippet: for EVERY component CONTENT uses, copy its snippet verbatim into the same <style>, right before </style>. Snippets are independent, order does not matter, never edit them. If unsure whether a component is used, include its snippet (missing CSS renders unstyled); never paste a snippet for a component CONTENT does not use.
 
-TABLE — comparison tables, plain <table><thead><tbody>; 10+ row stat tables get <table class="zebra dense"> (striped rows + tight padding, combinable); long tables (100+ rows) get wrapped as <div class="scroll-table"><table>...</table></div> (scrollbox with pinned header, expands fully in print):
+TABLE — comparison tables, plain <table><thead><tbody>; 10+ row stat tables get <table class="zebra dense"> (striped rows + tight padding, combinable); long tables (100+ rows) get wrapped as <div class="scroll-table"><table>...</table></div> (scrollbox with pinned header, expands fully in print); very wide tables get <div class="scroll-table wide"> (cells stay on one line, box scrolls sideways, wraps again in print):
 .rc table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:.96em}
 .rc thead th{color:var(--text-secondary);font-weight:700;font-size:.88em;border-bottom:1.5px solid var(--border-strong);padding:5px 10px;text-align:right}
 .rc tbody td{padding:7px 10px;border-bottom:.5px solid var(--border);text-align:right}
 .rc tbody tr:last-child td{border-bottom:none}.rc tbody tr:hover td{background:var(--surface-2)}
 .rc .scroll-table{max-height:82vh;overflow:auto;border:1px solid var(--border);border-radius:10px;margin:.8em 0}.rc .scroll-table table{margin:0}
 .rc .scroll-table thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);box-shadow:0 1px 0 var(--border)}
-@media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}}
+.rc .scroll-table.wide table{width:max-content;min-width:100%;white-space:nowrap}
+@media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}.rc .scroll-table.wide table{width:100%;white-space:normal}}
 .rc table.zebra tbody tr:nth-child(2n) td{background:var(--surface-2)}
 .rc table.zebra tbody tr:hover td{background:var(--border)}
 .rc table.dense{font-size:.9em}.rc table.dense thead th,.rc table.dense tbody td{padding:4px 8px}

@@ -1,7 +1,7 @@
 {
   "name": "readable",
   "description": "Beautiful replies as styled cards (Persian/RTL always, English by default) via a bundled MCP Apps card server: the model sends content only, the template carries all styling. KPI grids, charts, timelines, flows, callouts, badges, CTA buttons. Cards can also render straight from *-card.html files written by background workers (htmlFile mode, zero context cost). Plus report export and a visualize skill.",
-  "version": "4.8.0",
+  "version": "4.9.0",
   "author": {
     "name": "Seyed M. Keramati",
     "url": "https://github.com/SMKeramati"
