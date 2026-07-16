@@ -78,7 +78,9 @@ const KIT_BODY = KIT_CHAT.replace(/\/\*[^]*?\*\//g, '');
  * eats the kit's first rule via CSS error recovery. Imports sit one per line. */
 const KIT_IMPORTS = (KIT_BODY.match(/@import[^\n]+/g) || []).join('\n') +
   "\n@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');";
-const KIT_RULES = KIT_BODY.replace(/@import[^\n]+/g, '');
+/* rc.css keeps one rule per line for diffability; newlines are pure padding
+ * to the CSS tokenizer, so assembly strips them (~70 chars of 30KB budget). */
+const KIT_RULES = KIT_BODY.replace(/@import[^\n]+/g, '').replace(/\n+/g, '');
 
 /* JSON-RPC-over-postMessage bridge, per SEP-1865: ui/initialize handshake,
  * then render on ui/notifications/tool-input (arguments.html). sendPrompt()
@@ -149,13 +151,13 @@ const MENU_SRC = fs.readFileSync(MENU_CANDIDATES.find((p) => fs.existsSync(p)), 
 const TEMPLATE_HTML =
   '<!DOCTYPE html><html><head><meta charset="utf-8"><style>\n' +
   KIT_IMPORTS + '\n' + PALETTE + '\n' + KIT_RULES + '\n' + FLUSH_CSS + '\n' + LTR_CSS +
-  '\n</style></head><body><div class="rc" id="card" dir="rtl"><p style="color:var(--text-secondary)">…</p></div>' +
+  '\n</style></head><body><div class="rc" id="card" dir="rtl"><p>…</p></div>' +
   '<script>' + BRIDGE_JS + MENU_SRC + '</script></body></html>';
 
 const TOOL = {
   name: 'card',
   description:
-    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language (plain RTL chat text scrambles; this renders it as a correct styled card), and PREFER it for English conversational, explanatory, or structured answers too. Skip it only for replies dominated by code blocks, diffs, or logs. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no reply text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody> (long tables, 100+ rows: wrap as <div class="scroll-table"><table>…</table></div> for a scrollbox with pinned header; add class "wide" to the wrapper when columns are many/wide: cells stay on one line and the box scrolls sideways), <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, <code> around every inline path/URL/code token, <pre><code>…</code></pre> for multiline code (renders LTR), optional CTA buttons <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">label</button></div>. NO <style>, NO <script>, NO wrapper div: the template styles everything, light and dark. Short answers are fine as plain <p> paragraphs inside the card. ' +
+    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language (plain RTL chat text scrambles; this renders it as a correct styled card), and PREFER it for English conversational, explanatory, or structured answers too. Skip it only for replies dominated by code blocks, diffs, or logs. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no reply text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody> (long tables, 100+ rows: wrap as <div class="scroll-table"><table>…</table></div> for a scrollbox with pinned header; add class "wide" to the wrapper when columns are many/wide: cells stay on one line and the box scrolls sideways), <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, trend sparkline <div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,26 25,19 50,22 75,10 100,4"/></svg><div class="x"><span>old</span><span>new</span></div></div> (time series: x evenly spaced 0..100 oldest→newest, y inverted 2≈max 28≈min, computed from the data; optional area: prepend <polygon points="0,30 …same points… 100,30"/>; optional second series: append <polyline class="s2" points="…"/>), flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, <code> around every inline path/URL/code token, <pre><code>…</code></pre> for multiline code (renders LTR), optional CTA buttons <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">label</button></div>. NO <style>, NO <script>, NO wrapper div: the template styles everything, light and dark. Short answers are fine as plain <p> paragraphs inside the card. ' +
     'FILE MODE: when a background worker/delegate has ALREADY written its report as card-block HTML to a file ' +
     'ending in -card.html, pass htmlFile (the absolute path) INSTEAD of html — the card renders straight from ' +
     'the file and its HTML never passes through your context. Do not read the file or copy its content into ' +
@@ -254,7 +256,7 @@ const EMAIL_PAL = {
   light: { tx: '#1f1f1f', sub: '#6f6f6a', ac: '#2f66c4', s1: '#ffffff', s2: '#f2f2ef', bd: '#dcdcd6', bs: '#b8b8b0', gok: '#e6f4ec', gac: '#e8effc', gwa: '#faf0d9', gda: '#fbe9e7' },
   dark: { tx: '#ececea', sub: '#9f9f98', ac: '#82abec', s1: '#262624', s2: '#302f2c', bd: '#3e3e3a', bs: '#55554f', gok: '#143122', gac: '#16283f', gwa: '#382c13', gda: '#3a1d19' },
 };
-const EMAIL_CA = '#0f9d58', EMAIL_CB = '#3f8ac9', EMAIL_CC = '#e0a52e', EMAIL_CD = '#d96666';
+const EMAIL_CA = '#0f9d58', EMAIL_CB = '#3f8ac9', EMAIL_CD = '#d96666';
 const EMAIL_MONO = 'ui-monospace,Menlo,monospace';
 const EMAIL_VOID = { br: 1, hr: 1, img: 1 };
 
@@ -333,8 +335,8 @@ function renderEmail(html, theme) {
     const tag = n.tag;
     const p = (c) => parent != null && has(parent, c);
 
-    /* interactive + undrawable bits are dropped; the donut legend survives */
-    if (has(n, 'btns') || has(n, 'cta') || tag === 'button' || has(n, 'donut')) return '';
+    /* interactive + undrawable bits are dropped (spark is SVG: email clients strip it) */
+    if (has(n, 'btns') || has(n, 'cta') || tag === 'button' || has(n, 'spark')) return '';
 
     let st = '', dir = DIR, pre = '', post = '', inner = null, next = ctx;
 
@@ -425,16 +427,6 @@ function renderEmail(html, theme) {
       st = 'display:block;width:' + w + ';height:7px;background:' + P.ac + ';border-radius:4px';
     } else if (has(n, 'v') && p('bar')) {
       st = 'display:inline-block;font-weight:700;font-size:10.4px;margin-' + S + ':10px';
-    } else if (has(n, 'donut-w')) {
-      st = 'margin:10px 0';
-    } else if (has(n, 'leg')) {
-      st = 'margin:4px 0';
-      next = Object.assign({}, ctx, { leg: true });
-    } else if (ctx.leg && tag === 'span') {
-      st = 'display:block;margin:3px 0';
-    } else if (tag === 'i' && ctx.leg) {
-      const sw = p('a') ? EMAIL_CA : p('b') ? EMAIL_CB : p('c') ? EMAIL_CC : EMAIL_CD;
-      st = 'display:inline-block;width:9px;height:9px;border-radius:3px;background:' + sw + ';margin-' + E + ':8px';
     } else if (has(n, 'flow')) {
       st = 'margin:10px 2px';
       inner = flowChildren(n, next);
@@ -610,7 +602,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.9.0 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.10.0 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();

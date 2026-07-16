@@ -83,6 +83,7 @@ function check(name, cond) {
   check('template mime exact', read.contents[0].mimeType === MIME);
   check('template carries kit css', html.includes('.rc{') && html.includes('.rc .kpi') && html.includes('unicode-bidi:plaintext'));
   check('template carries dark palette', html.includes('data-theme="dark"'));
+  check('chat template carries spark; donut stays report-tier (4.10.0)', html.includes('.rc .spark') && !html.includes('.donut'));
   check('page paints itself with surface-1 + theme color-scheme (host canvas is opaque light; a transparent page renders white-on-white in dark mode)', html.includes('background:var(--surface-1);overflow:hidden') && html.includes('color-scheme:light') && html.includes('color-scheme:dark'));
   check('template hoists @imports above all rules (mid-sheet imports are dead)', html.indexOf('@import') < html.indexOf(':root{') && html.includes('family=Inter'));
   check('hoisted Vazirmatn import survives intact (its url contains semicolons)', html.includes("family=Vazirmatn:wght@400;500;700;800&display=swap')") && html.includes('.rc{--ca:'));
@@ -105,6 +106,8 @@ function check(name, cond) {
   const ok = await rpc('tools/call', { name: 'card', arguments: { html: '<h2>سلام</h2><p>تست</p>' } });
   check('call returns model-facing text', ok.content[0].type === 'text' && ok.content[0].text.includes('rendered'));
   check('call mirrors html into structuredContent', ok.structuredContent.html === '<h2>سلام</h2><p>تست</p>');
+  const okSvg = await rpc('tools/call', { name: 'card', arguments: { html: '<div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,26 50,10 100,4"/></svg><div class="x"><span>a</span><span>b</span></div></div>' } });
+  check('card accepts inline-svg spark content (guardrail blocks only style/script)', okSvg.structuredContent.html.includes('<svg'));
 
   // 4b. htmlFile mode: card renders from a pre-written *-card.html file
   const CARD_FILE = path.join(SAVE_DIR, 'worker-report-card.html');
@@ -173,6 +176,10 @@ function check(name, cond) {
   } });
   check('render_email keeps Persian cards rtl despite long code paths', emPath.content[0].text.indexOf('<div dir="rtl"') === 0);
   check('render_email flips flow arrows for ltr', emEnOut.includes('→') && !emEnOut.includes('←'));
+  const emSpark = await rpc('tools/call', { name: 'render_email', arguments: {
+    html: '<h2>روند</h2><div class="spark"><svg viewBox="0 0 100 30"><polyline points="0,26 50,10 100,4"/></svg><div class="x"><span>ف</span><span>ت</span></div></div><p>متن</p>',
+  } });
+  check('render_email drops spark blocks (email clients strip svg)', !emSpark.content[0].text.includes('<svg') && !emSpark.content[0].text.includes('polyline'));
   const emBad = await rpc('tools/call', { name: 'render_email', arguments: { html: '<style>x</style><p>a</p>' } }).then(
     () => false,
     (e) => String(e.message).includes('-32602')
