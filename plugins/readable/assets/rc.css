@@ -1,5 +1,8 @@
 /* readable kit - single source of truth.
-   BASE = always in every card; sections marked @TAG are pay-per-use component snippets. */
+   BASE = always in every card; sections marked @TAG are pay-per-use component snippets.
+   The @REPORT tail is report tier (report skill, hosted kit, inline snippets): mcp/server.js
+   cuts the sheet at that marker so the chat card template stays under the host's 30KB
+   resource ceiling, and the chat rule does not offer those variants. */
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
 .rc{--ca:#0f9d58;--cb:#3f8ac9;--cc:#e0a52e;--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);border:.5px solid var(--border);border-radius:14px;padding:1.2rem 1.4rem;text-align:right;margin:.5rem 0}
 .rc>:first-child{margin-top:0}.rc>:last-child{margin-bottom:0}
@@ -63,3 +66,10 @@
 /*@CTA*/
 .rc .cta{display:inline-flex;align-items:center;gap:6px;background:var(--text-accent);color:var(--surface-1);border:none;border-radius:9px;padding:7px 15px;font-family:inherit;font-size:1em;font-weight:700;cursor:pointer;margin-top:.4em}.rc .cta::after{content:'←';font-weight:400}.rc .cta:hover{opacity:.88}
 .rc .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:.6em}.rc .cta.ghost{background:transparent;color:var(--text-accent);border:1px solid var(--border-strong)}
+/*@REPORT - report tier from here down: dense stat variants for the report skill, hosted kit, and inline snippets. NOT in the chat card template (mcp/server.js cuts the sheet at this marker, 30KB host ceiling; the chat rule does not offer these).*/
+.rc table.zebra tbody tr:nth-child(2n) td{background:var(--surface-2)}
+.rc table.zebra tbody tr:hover td{background:var(--border)}
+.rc table.dense{font-size:.9em}.rc table.dense thead th,.rc table.dense tbody td{padding:4px 8px}
+.rc .kpi .f{font-size:.74em;color:var(--text-secondary);line-height:1.7;margin-top:3px}
+.rc .bar.duo .t{position:relative}.rc .bar.duo .t i{background:var(--ca)}.rc .bar.duo .t i+i{position:absolute;inset-inline-start:0;top:0;background:var(--cb)}
+.rc .bars .leg{display:flex;flex-flow:row wrap;gap:4px 16px;margin:.2em 0 .5em;font-size:.9em}

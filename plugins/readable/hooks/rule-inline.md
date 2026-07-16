@@ -33,11 +33,14 @@ BASE already styles all text content, so these blocks need nothing extra: <h2> o
 
 Everything else is pay-per-use. Each component below has a CSS snippet: for EVERY component CONTENT uses, copy its snippet verbatim into the same <style>, right before </style>. Snippets are independent, order does not matter, never edit them. If unsure whether a component is used, include its snippet (missing CSS renders unstyled); never paste a snippet for a component CONTENT does not use.
 
-TABLE — comparison tables, plain <table><thead><tbody>:
+TABLE — comparison tables, plain <table><thead><tbody>; 10+ row stat tables get <table class="zebra dense"> (striped rows + tight padding, combinable):
 .rc table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:.96em}
 .rc thead th{color:var(--text-secondary);font-weight:700;font-size:.88em;border-bottom:1.5px solid var(--border-strong);padding:5px 10px;text-align:right}
 .rc tbody td{padding:7px 10px;border-bottom:.5px solid var(--border);text-align:right}
 .rc tbody tr:last-child td{border-bottom:none}.rc tbody tr:hover td{background:var(--surface-2)}
+.rc table.zebra tbody tr:nth-child(2n) td{background:var(--surface-2)}
+.rc table.zebra tbody tr:hover td{background:var(--border)}
+.rc table.dense{font-size:.9em}.rc table.dense thead th,.rc table.dense tbody td{padding:4px 8px}
 
 BADGE — status chips <span class="badge ok|warn|info">, mostly inside table cells:
 .rc .badge{display:inline-block;font-size:.78em;font-weight:700;padding:1px 9px;border-radius:20px;background:var(--surface-2);color:var(--text-secondary)}
@@ -46,7 +49,7 @@ BADGE — status chips <span class="badge ok|warn|info">, mostly inside table ce
 KV — key-value rows <div class="kv"><div><b>label</b><span>value</span></div>...</div>:
 .rc .kv{margin:.8em 0}.rc .kv>div{display:flex;justify-content:space-between;gap:14px;padding:6px 2px;border-bottom:.5px solid var(--border)}.rc .kv>div:last-child{border:none}.rc .kv b{color:var(--text-secondary);font-weight:400}.rc .kv span{font-weight:500}
 
-KPI — stat cards <div class="grid c3"> (or c2, or plain grid) of <div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div>; trend classes up/dn:
+KPI — stat cards <div class="grid c3"> (or c2, or plain grid) of <div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div>; trend classes up/dn; optional compact caveat <div class="f">one short line</div> last inside the kpi:
 .rc .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px;margin:.8em 0}.rc .grid.c2{grid-template-columns:1fr 1fr}.rc .grid.c3{grid-template-columns:1fr 1fr 1fr}
 .rc .kpi{background:var(--surface-2);border:.5px solid var(--border);border-radius:11px;padding:11px 13px}
 .rc .kpi .l{font-size:.82em;color:var(--text-secondary);margin-bottom:3px}
@@ -54,9 +57,15 @@ KPI — stat cards <div class="grid c3"> (or c2, or plain grid) of <div class="k
 .rc .trend{display:inline-block;font-size:.55em;font-weight:700;padding:1px 8px;border-radius:12px;vertical-align:2px;margin-inline-start:7px}
 .rc .trend.up{background:var(--bg-success);color:var(--ca)}.rc .trend.up::before{content:'▲ '}
 .rc .trend.dn{background:var(--bg-danger);color:var(--cd)}.rc .trend.dn::before{content:'▼ '}
+.rc .kpi .f{font-size:.74em;color:var(--text-secondary);line-height:1.7;margin-top:3px}
 
-BARS — horizontal bars <div class="bars"><div class="bar"><span class="l">label</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div>...</div>:
+BARS — horizontal bars <div class="bars"><div class="bar"><span class="l">label</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div>...</div>; two-metric bar (total + subset overlay): <div class="bar duo"> with TWO <i> in the track (first total, second subset, widths % of the row max), value like "98h / 51h", and both colors named once in a legend first inside .bars: <div class="leg"><span class="a"><i></i>total</span><span class="b"><i></i>subset</span></div>:
 .rc .bars{margin:.8em 0}.rc .bar{display:flex;align-items:center;gap:10px;margin:.45em 0}.rc .bar .l{flex:0 0 auto;min-width:4.5em;color:var(--text-secondary)}.rc .bar .t{flex:1;height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden}.rc .bar .t i{display:block;height:100%;background:var(--text-accent);border-radius:4px}.rc .bar .v{flex:0 0 auto;font-weight:700;font-size:.9em}
+.rc .bar.duo .t{position:relative}.rc .bar.duo .t i{background:var(--ca)}.rc .bar.duo .t i+i{position:absolute;inset-inline-start:0;top:0;background:var(--cb)}
+.rc .bars .leg{display:flex;flex-flow:row wrap;gap:4px 16px;margin:.2em 0 .5em;font-size:.9em}
+.rc .leg>span{display:flex;align-items:center;gap:8px}
+.rc .leg i{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+.rc .leg .a i{background:var(--ca)}.rc .leg .b i{background:var(--cb)}.rc .leg .c i{background:var(--cc)}.rc .leg .d i{background:var(--cd)}
 
 DONUT — donut chart, 2-4 slices summing to 100, legend classes a/b/c/d: <div class="donut-w"><div class="donut" style="--a:46;--b:31"></div><div class="leg"><span class="a"><i></i>label 46%</span><span class="b"><i></i>label 31%</span><span class="c"><i></i>label 23%</span></div></div>:
 .rc .donut-w{display:flex;align-items:center;gap:20px;margin:.9em 0;flex-wrap:wrap}

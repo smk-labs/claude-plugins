@@ -35,10 +35,11 @@ If CONTENT uses ANY component below, add exactly this one line right before </st
 @import url('https://cdn.jsdelivr.net/gh/smk-labs/claude-plugins@main/plugins/readable/assets/rc.css');
 
 Components (HTML shapes only; their CSS comes from that import):
-- Table: plain <table><thead><tbody>; status chips inside cells: <span class="badge ok|warn|info">.
+- Table: plain <table><thead><tbody>; status chips inside cells: <span class="badge ok|warn|info">. 10+ row stat tables: <table class="zebra dense"> (striped rows + tight padding, combinable).
 - Key-value rows: <div class="kv"><div><b>label</b><span>value</span></div>...</div>.
-- KPI cards: <div class="grid c3"> (or c2, or plain grid) of <div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div>; trend classes up/dn.
+- KPI cards: <div class="grid c3"> (or c2, or plain grid) of <div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div>; trend classes up/dn. Optional compact caveat under the number: <div class="f">one short line</div> last inside the kpi.
 - Horizontal bars: <div class="bars"><div class="bar"><span class="l">label</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div>...</div>.
+- Two-metric bar (total + subset overlay): <div class="bar duo"><span class="l">label</span><span class="t"><i style="width:80%"></i><i style="width:52%"></i></span><span class="v">98h / 51h</span></div> (first <i> = total, second = subset; widths % of the row max). Name both colors once in a legend first inside .bars: <div class="leg"><span class="a"><i></i>total</span><span class="b"><i></i>subset</span></div> (donut legend classes).
 - Donut (2-4 slices summing to 100, legend classes a/b/c/d): <div class="donut-w"><div class="donut" style="--a:46;--b:31"></div><div class="leg"><span class="a"><i></i>label 46%</span><span class="b"><i></i>label 31%</span><span class="c"><i></i>label 23%</span></div></div>.
 - Process flow: <div class="flow"><span class="s">step</span>...</div> (arrows render automatically).
 - Timeline: <div class="tl"><div><b>title</b>text</div>...</div>.

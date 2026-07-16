@@ -64,7 +64,7 @@ window.__rcEmail = function (cb) {
       if (s.style && s.style.width && s.style.width.indexOf('%') > -1) st += 'width:' + s.style.width + ';background:' + cs.getPropertyValue('background-color') + ';display:block;';
       var cls = s.className || '';
       var tag = s.tagName;
-      if (/(^| )t( |$)/.test(cls) && s.parentNode && /(^| )bar( |$)/.test(s.parentNode.className || '')) st += 'width:220px;height:7px;display:inline-block;';
+      if (/(^| )t( |$)/.test(cls) && s.parentNode && /(^| )bar( |$)/.test(s.parentNode.className || '')) st += 'width:220px;display:inline-block;' + (/(^| )duo( |$)/.test(s.parentNode.className || '') ? '' : 'height:7px;');
       if (s.style && s.style.width && s.style.width.indexOf('%') > -1) st += 'height:7px;';
       d.setAttribute('style', st); d.removeAttribute('class'); d.removeAttribute('onclick'); d.removeAttribute('id');
       var dr = cs.getPropertyValue('direction');

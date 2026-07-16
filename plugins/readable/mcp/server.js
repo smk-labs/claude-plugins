@@ -30,7 +30,9 @@ const KIT_CANDIDATES = [
   path.join(__dirname, '..', 'assets', 'rc.css'), // plugin layout
   path.join(__dirname, 'rc.css'), // bundled layout (.mcpb extension)
 ];
-const KIT_CSS = fs.readFileSync(KIT_CANDIDATES.find((p) => fs.existsSync(p)), 'utf8');
+/* \r-strip: a CRLF checkout (autocrlf=true on Windows) would otherwise leak
+ * one stray byte per line into the template and eat the 30KB budget. */
+const KIT_CSS = fs.readFileSync(KIT_CANDIDATES.find((p) => fs.existsSync(p)), 'utf8').replace(/\r\n/g, '\n');
 
 /* Host CSS variables do not exist inside the sandboxed MCP Apps iframe,
  * so the template ships its own palette and switches on hostContext.theme.
@@ -61,10 +63,15 @@ const LTR_CSS = [
   '.rc[dir=ltr] .flow .s:not(:last-child)::before{transform:translateY(-50%) rotate(225deg)}',
 ].join('\n');
 
+/* The kit's @REPORT tail (report-tier variants: zebra/dense tables, kpi
+ * footnote, duo bars) is cut here: the template sits ~10 bytes under the
+ * host's 30KB resource ceiling, and the chat rule does not offer those
+ * variants. The report shell and the hosted @import ship the full sheet. */
+const KIT_CHAT = KIT_CSS.split('/*@REPORT')[0];
 /* @import is only valid before all other rules; the kit's Vazirmatn import
  * would die mid-sheet after PALETTE, so imports are hoisted to the top of the
  * template <style> (and Inter added for LTR cards). */
-const KIT_BODY = KIT_CSS.replace(/\/\*[^]*?\*\//g, '');
+const KIT_BODY = KIT_CHAT.replace(/\/\*[^]*?\*\//g, '');
 /* Line-anchored: the Google Fonts URL itself contains semicolons (wght@400;500;...),
  * so matching up to the first ';' truncates mid-url and the leftover garbage
  * eats the kit's first rule via CSS error recovery. Imports sit one per line. */
@@ -136,7 +143,7 @@ const MENU_CANDIDATES = [
   path.join(__dirname, 'menu.js'), // bundled layout (.mcpb extension)
 ];
 const MENU_SRC = fs.readFileSync(MENU_CANDIDATES.find((p) => fs.existsSync(p)), 'utf8')
-  .split('\n').filter((l) => l.slice(0, 2) !== '/*').join('');
+  .replace(/\r\n/g, '\n').split('\n').filter((l) => l.slice(0, 2) !== '/*').join('');
 
 const TEMPLATE_HTML =
   '<!DOCTYPE html><html><head><meta charset="utf-8"><style>\n' +
@@ -602,7 +609,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.6.1 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.7.0 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();
