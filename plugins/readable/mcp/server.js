@@ -232,6 +232,41 @@ const EMAIL_TOOL = {
   },
 };
 
+/* copy_text (4.11.1): app-only clipboard bridge. Inside the sandboxed MCP Apps
+ * iframe, page-level clipboard writes are swallowed (navigator.clipboard is
+ * permission-blocked and execCommand('copy') still RETURNS TRUE while writing
+ * nothing), so every Copy button lied with a green check. The card UI now
+ * copies through this tool: the server runs as a local process and pipes the
+ * text into the OS clipboard helper. The browser path stays as the fallback
+ * for hosts without tools/call (standalone reports are unaffected). */
+const COPY_TOOL = {
+  name: 'copy_text',
+  description:
+    'Internal: copies text to the system clipboard for the card UI menu. Called by the embedded card interface, never by the assistant.',
+  inputSchema: {
+    type: 'object',
+    properties: { text: { type: 'string', description: 'plain text to copy' } },
+    required: ['text'],
+  },
+};
+
+/* READABLE_COPY_CMD overrides the helper (tests use `cat` so runs never touch
+ * the developer's real clipboard). clip.exe only accepts UTF-16LE. */
+function copyText(text) {
+  const { spawnSync } = require('child_process');
+  const env = process.env.READABLE_COPY_CMD;
+  const cands = env ? [env.split(' ')] :
+    process.platform === 'darwin' ? [['pbcopy']] :
+    process.platform === 'win32' ? [['clip']] :
+    [['wl-copy'], ['xclip', '-selection', 'clipboard'], ['xsel', '-ib']];
+  const input = !env && process.platform === 'win32' ? Buffer.from('﻿' + text, 'utf16le') : text;
+  for (const [cmd, ...args] of cands) {
+    const r = spawnSync(cmd, args, { input });
+    if (!r.error && r.status === 0) return cmd;
+  }
+  throw new Error('no clipboard helper worked');
+}
+
 /* read_card_file: the app-side half of the card tool's htmlFile mode (4.6).
  * The bridge fetches the file content through the host (tools/call), so the
  * HTML reaches the iframe without ever entering the model's context — the
@@ -538,9 +573,19 @@ function handle(msg) {
       return;
     }
     case 'tools/list':
-      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL, READ_TOOL] });
+      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL, READ_TOOL, COPY_TOOL] });
       return;
     case 'tools/call': {
+      if (params && params.name === 'copy_text') {
+        const a = params.arguments || {};
+        if (typeof a.text !== 'string') return fail(-32602, 'text (string) is required');
+        try {
+          respond({ content: [{ type: 'text', text: 'copied via ' + copyText(a.text) }] });
+        } catch (e) {
+          respond({ isError: true, content: [{ type: 'text', text: 'copy failed: ' + String(e && e.message) }] });
+        }
+        return;
+      }
       if (params && params.name === 'save_card') {
         const a = params.arguments || {};
         if (typeof a.filename !== 'string' || typeof a.content !== 'string') return fail(-32602, 'filename and content are required');
@@ -617,7 +662,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.11.0 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.11.1 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();

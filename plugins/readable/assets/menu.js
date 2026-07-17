@@ -19,7 +19,7 @@ var CSS='#rcmenu{position:fixed;top:8px;right:8px;z-index:9;font-family:system-u
 '#rcmenu .fmt svg{width:17px;height:17px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}'+
 '#rcmenu .act,#rccp{width:30px;height:30px;margin:0 2px;border-radius:7px;border:none;background:none;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}'+
 '#rcmenu .act:hover,#rccp:hover{background:var(--surface-1);color:var(--text-primary);box-shadow:inset 0 0 0 .5px var(--border-strong)}'+
-'#rcmenu .act .ic,#rccp .ic{display:inline-flex;align-items:center;justify-content:center}'+
+'#rcmenu .act .ic,#rccp .ic{display:inline-flex}'+
 '#rcmenu .act svg,#rccp svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'+
 '#rcmenu .act.ok,#rccp.ok{color:var(--ca,#0f9d58)}#rcmenu .act.err,#rccp.err{color:#e05555}'+
 '#rccp{position:absolute;display:none;margin:0;background:var(--surface-2);border:.5px solid var(--border-strong)}'+
@@ -46,8 +46,8 @@ var toastEl=document.createElement('div');
 toastEl.id='rctoast';
 document.body.appendChild(toastEl);
 var VARS=['--text-primary','--text-secondary','--text-accent','--surface-1','--surface-2','--border','--border-strong','--bg-success','--bg-accent','--bg-warning','--bg-danger','--font-mono','--page-bg'];
-var ICON_OK='<svg viewBox="0 0 24 24" style="stroke-width:2.5"><polyline points="20 6 9 17 4 12"/></svg>';
-var ICON_ERR='<svg viewBox="0 0 24 24" style="stroke-width:2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+var ICON_OK='<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+var ICON_ERR='<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 /* __rcFit (chat-card bridge only) grows the iframe while the menu is open — a fixed-position menu never enters scrollHeight, so short cards would clip it. */
 menu.querySelector('.dots').addEventListener('click',function(e){e.stopPropagation();if(e.altKey){clipText(JSON.stringify({host:window.__rcHost||null,errors:window.__rcErrs||[]},null,1),function(ok){toast(ok?'diagnostics copied':'diagnostics copy failed')});return}menu.classList.toggle('open');if(window.__rcFit)window.__rcFit()});
 document.addEventListener('click',function(e){if(!menu.contains(e.target)&&menu.classList.contains('open')){menu.classList.remove('open');if(window.__rcFit)window.__rcFit()}});
@@ -95,8 +95,10 @@ btn.classList.add(st);
 ic.innerHTML=st==='busy'?'<span class="rcspin"></span>':st==='ok'?ICON_OK:ICON_ERR;
 if(lb&&st==='err')toast(lb);
 if(st!=='busy')btn._t=setTimeout(function(){setState(btn,'idle')},2600)}
+/* Host-first copy: inside the sandboxed MCP Apps iframe, page-level clipboard writes are swallowed while execCommand('copy') still returns true, so every Copy button showed a false green check (field bug, 4.11.1). When the host RPC exists the text goes through the server's copy_text tool into the OS clipboard; the browser path stays as the fallback there and as the whole path in standalone reports (no __rcRpc), where it genuinely works. */
 function clipText(t,cb){function legacy(){try{var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();var ok=document.execCommand('copy');ta.remove();return ok}catch(e){return false}}
-if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cb(true)},function(){cb(legacy())})}else cb(legacy())}
+function sys(){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cb(true)},function(){cb(legacy())})}else cb(legacy())}
+if(window.__rcRpc){window.__rcRpc('tools/call',{name:'copy_text',arguments:{text:t}},function(res,err){if(err||!res||res.isError)sys();else cb(true)});return}sys()}
 function b64(blob,cb){var r=new FileReader();r.onload=function(){cb(String(r.result).split(',')[1]||'')};r.onerror=function(){cb(null)};r.readAsDataURL(blob)}
 function saveFile(name,text,blob,btn){
 function finish(ok,info){setState(btn,ok?'ok':'err');if(info)toast(info)}
@@ -122,7 +124,7 @@ function act(kind,btn){setState(btn,'busy');
 if(kind==='copytext'){clipText(document.getElementById('card').innerText,function(ok){setState(btn,ok?'ok':'err','Failed')});return}
 if(kind==='copymd'){clipText(toMd(),function(ok){setState(btn,ok?'ok':'err','Failed')});return}
 if(kind==='copyhtml'){clipText(exportHtml(),function(ok){setState(btn,ok?'ok':'err','Failed')});return}
-if(kind==='copyemail'){withEmail(btn,function(h){richCopy(h,toMd(),function(ok){setState(btn,ok?'ok':'err','Failed');if(ok)toast('paste into your email compose window')})});return}
+if(kind==='copyemail'){withEmail(btn,function(h){richCopy(h,toMd(),function(ok){setState(btn,ok?'ok':'err','Failed');if(ok)toast('paste into your email')})});return}
 if(kind==='dlemail'){withEmail(btn,function(h){var d=(h.match(/dir="(ltr|rtl)"/)||[])[1]||'rtl';saveFile('readable-card.email.html','<!DOCTYPE html><html dir="'+d+'"><head><meta charset="utf-8"><title>readable card</title></head><body style="margin:0;padding:16px;background:#ffffff">'+h+'</body></html>',null,btn)});return}
 if(kind==='copyimg'){pngBlob(function(b,err){if(!b){setState(btn,'err');toast('image: '+err);return}
 if(navigator.clipboard&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){setState(btn,'ok')},function(){saveFile('readable-card.png',null,b,btn)})}else saveFile('readable-card.png',null,b,btn)});return}
@@ -131,11 +133,10 @@ if(kind==='dlhtml'){saveFile('readable-card.html',exportHtml(),null,btn);return}
 if(kind==='dlmd'){saveFile('readable-card.md',toMd(),null,btn);return}
 if(kind==='dltxt'){saveFile('readable-card.txt',document.getElementById('card').innerText,null,btn);return}}
 menu.querySelector('.items').addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('button');if(b&&!b.classList.contains('busy'))act(b.getAttribute('data-act'),b)});
-/* Per-code-block copy: ONE floating button, shown while hovering a <pre> in #card, copying that block's plain textContent. It lives OUTSIDE #card so every exporter (png serializer, html/md/text walkers, email) stays blind to it and #card re-renders never orphan it; absolute position + scroll offsets keep it glued to the block when the report page scrolls (the card iframe never scrolls). */
+/* Per-code-block copy: ONE floating button, shown while hovering a <pre> in #card, copying that block's plain textContent (setState caches its idle icon under the null data-act key; it is the only keyless button). It lives OUTSIDE #card so every exporter (png serializer, html/md/text walkers, email) stays blind to it and #card re-renders never orphan it; absolute position + scroll offsets keep it glued to the block when the report page scrolls (the card iframe never scrolls). */
 var cpPre=null,cpBtn=document.createElement('button');
 cpBtn.id='rccp';
-cpBtn.title='Copy code';
-cpBtn.dataset.act='cpre';
+cpBtn.title='Copy';
 cpBtn.innerHTML='<span class="ic">'+I.copy+'</span>';
 document.body.appendChild(cpBtn);
 document.addEventListener('mouseover',function(e){if(cpBtn.contains(e.target))return;var p=e.target.closest?e.target.closest('#card pre'):null;if(p){cpPre=p;var r=p.getBoundingClientRect();cpBtn.style.top=r.top+scrollY+5+'px';cpBtn.style.left=r.right+scrollX-35+'px';cpBtn.style.display='flex'}else{cpPre=null;cpBtn.style.display='none'}});

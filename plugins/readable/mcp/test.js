@@ -8,7 +8,7 @@ const path = require('path');
 const SAVE_DIR = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-save-'));
 const srv = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
   stdio: ['pipe', 'pipe', 'inherit'],
-  env: Object.assign({}, process.env, { READABLE_SAVE_DIR: SAVE_DIR }),
+  env: Object.assign({}, process.env, { READABLE_SAVE_DIR: SAVE_DIR, READABLE_COPY_CMD: 'cat' }),
 });
 const pending = new Map();
 let buf = '';
@@ -68,12 +68,14 @@ function check(name, cond) {
   const save = tools.tools[1];
   const email = tools.tools[2];
   const readf = tools.tools[3];
-  check('four tools: card + save_card + render_email + read_card_file', tools.tools.length === 4 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email' && readf.name === 'read_card_file');
+  const copyt = tools.tools[4];
+  check('five tools: card + save_card + render_email + read_card_file + copy_text', tools.tools.length === 5 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email' && readf.name === 'read_card_file' && copyt.name === 'copy_text');
   check('tool links template via _meta.ui.resourceUri', card._meta.ui.resourceUri === 'ui://readable/card.html');
   check('inputSchema offers html or htmlFile, neither hard-required', Boolean(card.inputSchema.properties.html && card.inputSchema.properties.htmlFile) && card.inputSchema.required === undefined);
   check('save_card carries no ui meta (Desktop meta parser is fragile)', save._meta === undefined);
   check('render_email carries no ui meta', email._meta === undefined);
   check('read_card_file carries no ui meta', readf._meta === undefined);
+  check('copy_text carries no ui meta', copyt._meta === undefined);
 
   // 3. resources: template served with the exact MCP Apps mime
   const res = await rpc('resources/list', {});
@@ -89,6 +91,7 @@ function check(name, cond) {
   check('hoisted Vazirmatn import survives intact (its url contains semicolons)', html.includes("family=Vazirmatn:wght@400;500;700;800&display=swap')") && html.includes(';--ca:'));
   check('assembly aliases hot kit vars on .rc, defs first (4.11.0; sources keep long names)', html.includes('.rc{--bd:.5px solid var(--border);') && html.includes('border:var(--bd)') && !html.includes('1var(') && (html.match(/var\(--text-accent\)/g) || []).length === 2);
   check('per-code-block copy button rides both hosts via menu.js (4.11.0)', html.includes("closest('#card pre')") && html.includes('#rccp{position:absolute') && html.includes('#rcmenu .act,#rccp{') && html.includes("textContent.replace(/\\n$/,'')"));
+  check('copies go host-first through copy_text (sandboxed iframe swallows page clipboard writes, 4.11.1)', html.includes("{name:'copy_text',arguments:{text:t}}") && html.includes('if(window.__rcRpc){window.__rcRpc('));
   check('template stamps card dir from majority script + LTR overrides', html.includes('dirOf') && html.includes('.rc[dir=ltr]{text-align:left'));
   check('dir detection ignores code/pre content (long paths must not flip Persian cards to LTR)', html.includes('<(code|pre)'));
   check('template speaks MCP Apps bridge', html.includes('ui/initialize') && html.includes('ui/notifications/tool-input') && html.includes('size-changed'));
@@ -199,6 +202,15 @@ function check(name, cond) {
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64');
   const s4 = await rpc('tools/call', { name: 'save_card', arguments: { filename: 'card.png', content: png, encoding: 'base64' } });
   check('save_card decodes base64', fs.readFileSync(s4.content[0].text)[0] === 0x89);
+
+  // 8. copy_text: pipes through the clipboard helper (overridden to `cat` here)
+  const cp1 = await rpc('tools/call', { name: 'copy_text', arguments: { text: 'plain code\nline2' } });
+  check('copy_text succeeds through the helper', !cp1.isError && cp1.content[0].text.includes('copied via cat'));
+  const cp2 = await rpc('tools/call', { name: 'copy_text', arguments: {} }).then(
+    () => false,
+    (e) => String(e.message).includes('-32602')
+  );
+  check('copy_text rejects missing text', cp2);
 
   // 7. fallback path: a second server WITHOUT ui capability gets the fallback note
   const srv2 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'] });
