@@ -97,7 +97,7 @@ function check(name, cond) {
   check('template speaks MCP Apps bridge', html.includes('ui/initialize') && html.includes('ui/notifications/tool-input') && html.includes('size-changed'));
   check('template maps sendPrompt to ui/message', html.includes("rpc('ui/message'"));
   check('template has 5x2 format/action matrix (Email row back in 4.4, rendered server-side)', ['class="row"', 'class="fmt"', 'copyimg', 'copyemail', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlemail', 'dlhtml', 'dlmd', 'dltxt'].every((l) => html.includes(l)) && html.split('row(I.').length === 6);
-  check('email export fetches render_email and rich-copies both flavors', html.includes("name:'render_email'") && html.includes("'text/html'") && html.includes("contentEditable"));
+  check('email export fetches render_email and rich-copies both flavors, no lying execCommand fallback (4.12.0)', html.includes("name:'render_email'") && html.includes("'text/html'") && !html.includes('contentEditable'));
   check('open menu grows the iframe (fixed menu never enters scrollHeight)', html.includes('window.__rcFit=fit') && html.split('window.__rcFit()').length === 3);
   check('template stays under the host resource-size ceiling', html.length < 30000);
   check('saves go through save_card then ui/download-file', html.includes("name:'save_card'") && html.includes('ui/download-file'));
@@ -106,6 +106,9 @@ function check(name, cond) {
   check('clipboard has execCommand fallback', html.includes("execCommand('copy')"));
   check('CTA clicks survive blocked inline handlers (delegation)', html.includes("closest('#card [onclick]')"));
   check('template fetches htmlFile via read_card_file (never via model context)', html.includes("name:'read_card_file'") && html.includes('htmlFile'));
+  check('exports are named after the card title (4.12.0)', html.includes('function fileBase()') && html.includes("fileBase()+'.png'") && html.includes("fileBase()+'.md'") && html.includes("fileBase()+'.email.html'"));
+  check('save rpcs are deadlined and request the native picker (4.12.0)', html.includes('function rpcTo(') && html.includes('pick:true') && html.includes("'picking'") && !html.includes('no host response'));
+  check('email export is deadlined too (busy-forever guard)', html.includes("toast('email: timeout')"));
 
   // 4. tools/call happy path
   const ok = await rpc('tools/call', { name: 'card', arguments: { html: '<h2>سلام</h2><p>تست</p>' } });
@@ -202,6 +205,11 @@ function check(name, cond) {
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64');
   const s4 = await rpc('tools/call', { name: 'save_card', arguments: { filename: 'card.png', content: png, encoding: 'base64' } });
   check('save_card decodes base64', fs.readFileSync(s4.content[0].text)[0] === 0x89);
+  const s5 = await rpc('tools/call', { name: 'save_card', arguments: { filename: 'گزارش هفتگی.md', content: 'فارسی', encoding: 'utf8' } });
+  check('save_card keeps Unicode titles (Persian filenames survive, spaces to dashes)', path.basename(s5.content[0].text) === 'گزارش-هفتگی.md' && fs.readFileSync(s5.content[0].text, 'utf8') === 'فارسی');
+  const s6 = await rpc('tools/call', { name: 'save_card', arguments: { filename: 'card.txt', content: 'x', encoding: 'utf8', pick: true } });
+  check('READABLE_SAVE_DIR outranks the picker (tests never open dialogs)', s6.content[0].text.startsWith(SAVE_DIR) && s6.content[0].text.endsWith('.txt'));
+  check('save_card schema advertises pick', save.inputSchema.properties.pick && save.inputSchema.properties.pick.type === 'boolean');
 
   // 8. copy_text: pipes through the clipboard helper (overridden to `cat` here)
   const cp1 = await rpc('tools/call', { name: 'copy_text', arguments: { text: 'plain code\nline2' } });
@@ -211,6 +219,35 @@ function check(name, cond) {
     (e) => String(e.message).includes('-32602')
   );
   check('copy_text rejects missing text', cp2);
+
+  // 8b. roots: a client that advertises roots gets asked roots/list, and saves
+  // land in the first root (the session's project dir) instead of Downloads.
+  const ROOTS_DIR = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-root-'));
+  const env3 = Object.assign({}, process.env);
+  delete env3.READABLE_SAVE_DIR;
+  const srv3 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'], env: env3 });
+  const rootSave = await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout: roots flow')), 3000);
+    let b = '';
+    srv3.stdout.on('data', (d) => {
+      b += d;
+      let j;
+      while ((j = b.indexOf('\n')) !== -1) {
+        const l = b.slice(0, j); b = b.slice(j + 1);
+        if (!l.trim()) continue;
+        const m = JSON.parse(l);
+        if (m.method === 'roots/list' && m.id != null) {
+          srv3.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: m.id, result: { roots: [{ uri: 'file://' + ROOTS_DIR, name: 'proj' }] } }) + '\n');
+          srv3.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'save_card', arguments: { filename: 'root.txt', content: 'r', encoding: 'utf8' } } }) + '\n');
+        }
+        if (m.id === 9) { clearTimeout(t); resolve(m); }
+      }
+    });
+    srv3.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: { roots: { listChanged: true } } } }) + '\n');
+    srv3.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }) + '\n');
+  });
+  check('roots/list is requested on initialized and the first root becomes the save dir', rootSave.result.content[0].text === path.join(ROOTS_DIR, 'root.txt') && fs.readFileSync(path.join(ROOTS_DIR, 'root.txt'), 'utf8') === 'r');
+  srv3.kill();
 
   // 7. fallback path: a second server WITHOUT ui capability gets the fallback note
   const srv2 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'] });

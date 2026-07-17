@@ -8,7 +8,8 @@
 /*   - __rcRpc(method, params, cb) (optional): JSON-RPC bridge to the MCP host. Absent in the report; saves then fall back to <a download>. */
 /* Self-installing: injects its own CSS, menu DOM (#rcmenu) and toast (#rctoast) into the page; needs #card to exist. */
 (function(){
-var CSS='#rcmenu{position:fixed;top:8px;right:8px;z-index:9;font-family:system-ui,sans-serif;direction:ltr}'+
+var CSS='#rcmenu,#rctoast{font-family:system-ui,sans-serif;direction:ltr}'+
+'#rcmenu{position:fixed;top:8px;right:8px;z-index:9}'+
 '#rcmenu .dots{width:30px;height:30px;border-radius:8px;border:.5px solid var(--border);background:var(--surface-2);color:var(--text-secondary);cursor:pointer;font-size:16px;line-height:1;opacity:.4;padding:0}'+
 '#rcmenu:hover .dots,#rcmenu.open .dots{opacity:1}'+
 '#rcmenu .items{display:none;position:absolute;right:0;top:34px;background:var(--surface-1);border:.5px solid var(--border-strong);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.28)}'+
@@ -25,7 +26,7 @@ var CSS='#rcmenu{position:fixed;top:8px;right:8px;z-index:9;font-family:system-u
 '#rccp{position:absolute;display:none;margin:0;background:var(--surface-2);border:.5px solid var(--border-strong)}'+
 '.rcspin{width:12px;height:12px;border:2px solid var(--border-strong);border-top-color:var(--text-accent);border-radius:50%;animation:rcspin .7s linear infinite;display:inline-block}'+
 '@keyframes rcspin{to{transform:rotate(360deg)}}'+
-'#rctoast{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);max-width:92%;background:var(--text-primary);color:var(--surface-1);font-size:12px;font-family:system-ui,sans-serif;padding:5px 12px;border-radius:14px;opacity:0;transition:opacity .2s;pointer-events:none;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
+'#rctoast{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);max-width:92%;background:var(--text-primary);color:var(--surface-1);font-size:12px;padding:5px 12px;border-radius:14px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
 var I={image:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
 mail:'<svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>',
 code:'<svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
@@ -46,26 +47,26 @@ var toastEl=document.createElement('div');
 toastEl.id='rctoast';
 document.body.appendChild(toastEl);
 var VARS=['--text-primary','--text-secondary','--text-accent','--surface-1','--surface-2','--border','--border-strong','--bg-success','--bg-accent','--bg-warning','--bg-danger','--font-mono','--page-bg'];
+function C(){return document.getElementById('card')}
 var ICON_OK='<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
 var ICON_ERR='<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 /* __rcFit (chat-card bridge only) grows the iframe while the menu is open — a fixed-position menu never enters scrollHeight, so short cards would clip it. */
-menu.querySelector('.dots').addEventListener('click',function(e){e.stopPropagation();if(e.altKey){clipText(JSON.stringify({host:window.__rcHost||null,errors:window.__rcErrs||[]},null,1),function(ok){toast(ok?'diagnostics copied':'diagnostics copy failed')});return}menu.classList.toggle('open');if(window.__rcFit)window.__rcFit()});
+menu.querySelector('.dots').addEventListener('click',function(e){e.stopPropagation();if(e.altKey){clipText(JSON.stringify({host:window.__rcHost||null,errors:window.__rcErrs||[]},null,1),function(ok){toast(ok?'diag copied':'diag copy failed')});return}menu.classList.toggle('open');if(window.__rcFit)window.__rcFit()});
 document.addEventListener('click',function(e){if(!menu.contains(e.target)&&menu.classList.contains('open')){menu.classList.remove('open');if(window.__rcFit)window.__rcFit()}});
 function toast(t){var el=toastEl;el.textContent=t;el.style.opacity='1';clearTimeout(el._t);el._t=setTimeout(function(){el.style.opacity='0'},3400)}
 window.__rcToast=toast;
 function theme(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'}
 /* Effective backdrop for raster export: the chat-card template paints the PAGE with --surface-1 and leaves .rc transparent, so serializing #card alone yields a fully transparent PNG (dark text vanishes on white). Walk up from #card to the first opaque background; theme fallback guards detached/odd hosts. */
-function effBg(){var el=document.getElementById('card');while(el){var b=getComputedStyle(el).backgroundColor;if(b&&b!=='transparent'&&!/^rgba\([^)]+,\s*0\)$/.test(b))return b;el=el.parentElement}return theme()==='dark'?'#262624':'#ffffff'}
+function effBg(){var el=C();while(el){var b=getComputedStyle(el).backgroundColor;if(b&&b!=='transparent'&&!/^rgba\([^)]+,\s*0\)$/.test(b))return b;el=el.parentElement}return theme()==='dark'?'#262624':'#ffffff'}
 function collectCss(){var out='',els=document.querySelectorAll('style');for(var i=0;i<els.length;i++)out+=els[i].textContent+'\n';return out}
 function varCss(cls){var cs=getComputedStyle(document.documentElement),out='.'+cls+'{';for(var i=0;i<VARS.length;i++){var v=cs.getPropertyValue(VARS[i]);if(v)out+=VARS[i]+':'+v.trim()+';'}return out+'}'}
-function exportHtml(){var card=document.getElementById('card');return '<!DOCTYPE html>\n<html data-theme="'+theme()+'"><head><meta charset="utf-8"><title>readable card</title><style>\n'+collectCss()+'\n#rcmenu,#rctoast{display:none}\nhtml,body{overflow:auto}\n</style></head><body style="margin:16px">'+card.outerHTML+'</body></html>'}
-/* Email export renders through the host adapter (window.__rcEmail); the rich-text clipboard write carries both flavors (text/html + text/plain markdown), with a contenteditable+execCommand fallback. */
-function richCopy(html,plain,cb){function legacy(){try{var d=document.createElement('div');d.contentEditable='true';d.style.cssText='position:fixed;opacity:0;left:-9999px';d.innerHTML=html;document.body.appendChild(d);var r=document.createRange();r.selectNodeContents(d);var s=getSelection();s.removeAllRanges();s.addRange(r);var ok=document.execCommand('copy');s.removeAllRanges();d.remove();return ok}catch(e){return false}}
-if(navigator.clipboard&&window.ClipboardItem){try{navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([plain],{type:'text/plain'})})]).then(function(){cb(true)},function(){cb(legacy())});return}catch(e){}}cb(legacy())}
+function exportHtml(){return '<!DOCTYPE html><html data-theme="'+theme()+'"><head><meta charset="utf-8"><title>'+fileBase()+'</title><style>'+collectCss()+'#rcmenu,#rctoast{display:none}html,body{overflow:auto}</style></head><body style="margin:16px">'+C().outerHTML+'</body></html>'}
+/* Email export renders through the host adapter (window.__rcEmail); the rich-text clipboard write carries both flavors (text/html + text/plain markdown). No execCommand fallback: it reports success while writing nothing in sandboxed iframes (same field bug as 4.11.1), so ClipboardItem is the only honest path. */
+function richCopy(html,plain,cb){if(navigator.clipboard&&window.ClipboardItem){try{navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([plain],{type:'text/plain'})})]).then(function(){cb(true)},function(){cb(false)});return}catch(e){}}cb(false)}
 function inlineMd(el){var out='';el.childNodes.forEach(function(n){if(n.nodeType===3){out+=n.textContent;return}if(n.nodeType!==1)return;var t=n.tagName;
 if(t==='CODE')out+='`'+n.textContent+'`';else if(t==='STRONG'||t==='B')out+='**'+inlineMd(n)+'**';else if(t==='A')out+='['+inlineMd(n)+']('+(n.getAttribute('href')||'')+')';else if(t==='BR')out+='\n';else out+=inlineMd(n)});return out.replace(/[ \t]+/g,' ')}
 function rowMd(tr,tag){var cells=[];tr.querySelectorAll(tag).forEach(function(c){cells.push(inlineMd(c).trim()||' ')});return '| '+cells.join(' | ')+' |'}
-function toMd(){var card=document.getElementById('card'),L=[];
+function toMd(){var card=C(),L=[];
 card.childNodes.forEach(function(n){if(n.nodeType!==1)return;var t=n.tagName,c=n.className||'';
 if(t==='H2')L.push('# '+inlineMd(n).trim());
 else if(t==='H3')L.push('## '+inlineMd(n).trim());
@@ -100,16 +101,24 @@ function clipText(t,cb){function legacy(){try{var ta=document.createElement('tex
 function sys(){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cb(true)},function(){cb(legacy())})}else cb(legacy())}
 if(window.__rcRpc){window.__rcRpc('tools/call',{name:'copy_text',arguments:{text:t}},function(res,err){if(err||!res||res.isError)sys();else cb(true)});return}sys()}
 function b64(blob,cb){var r=new FileReader();r.onload=function(){cb(String(r.result).split(',')[1]||'')};r.onerror=function(){cb(null)};r.readAsDataURL(blob)}
+/* Exports are named after the card title (first h2, else the page title): Unicode letters kept (Persian titles stay Persian on disk), spaces to dashes, separators stripped, 60-char cap, readable-card when empty. */
+function fileBase(){var h=document.querySelector('#card h2');var t=(h&&h.textContent||document.title||'').replace(/[^\p{L}\p{N} ._-]+/gu,' ').trim().replace(/\s+/g,'-').replace(/^[._-]+|[._-]+$/g,'').slice(0,60);return t||'readable-card'}
+/* rpc with a deadline: hosts that silently drop unsupported methods (no response, no error) left the button busy forever and the fallback chain never ran (field bug, 4.12.0). */
+function rpcTo(method,params,ms,cb){var done=false;var t=setTimeout(function(){done=true;cb(null,{message:'timeout'})},ms);window.__rcRpc(method,params,function(res,err){if(done)return;done=true;clearTimeout(t);cb(res,err)})}
+/* save chain: save_card (server opens the native save panel defaulting to the project root and ACKs "picking" BEFORE the dialog, so no rpc leg ever waits on the user) -> host ui/download-file (what the host's own widgets use; lands in Downloads) -> plain anchor (real browsers, i.e. reports). */
 function saveFile(name,text,blob,btn){
 function finish(ok,info){setState(btn,ok?'ok':'err');if(info)toast(info)}
-function viaAnchor(){try{var u=URL.createObjectURL(blob||new Blob([text],{type:'text/plain;charset=utf-8'}));var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(u);a.remove()},1500);finish(true,'Browser download: '+name)}catch(e){finish(false,'download blocked: '+e.message)}}
-function viaDownloadFile(payload){if(!window.__rcRpc){viaAnchor();return}window.__rcRpc('ui/download-file',{contents:[payload]},function(res,err){if(err)viaAnchor();else finish(true,'Sent to host downloads')})}
-function hostPayload(bb){var rsc={uri:'file:///'+name,mimeType:blob?'image/png':(name.slice(-3)==='.md'?'text/markdown':(name.slice(-5)==='.html'?'text/html':'text/plain'))};if(bb)rsc.blob=bb;else rsc.text=text;return {type:'resource',resource:rsc}}
-function go(content,enc,bb){if(!window.__rcRpc){viaAnchor();return}window.__rcRpc('tools/call',{name:'save_card',arguments:{filename:name,content:content,encoding:enc}},function(res,err){
-if(!err&&res&&!res.isError&&res.content&&res.content[0]&&res.content[0].text&&res.content[0].text.charAt(0)==='/'){finish(true,'Saved: '+res.content[0].text);return}
+function viaAnchor(){try{var u=URL.createObjectURL(blob||new Blob([text],{type:'text/plain;charset=utf-8'}));var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(u);a.remove()},1500);finish(true)}catch(e){finish(false,'blocked: '+e.message)}}
+function viaDownloadFile(payload){if(!window.__rcRpc){viaAnchor();return}rpcTo('ui/download-file',{contents:[payload]},4000,function(res,err){if(err||res&&res.isError)viaAnchor();else finish(true,'sent to Downloads')})}
+function hostPayload(bb){var rsc={uri:'file:///'+encodeURIComponent(name),mimeType:blob?'image/png':(name.slice(-3)==='.md'?'text/markdown':(name.slice(-5)==='.html'?'text/html':'text/plain'))};if(bb)rsc.blob=bb;else rsc.text=text;return {type:'resource',resource:rsc}}
+function go(content,enc,bb){if(!window.__rcRpc){viaAnchor();return}
+rpcTo('tools/call',{name:'save_card',arguments:{filename:name,content:content,encoding:enc,pick:true}},2500,function(res,err){
+var t=(!err&&res&&!res.isError&&res.content&&res.content[0]&&res.content[0].text)||'';
+if(t.charAt(0)==='/'){finish(true,'Saved: '+t);return}
+if(t.slice(0,7)==='picking'){finish(true);return}
 viaDownloadFile(hostPayload(bb))})}
 if(blob)b64(blob,function(bb){if(bb==null){finish(false,'encode failed');return}go(bb,'base64',bb)});else go(text,'utf8',null)}
-function makeSvg(cb){var card=document.getElementById('card');var r=card.getBoundingClientRect(),w=Math.ceil(r.width),h=Math.ceil(r.height);
+function makeSvg(cb){var card=C();var r=card.getBoundingClientRect(),w=Math.ceil(r.width),h=Math.ceil(r.height);
 var css=(collectCss().replace(/@import url\([^)]*\)\s*;?/g,'')+varCss('rcexport')).replace(/]]>/g,'');
 css=css.replace(/&/g,'&amp;').replace(/</g,'&lt;');
 var xhtml=new XMLSerializer().serializeToString(card);
@@ -119,19 +128,21 @@ var img=new Image();
 img.onload=function(){try{var c=document.createElement('canvas'),s=2;c.width=w*s;c.height=h*s;var x=c.getContext('2d');x.scale(s,s);x.fillStyle=effBg();x.fillRect(0,0,w,h);x.drawImage(img,0,0);c.toBlob(function(b){if(b)cb(b,null);else cb(null,'canvas export blocked')},'image/png')}catch(e){cb(null,'canvas: '+e.message)}};
 img.onerror=function(){cb(null,'svg render failed')};
 img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
-function withEmail(btn,cb){if(!window.__rcEmail){setState(btn,'err');toast('email export unavailable in this host');return}window.__rcEmail(function(h,err){if(!h){setState(btn,'err');toast('email: '+err);return}cb(h)})}
+function withEmail(btn,cb){if(!window.__rcEmail){setState(btn,'err');toast('email needs the host bridge');return}
+var done=false;var t=setTimeout(function(){done=true;setState(btn,'err');toast('email: timeout')},5000);
+window.__rcEmail(function(h,err){if(done)return;done=true;clearTimeout(t);if(!h){setState(btn,'err');toast('email: '+err);return}cb(h)})}
 function act(kind,btn){setState(btn,'busy');
-if(kind==='copytext'){clipText(document.getElementById('card').innerText,function(ok){setState(btn,ok?'ok':'err','Failed')});return}
+if(kind==='copytext'){clipText(C().innerText,function(ok){setState(btn,ok?'ok':'err','Failed')});return}
 if(kind==='copymd'){clipText(toMd(),function(ok){setState(btn,ok?'ok':'err','Failed')});return}
 if(kind==='copyhtml'){clipText(exportHtml(),function(ok){setState(btn,ok?'ok':'err','Failed')});return}
 if(kind==='copyemail'){withEmail(btn,function(h){richCopy(h,toMd(),function(ok){setState(btn,ok?'ok':'err','Failed');if(ok)toast('paste into your email')})});return}
-if(kind==='dlemail'){withEmail(btn,function(h){var d=(h.match(/dir="(ltr|rtl)"/)||[])[1]||'rtl';saveFile('readable-card.email.html','<!DOCTYPE html><html dir="'+d+'"><head><meta charset="utf-8"><title>readable card</title></head><body style="margin:0;padding:16px;background:#ffffff">'+h+'</body></html>',null,btn)});return}
+if(kind==='dlemail'){withEmail(btn,function(h){var d=(h.match(/dir="(ltr|rtl)"/)||[])[1]||'rtl';saveFile(fileBase()+'.email.html','<!DOCTYPE html><html dir="'+d+'"><head><meta charset="utf-8"><title>readable card</title></head><body style="margin:0;padding:16px;background:#ffffff">'+h+'</body></html>',null,btn)});return}
 if(kind==='copyimg'){pngBlob(function(b,err){if(!b){setState(btn,'err');toast('image: '+err);return}
-if(navigator.clipboard&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){setState(btn,'ok')},function(){saveFile('readable-card.png',null,b,btn)})}else saveFile('readable-card.png',null,b,btn)});return}
-if(kind==='dlpng'){pngBlob(function(b,err){if(!b){setState(btn,'err');toast('image: '+err);return}saveFile('readable-card.png',null,b,btn)});return}
-if(kind==='dlhtml'){saveFile('readable-card.html',exportHtml(),null,btn);return}
-if(kind==='dlmd'){saveFile('readable-card.md',toMd(),null,btn);return}
-if(kind==='dltxt'){saveFile('readable-card.txt',document.getElementById('card').innerText,null,btn);return}}
+if(navigator.clipboard&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){setState(btn,'ok')},function(){saveFile(fileBase()+'.png',null,b,btn)})}else saveFile(fileBase()+'.png',null,b,btn)});return}
+if(kind==='dlpng'){pngBlob(function(b,err){if(!b){setState(btn,'err');toast('image: '+err);return}saveFile(fileBase()+'.png',null,b,btn)});return}
+if(kind==='dlhtml'){saveFile(fileBase()+'.html',exportHtml(),null,btn);return}
+if(kind==='dlmd'){saveFile(fileBase()+'.md',toMd(),null,btn);return}
+if(kind==='dltxt'){saveFile(fileBase()+'.txt',C().innerText,null,btn);return}}
 menu.querySelector('.items').addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('button');if(b&&!b.classList.contains('busy'))act(b.getAttribute('data-act'),b)});
 /* Per-code-block copy: ONE floating button, shown while hovering a <pre> in #card, copying that block's plain textContent (setState caches its idle icon under the null data-act key; it is the only keyless button). It lives OUTSIDE #card so every exporter (png serializer, html/md/text walkers, email) stays blind to it and #card re-renders never orphan it; absolute position + scroll offsets keep it glued to the block when the report page scrolls (the card iframe never scrolls). */
 var cpPre=null,cpBtn=document.createElement('button');

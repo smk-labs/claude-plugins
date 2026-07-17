@@ -103,14 +103,14 @@ const KIT_RULES = KIT_ALIASES.reduce((css, [long, short]) => css.split(long).joi
 const BRIDGE_JS = [
   "(function(){",
   "var nextId=1,pending={},LOG=[];window.__rcLog=LOG;",
-  "function tap(d,m){try{LOG.push(Date.now()%1000000+d+(m.method||('#'+m.id))+(('result' in (m||{}))?'+r':'')+(m&&m.error?'+e:'+String(m.error.code||'')+' '+String(m.error.message||'').slice(0,60):''));if(LOG.length>80)LOG.shift()}catch(e){}}",
+  "function tap(d,m){try{LOG.push(Date.now()%1000000+d+(m.method||('#'+m.id))+(m&&m.error?'!'+String(m.error.code||''):''));if(LOG.length>80)LOG.shift()}catch(e){}}",
   "function send(m){tap('>',m);window.parent.postMessage(m,'*')}",
   "function rpc(method,params,cb){var id=nextId++;if(cb)pending[id]=cb;send({jsonrpc:'2.0',id:id,method:method,params:params||{}})}",
   "function notify(method,params){send({jsonrpc:'2.0',method:method,params:params||{}})}",
   "/* ui/message param shape differs across host snapshots: try the content-array form, then the single-object form; if both are rejected, copy the prompt text so the user can paste it, and keep the errors for the alt-click diagnostics dump. */",
   "window.sendPrompt=function(t){var text=String(t);var shapes=[{role:'user',content:[{type:'text',text:text}]},{role:'user',content:{type:'text',text:text}}];var errs=[];",
   "(function tryNext(i){if(i>=shapes.length){window.__rcErrs=(window.__rcErrs||[]).concat(errs);",
-  "if(window.__rcCopy){window.__rcCopy(text,function(ok){if(window.__rcToast)window.__rcToast(ok?'ui/message refused ('+errs[errs.length-1]+') - copied, paste it':'rejected: '+errs[errs.length-1])})}else if(window.__rcToast)window.__rcToast('rejected: '+errs[errs.length-1]);return}",
+  "if(window.__rcCopy){window.__rcCopy(text,function(ok){if(window.__rcToast)window.__rcToast(ok?'refused ('+errs[errs.length-1]+') - copied, paste it':'rejected: '+errs[errs.length-1])})}else if(window.__rcToast)window.__rcToast('rejected: '+errs[errs.length-1]);return}",
   "rpc('ui/message',shapes[i],function(res,err){if(err){errs.push(String(err.code||'')+' '+String(err.message||'').slice(0,80));tryNext(i+1)}})})(0)};",
   "/* Host CSP in MCP Apps iframes blocks inline onclick attributes (unlike the old widget host), so CTA clicks are re-dispatched by delegation; blocked attributes leave .onclick null, which doubles as the no-double-fire guard. */",
   "document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('#card [onclick]');if(!b||b.onclick)return;var m=String(b.getAttribute('onclick')).match(/^\\s*sendPrompt\\((['\"])([\\s\\S]*?)\\1\\)\\s*;?\\s*$/);if(m)window.sendPrompt(m[2])});",
@@ -194,7 +194,11 @@ const TOOL = {
 };
 
 /* App-only tool: the card menu calls this through the host (tools/call) to
- * save an export to disk with a real, verifiable path. Not for the model. */
+ * save an export to disk with a real, verifiable path. Not for the model.
+ * pick (4.12.0): on macOS the server opens the native save panel (osascript
+ * "choose file name") defaulting to the project root, ACKs the RPC first
+ * ("picking: dir") so the card UI never waits on the dialog, then writes
+ * wherever the user chose. READABLE_SAVE_DIR skips the panel entirely. */
 const SAVE_TOOL = {
   name: 'save_card',
   description:
@@ -205,6 +209,7 @@ const SAVE_TOOL = {
       filename: { type: 'string', description: 'base file name, e.g. readable-card.png' },
       content: { type: 'string', description: 'file content (utf8 text or base64)' },
       encoding: { type: 'string', enum: ['utf8', 'base64'] },
+      pick: { type: 'boolean', description: 'macOS: let the user choose the location in the native save panel (default location = first workspace root)' },
     },
     required: ['filename', 'content'],
   },
@@ -507,15 +512,25 @@ function renderEmail(html, theme) {
 
 function saveDir() {
   if (process.env.READABLE_SAVE_DIR) return process.env.READABLE_SAVE_DIR;
+  // The session's workspace root (MCP roots/list) is the user's project.
+  if (clientRoots.length && fs.existsSync(clientRoots[0])) return clientRoots[0];
   const cwd = process.cwd();
   // Plugin-spawned servers inherit the project dir; app-spawned ones sit at /.
   if (cwd && cwd !== '/' && cwd !== os.homedir()) return cwd;
   return path.join(os.homedir(), 'Downloads');
 }
 
-function saveCard(filename, content, encoding) {
-  const clean = String(filename).replace(/[^A-Za-z0-9._-]/g, '_').replace(/^[._]+/, '');
+/* Keeps Unicode letters (Persian card titles stay Persian on disk); strips
+ * path separators and control chars, spaces become dashes. */
+function cleanName(filename) {
+  const clean = String(filename).normalize('NFC').replace(/\s+/g, ' ').trim()
+    .replace(/[^\p{L}\p{N} ._-]+/gu, '_').replace(/ /g, '-').replace(/^[._-]+/, '').slice(0, 80);
   if (!clean) throw new Error('bad filename');
+  return clean;
+}
+
+function saveCard(filename, content, encoding) {
+  const clean = cleanName(filename);
   const dir = saveDir();
   fs.mkdirSync(dir, { recursive: true });
   const ext = path.extname(clean);
@@ -524,6 +539,34 @@ function saveCard(filename, content, encoding) {
   for (let n = 1; fs.existsSync(target); n++) target = path.join(dir, base + '-' + n + ext);
   fs.writeFileSync(target, Buffer.from(content, encoding === 'base64' ? 'base64' : 'utf8'));
   return target;
+}
+
+/* macOS native save panel from this faceless node process: osascript's
+ * "choose file name" (StandardAdditions, no TCC prompt). The RPC was already
+ * ACKed, so cancel (-128) or failure only logs to stderr; the dialog itself
+ * is the user feedback. Replace-confirmation is the dialog's, so no -1 suffix
+ * loop here. */
+function pickAndSave(filename, content, encoding, dir) {
+  const clean = cleanName(filename);
+  if (!fs.existsSync(dir)) dir = path.join(os.homedir(), 'Downloads');
+  const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const script = 'POSIX path of (choose file name with prompt "Save card export" default name "' +
+    esc(clean) + '" default location POSIX file "' + esc(dir) + '")';
+  require('child_process').execFile('/usr/bin/osascript', ['-e', script], { timeout: 180000 }, (err, out) => {
+    try {
+      if (err) {
+        const cancel = String(err.message || '').indexOf('-128') !== -1;
+        process.stderr.write('[readable-card] save picker ' + (cancel ? 'cancelled' : 'failed: ' + String(err.message).slice(0, 120)) + '\n');
+        return;
+      }
+      const target = String(out).trim();
+      if (!target) return;
+      fs.writeFileSync(target, Buffer.from(content, encoding === 'base64' ? 'base64' : 'utf8'));
+      process.stderr.write('[readable-card] save_card picked -> ' + target + '\n');
+    } catch (e) {
+      try { process.stderr.write('[readable-card] picked save failed: ' + String(e && e.message) + '\n'); } catch (e2) {}
+    }
+  });
 }
 
 const CARD_RESOURCE = {
@@ -544,9 +587,47 @@ const CARD_RESOURCE = {
 };
 
 let clientSupportsUi = false;
+let clientSupportsRoots = false;
+let clientRoots = [];
+
+/* Server->client requests (roots/list). Zero-dep mirror of the bridge's rpc:
+ * ids are prefixed so they can never collide with a client request id. */
+let srvNextId = 1;
+const srvPending = {};
+function request(method, params, cb) {
+  const id = 'rc' + srvNextId++;
+  srvPending[id] = cb;
+  write({ jsonrpc: '2.0', id, method, params: params || {} });
+}
+
+function rootPath(uri) {
+  try {
+    const u = new URL(String(uri));
+    if (u.protocol !== 'file:') return null;
+    const p = decodeURIComponent(u.pathname);
+    return process.platform === 'win32' ? p.replace(/^\/([A-Za-z]:)/, '$1') : p;
+  } catch (e) { return null; }
+}
+
+function refreshRoots() {
+  if (!clientSupportsRoots) return;
+  request('roots/list', {}, (res, err) => {
+    clientRoots = (!err && res && Array.isArray(res.roots) ? res.roots : [])
+      .map((r) => rootPath(r && r.uri)).filter(Boolean);
+    try { process.stderr.write('[readable-card] roots=' + JSON.stringify(clientRoots) + '\n'); } catch (e) {}
+  });
+}
 
 function handle(msg) {
   const { id, method, params } = msg;
+  // Responses to our own requests: keyed on the pending id, not on the
+  // absence of `method` (the bridge learned some peers echo it back).
+  if (id != null && srvPending[id] && (('result' in msg) || ('error' in msg))) {
+    const cb = srvPending[id];
+    delete srvPending[id];
+    if (cb) cb(msg.result, msg.error);
+    return;
+  }
   const respond = (result) => write({ jsonrpc: '2.0', id, result });
   const fail = (code, message) => write({ jsonrpc: '2.0', id, error: { code, message } });
 
@@ -555,10 +636,12 @@ function handle(msg) {
       const ext = params && params.capabilities && params.capabilities.extensions;
       const ui = ext && ext[UI_EXT];
       clientSupportsUi = Boolean(ui && Array.isArray(ui.mimeTypes) && ui.mimeTypes.indexOf(UI_MIME) !== -1);
+      clientSupportsRoots = Boolean(params && params.capabilities && params.capabilities.roots);
       try {
         const ci = (params && params.clientInfo) || {};
         process.stderr.write('[readable-card] client=' + (ci.name || '?') + '/' + (ci.version || '?') +
           ' mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') +
+          ' roots=' + (clientSupportsRoots ? 'YES' : 'NO') +
           ' extensions=' + JSON.stringify(ext ? Object.keys(ext) : []) + '\n');
       } catch (e) { /* logging must never break the handshake */ }
       respond({
@@ -590,6 +673,15 @@ function handle(msg) {
         const a = params.arguments || {};
         if (typeof a.filename !== 'string' || typeof a.content !== 'string') return fail(-32602, 'filename and content are required');
         try {
+          // Native save panel: ACK before the dialog so the card UI never
+          // waits on the user; READABLE_SAVE_DIR (tests, power users) and
+          // non-mac hosts keep the direct write.
+          if (a.pick === true && process.platform === 'darwin' && !process.env.READABLE_SAVE_DIR) {
+            const dir = saveDir();
+            respond({ content: [{ type: 'text', text: 'picking: ' + dir }] });
+            pickAndSave(a.filename, a.content, a.encoding, dir);
+            return;
+          }
           const saved = saveCard(a.filename, a.content, a.encoding);
           try { process.stderr.write('[readable-card] save_card -> ' + saved + '\n'); } catch (e) {}
           respond({ content: [{ type: 'text', text: saved }] });
@@ -652,9 +744,13 @@ function handle(msg) {
     case 'ping':
       respond({});
       return;
+    case 'notifications/initialized':
+    case 'notifications/roots/list_changed':
+      refreshRoots();
+      return;
     default:
       if (id != null) fail(-32601, 'method not found: ' + method);
-    // notifications (initialized, cancelled, …) are ignored by design
+    // other notifications (cancelled, …) are ignored by design
   }
 }
 
@@ -662,7 +758,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.11.1 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.12.0 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();
