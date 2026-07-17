@@ -80,7 +80,22 @@ const KIT_IMPORTS = (KIT_BODY.match(/@import[^\n]+/g) || []).join('\n') +
   "\n@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');";
 /* rc.css keeps one rule per line for diffability; newlines are pure padding
  * to the CSS tokenizer, so assembly strips them (~70 chars of 30KB budget). */
-const KIT_RULES = KIT_BODY.replace(/@import[^\n]+/g, '').replace(/\n+/g, '');
+const KIT_NL = KIT_BODY.replace(/@import[^\n]+/g, '').replace(/\n+/g, '');
+/* Assembly-time compression, template copy only (sources and the report/hosted
+ * paths keep the long names): the kit's hottest var() tokens are aliased once
+ * on .rc and every use shrinks to var(--xx). Frees ~0.3KB of the 30KB host
+ * ceiling, which pays for the per-code-block copy button (4.11.0). Longest
+ * pattern first so `.5px solid var(--border)` collapses before the name pass;
+ * alias definitions are injected AFTER the passes so they keep the long names. */
+const KIT_ALIASES = [
+  [':.5px solid var(--border)', ':var(--bd)', '--bd:.5px solid var(--border);'],
+  ['var(--text-secondary)', 'var(--ts)', '--ts:var(--text-secondary);'],
+  ['var(--text-accent)', 'var(--ta)', '--ta:var(--text-accent);'],
+  ['var(--border-strong)', 'var(--bs)', '--bs:var(--border-strong);'],
+  ['var(--surface-2)', 'var(--s2)', '--s2:var(--surface-2);'],
+];
+const KIT_RULES = KIT_ALIASES.reduce((css, [long, short]) => css.split(long).join(short), KIT_NL)
+  .replace('.rc{', '.rc{' + KIT_ALIASES.map((a) => a[2]).join(''));
 
 /* JSON-RPC-over-postMessage bridge, per SEP-1865: ui/initialize handshake,
  * then render on ui/notifications/tool-input (arguments.html). sendPrompt()
@@ -602,7 +617,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.10.0 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.11.0 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();

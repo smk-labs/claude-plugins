@@ -86,7 +86,9 @@ function check(name, cond) {
   check('chat template carries spark; donut stays report-tier (4.10.0)', html.includes('.rc .spark') && !html.includes('.donut'));
   check('page paints itself with surface-1 + theme color-scheme (host canvas is opaque light; a transparent page renders white-on-white in dark mode)', html.includes('background:var(--surface-1);overflow:hidden') && html.includes('color-scheme:light') && html.includes('color-scheme:dark'));
   check('template hoists @imports above all rules (mid-sheet imports are dead)', html.indexOf('@import') < html.indexOf(':root{') && html.includes('family=Inter'));
-  check('hoisted Vazirmatn import survives intact (its url contains semicolons)', html.includes("family=Vazirmatn:wght@400;500;700;800&display=swap')") && html.includes('.rc{--ca:'));
+  check('hoisted Vazirmatn import survives intact (its url contains semicolons)', html.includes("family=Vazirmatn:wght@400;500;700;800&display=swap')") && html.includes(';--ca:'));
+  check('assembly aliases hot kit vars on .rc, defs first (4.11.0; sources keep long names)', html.includes('.rc{--bd:.5px solid var(--border);') && html.includes('border:var(--bd)') && !html.includes('1var(') && (html.match(/var\(--text-accent\)/g) || []).length === 2);
+  check('per-code-block copy button rides both hosts via menu.js (4.11.0)', html.includes("closest('#card pre')") && html.includes('#rccp{position:absolute') && html.includes('#rcmenu .act,#rccp{') && html.includes("textContent.replace(/\\n$/,'')"));
   check('template stamps card dir from majority script + LTR overrides', html.includes('dirOf') && html.includes('.rc[dir=ltr]{text-align:left'));
   check('dir detection ignores code/pre content (long paths must not flip Persian cards to LTR)', html.includes('<(code|pre)'));
   check('template speaks MCP Apps bridge', html.includes('ui/initialize') && html.includes('ui/notifications/tool-input') && html.includes('size-changed'));

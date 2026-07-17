@@ -17,11 +17,12 @@ var CSS='#rcmenu{position:fixed;top:8px;right:8px;z-index:9;font-family:system-u
 '#rcmenu .row:hover{background:var(--surface-2)}'+
 '#rcmenu .fmt{flex:1;display:flex;align-items:center;gap:11px;font-size:14px;color:var(--text-primary);white-space:nowrap;padding:7px 4px 7px 2px;min-width:132px}'+
 '#rcmenu .fmt svg{width:17px;height:17px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}'+
-'#rcmenu .act{width:30px;height:30px;margin:0 2px;border-radius:7px;border:none;background:none;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}'+
-'#rcmenu .act:hover{background:var(--surface-1);color:var(--text-primary);box-shadow:inset 0 0 0 .5px var(--border-strong)}'+
-'#rcmenu .act .ic{display:inline-flex;align-items:center;justify-content:center}'+
-'#rcmenu .act svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'+
-'#rcmenu .act.ok{color:var(--ca,#0f9d58)}#rcmenu .act.err{color:#e05555}'+
+'#rcmenu .act,#rccp{width:30px;height:30px;margin:0 2px;border-radius:7px;border:none;background:none;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}'+
+'#rcmenu .act:hover,#rccp:hover{background:var(--surface-1);color:var(--text-primary);box-shadow:inset 0 0 0 .5px var(--border-strong)}'+
+'#rcmenu .act .ic,#rccp .ic{display:inline-flex;align-items:center;justify-content:center}'+
+'#rcmenu .act svg,#rccp svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'+
+'#rcmenu .act.ok,#rccp.ok{color:var(--ca,#0f9d58)}#rcmenu .act.err,#rccp.err{color:#e05555}'+
+'#rccp{position:absolute;display:none;margin:0;background:var(--surface-2);border:.5px solid var(--border-strong)}'+
 '.rcspin{width:12px;height:12px;border:2px solid var(--border-strong);border-top-color:var(--text-accent);border-radius:50%;animation:rcspin .7s linear infinite;display:inline-block}'+
 '@keyframes rcspin{to{transform:rotate(360deg)}}'+
 '#rctoast{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);max-width:92%;background:var(--text-primary);color:var(--surface-1);font-size:12px;font-family:system-ui,sans-serif;padding:5px 12px;border-radius:14px;opacity:0;transition:opacity .2s;pointer-events:none;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
@@ -86,51 +87,58 @@ else{var tx=inlineMd(n).trim();if(tx)L.push(tx)}});
 function lkind(l){return l.charAt(0)==='|'?'t':(/^(- |\d+\. )/.test(l)?'l':(l.charAt(0)==='>'?'q':'b'))}
 var out='';for(var q=0;q<L.length;q++){if(q>0){var pa=lkind(L[q-1]),cu=lkind(L[q]);out+=(pa===cu&&pa!=='b')?'\n':'\n\n'}out+=L[q]}return out}
 var ORIG={};
-function setState(btn,st,lb){var act=btn.getAttribute('data-act');var ic=btn.querySelector('.ic'),lbl=btn.querySelector('.lb');if(!ORIG[act])ORIG[act]=[ic.innerHTML,lbl?lbl.textContent:''];
+/* lb is the ERROR toast text only; ok/busy states speak through the icon (the buttons carry no text labels). */
+function setState(btn,st,lb){var act=btn.getAttribute('data-act');var ic=btn.querySelector('.ic');if(!ORIG[act])ORIG[act]=ic.innerHTML;
 btn.classList.remove('busy','ok','err');clearTimeout(btn._t);
-if(st==='idle'){ic.innerHTML=ORIG[act][0];if(lbl)lbl.textContent=ORIG[act][1];return}
+if(st==='idle'){ic.innerHTML=ORIG[act];return}
 btn.classList.add(st);
-if(st==='busy'){ic.innerHTML='<span class="rcspin"></span>'}else{ic.innerHTML=st==='ok'?ICON_OK:ICON_ERR}
-if(lb){if(lbl)lbl.textContent=lb;else if(st==='err')toast(lb)}
+ic.innerHTML=st==='busy'?'<span class="rcspin"></span>':st==='ok'?ICON_OK:ICON_ERR;
+if(lb&&st==='err')toast(lb);
 if(st!=='busy')btn._t=setTimeout(function(){setState(btn,'idle')},2600)}
 function clipText(t,cb){function legacy(){try{var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();var ok=document.execCommand('copy');ta.remove();return ok}catch(e){return false}}
 if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cb(true)},function(){cb(legacy())})}else cb(legacy())}
 function b64(blob,cb){var r=new FileReader();r.onload=function(){cb(String(r.result).split(',')[1]||'')};r.onerror=function(){cb(null)};r.readAsDataURL(blob)}
-function saveFile(name,text,blob,btn,verb){
-function finish(ok,lb,info){setState(btn,ok?'ok':'err',lb);if(info)toast(info)}
-function viaAnchor(){try{var u=URL.createObjectURL(blob||new Blob([text],{type:'text/plain;charset=utf-8'}));var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(u);a.remove()},1500);finish(true,'Downloaded','Browser download: '+name)}catch(e){finish(false,'Failed','download blocked: '+e.message)}}
-function viaDownloadFile(payload){if(!window.__rcRpc){viaAnchor();return}window.__rcRpc('ui/download-file',{contents:[payload]},function(res,err){if(err)viaAnchor();else finish(true,'Saved','Sent to host downloads')})}
+function saveFile(name,text,blob,btn){
+function finish(ok,info){setState(btn,ok?'ok':'err');if(info)toast(info)}
+function viaAnchor(){try{var u=URL.createObjectURL(blob||new Blob([text],{type:'text/plain;charset=utf-8'}));var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(u);a.remove()},1500);finish(true,'Browser download: '+name)}catch(e){finish(false,'download blocked: '+e.message)}}
+function viaDownloadFile(payload){if(!window.__rcRpc){viaAnchor();return}window.__rcRpc('ui/download-file',{contents:[payload]},function(res,err){if(err)viaAnchor();else finish(true,'Sent to host downloads')})}
 function hostPayload(bb){var rsc={uri:'file:///'+name,mimeType:blob?'image/png':(name.slice(-3)==='.md'?'text/markdown':(name.slice(-5)==='.html'?'text/html':'text/plain'))};if(bb)rsc.blob=bb;else rsc.text=text;return {type:'resource',resource:rsc}}
 function go(content,enc,bb){if(!window.__rcRpc){viaAnchor();return}window.__rcRpc('tools/call',{name:'save_card',arguments:{filename:name,content:content,encoding:enc}},function(res,err){
-if(!err&&res&&!res.isError&&res.content&&res.content[0]&&res.content[0].text&&res.content[0].text.charAt(0)==='/'){finish(true,verb,'Saved: '+res.content[0].text);return}
+if(!err&&res&&!res.isError&&res.content&&res.content[0]&&res.content[0].text&&res.content[0].text.charAt(0)==='/'){finish(true,'Saved: '+res.content[0].text);return}
 viaDownloadFile(hostPayload(bb))})}
-if(blob)b64(blob,function(bb){if(bb==null){finish(false,'Failed','encode failed');return}go(bb,'base64',bb)});else go(text,'utf8',null)}
-function makeSvg(useFonts,cb){var card=document.getElementById('card');var r=card.getBoundingClientRect(),w=Math.ceil(r.width),h=Math.ceil(r.height);
-function build(fontCss){var css=(collectCss().replace(/@import url\([^)]*\)\s*;?/g,'')+fontCss+varCss('rcexport')).replace(/]]>/g,'');
+if(blob)b64(blob,function(bb){if(bb==null){finish(false,'encode failed');return}go(bb,'base64',bb)});else go(text,'utf8',null)}
+function makeSvg(cb){var card=document.getElementById('card');var r=card.getBoundingClientRect(),w=Math.ceil(r.width),h=Math.ceil(r.height);
+var css=(collectCss().replace(/@import url\([^)]*\)\s*;?/g,'')+varCss('rcexport')).replace(/]]>/g,'');
 css=css.replace(/&/g,'&amp;').replace(/</g,'&lt;');
 var xhtml=new XMLSerializer().serializeToString(card);
-var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" class="rcexport"><style>'+css+'</style>'+xhtml+'</div></foreignObject></svg>';cb(svg,w,h)}
-build('')}
-function pngBlob(cb){function attempt(useFonts,next){makeSvg(useFonts,function(svg,w,h){
+cb('<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" class="rcexport"><style>'+css+'</style>'+xhtml+'</div></foreignObject></svg>',w,h)}
+function pngBlob(cb){makeSvg(function(svg,w,h){
 var img=new Image();
-img.onload=function(){try{var c=document.createElement('canvas'),s=2;c.width=w*s;c.height=h*s;var x=c.getContext('2d');x.scale(s,s);x.fillStyle=effBg();x.fillRect(0,0,w,h);x.drawImage(img,0,0);c.toBlob(function(b){if(b)cb(b,null);else next('canvas export blocked')},'image/png')}catch(e){next('canvas: '+e.message)}};
-img.onerror=function(){next('svg render failed')};
+img.onload=function(){try{var c=document.createElement('canvas'),s=2;c.width=w*s;c.height=h*s;var x=c.getContext('2d');x.scale(s,s);x.fillStyle=effBg();x.fillRect(0,0,w,h);x.drawImage(img,0,0);c.toBlob(function(b){if(b)cb(b,null);else cb(null,'canvas export blocked')},'image/png')}catch(e){cb(null,'canvas: '+e.message)}};
+img.onerror=function(){cb(null,'svg render failed')};
 img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
-attempt(false,function(e1){cb(null,e1)})}
-function withEmail(btn,cb){if(!window.__rcEmail){setState(btn,'err','Failed');toast('email export unavailable in this host');return}window.__rcEmail(function(h,err){if(!h){setState(btn,'err','Failed');toast('email: '+err);return}cb(h)})}
+function withEmail(btn,cb){if(!window.__rcEmail){setState(btn,'err');toast('email export unavailable in this host');return}window.__rcEmail(function(h,err){if(!h){setState(btn,'err');toast('email: '+err);return}cb(h)})}
 function act(kind,btn){setState(btn,'busy');
-if(kind==='copytext'){clipText(document.getElementById('card').innerText,function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed')});return}
-if(kind==='copymd'){clipText(toMd(),function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed')});return}
-if(kind==='copyhtml'){clipText(exportHtml(),function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed')});return}
-if(kind==='copyemail'){withEmail(btn,function(h){richCopy(h,toMd(),function(ok){setState(btn,ok?'ok':'err',ok?'Copied':'Failed');if(ok)toast('paste into your email compose window')})});return}
-if(kind==='dlemail'){withEmail(btn,function(h){var d=(h.match(/dir="(ltr|rtl)"/)||[])[1]||'rtl';saveFile('readable-card.email.html','<!DOCTYPE html><html dir="'+d+'"><head><meta charset="utf-8"><title>readable card</title></head><body style="margin:0;padding:16px;background:#ffffff">'+h+'</body></html>',null,btn,'Saved')});return}
-if(kind==='copyimg'){pngBlob(function(b,err){if(!b){setState(btn,'err','Failed');toast('image: '+err);return}
-if(navigator.clipboard&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){setState(btn,'ok','Copied')},function(){saveFile('readable-card.png',null,b,btn,'Saved instead')})}else saveFile('readable-card.png',null,b,btn,'Saved instead')});return}
-if(kind==='dlpng'){pngBlob(function(b,err){if(!b){setState(btn,'err','Failed');toast('image: '+err);return}saveFile('readable-card.png',null,b,btn,'Saved')});return}
-if(kind==='dlhtml'){saveFile('readable-card.html',exportHtml(),null,btn,'Saved');return}
-if(kind==='dlmd'){saveFile('readable-card.md',toMd(),null,btn,'Saved');return}
-if(kind==='dltxt'){saveFile('readable-card.txt',document.getElementById('card').innerText,null,btn,'Saved');return}}
+if(kind==='copytext'){clipText(document.getElementById('card').innerText,function(ok){setState(btn,ok?'ok':'err','Failed')});return}
+if(kind==='copymd'){clipText(toMd(),function(ok){setState(btn,ok?'ok':'err','Failed')});return}
+if(kind==='copyhtml'){clipText(exportHtml(),function(ok){setState(btn,ok?'ok':'err','Failed')});return}
+if(kind==='copyemail'){withEmail(btn,function(h){richCopy(h,toMd(),function(ok){setState(btn,ok?'ok':'err','Failed');if(ok)toast('paste into your email compose window')})});return}
+if(kind==='dlemail'){withEmail(btn,function(h){var d=(h.match(/dir="(ltr|rtl)"/)||[])[1]||'rtl';saveFile('readable-card.email.html','<!DOCTYPE html><html dir="'+d+'"><head><meta charset="utf-8"><title>readable card</title></head><body style="margin:0;padding:16px;background:#ffffff">'+h+'</body></html>',null,btn)});return}
+if(kind==='copyimg'){pngBlob(function(b,err){if(!b){setState(btn,'err');toast('image: '+err);return}
+if(navigator.clipboard&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){setState(btn,'ok')},function(){saveFile('readable-card.png',null,b,btn)})}else saveFile('readable-card.png',null,b,btn)});return}
+if(kind==='dlpng'){pngBlob(function(b,err){if(!b){setState(btn,'err');toast('image: '+err);return}saveFile('readable-card.png',null,b,btn)});return}
+if(kind==='dlhtml'){saveFile('readable-card.html',exportHtml(),null,btn);return}
+if(kind==='dlmd'){saveFile('readable-card.md',toMd(),null,btn);return}
+if(kind==='dltxt'){saveFile('readable-card.txt',document.getElementById('card').innerText,null,btn);return}}
 menu.querySelector('.items').addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('button');if(b&&!b.classList.contains('busy'))act(b.getAttribute('data-act'),b)});
+/* Per-code-block copy: ONE floating button, shown while hovering a <pre> in #card, copying that block's plain textContent. It lives OUTSIDE #card so every exporter (png serializer, html/md/text walkers, email) stays blind to it and #card re-renders never orphan it; absolute position + scroll offsets keep it glued to the block when the report page scrolls (the card iframe never scrolls). */
+var cpPre=null,cpBtn=document.createElement('button');
+cpBtn.id='rccp';
+cpBtn.title='Copy code';
+cpBtn.dataset.act='cpre';
+cpBtn.innerHTML='<span class="ic">'+I.copy+'</span>';
+document.body.appendChild(cpBtn);
+document.addEventListener('mouseover',function(e){if(cpBtn.contains(e.target))return;var p=e.target.closest?e.target.closest('#card pre'):null;if(p){cpPre=p;var r=p.getBoundingClientRect();cpBtn.style.top=r.top+scrollY+5+'px';cpBtn.style.left=r.right+scrollX-35+'px';cpBtn.style.display='flex'}else{cpPre=null;cpBtn.style.display='none'}});
+cpBtn.addEventListener('click',function(){if(cpPre)clipText(cpPre.textContent.replace(/\n$/,''),function(ok){setState(cpBtn,ok?'ok':'err','Failed')})});
 window.__rcCopy=clipText;
-window.__rcExport={md:toMd,html:exportHtml,png:pngBlob};
 })();
