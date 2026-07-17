@@ -54,6 +54,14 @@ Turns a chat card (or fresh content) into a standalone HTML report file in the e
 
 Triggers ONLY on an explicit ask ("همین کارت رو ذخیره کن", "save this card as a report") or `/readable:report`. Generic "write a report" requests never trigger it, by design.
 
+## 5. brand (skill, per-project skin — 4.13.0)
+
+`/readable:brand` gives a project its own look: it detects the identity from the repo (design tokens, tailwind config, DESIGN.md, logo SVGs) or interviews the user when none exists, then writes a committable `.readable/` dir at the project root — `brand.css` (palette variable overrides, light + dark, in the kit's own vocabulary), optional `brand.json` (wordmark, header caption, tone word, fonts) and `logo.svg`.
+
+From then on, in that project: `/report` reskins automatically (palette, logo/wordmark header, brand fonts inlined into the standalone file), and chat cards reskin too. Cards work through three resolution paths, most-reliable first: an explicit `brand` param on the `card` call (the `SessionStart` hook announces the dir per project — required in ccd, which spawns the direct server with neither the project cwd nor `roots`), the client's MCP `roots`, or a bounded walk up from the server's cwd (plugin-spawned CLI servers inherit the project dir, so CLI cards brand with zero model involvement). The css travels through the app-only `read_brand` tool — same channel as `htmlFile` — so it never enters the model's context; a dangling or invalid brand silently degrades to the stock look.
+
+Limits, honestly: already-rendered cards don't re-brand; hosted Claude Desktop (.mcpb) has no project concept and stays stock; card fonts only via Google Fonts (the ~30KB template can't embed font files — reports can and do).
+
 ## Install
 
 ```

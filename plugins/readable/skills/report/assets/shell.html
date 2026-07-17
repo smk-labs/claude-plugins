@@ -22,12 +22,15 @@ html,body{margin:0;background:var(--page-bg)}
 <style>
 {{EXTRA}}
 </style>
+<style>
+{{BRAND}}
+</style>
 </head>
 <body>
 <button class="theme-toggle" title="light / dark" onclick="(function(){var r=document.documentElement,d=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);r.setAttribute('data-theme',d?'light':'dark');try{localStorage.setItem('report-theme',r.getAttribute('data-theme'))}catch(e){}})()"></button>
 <script>try{var t=localStorage.getItem('report-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <div class="wrap">
-<div class="rc" id="card">
+{{BRANDHEAD}}<div class="rc" id="card">
 {{CONTENT}}
 </div>
 <div class="meta">{{DATE}}</div>

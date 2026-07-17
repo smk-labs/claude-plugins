@@ -18,8 +18,12 @@ One goal: the saved report looks EXACTLY like the chat cards. You never design, 
    Default output name if the user gave none: `report-<short-slug>.html` in the project directory (or the path they named).
 4. **Deliver:** the script prints the absolute path; report it as a clickable link. Offer to open it in the browser. Do not paste the HTML into chat.
 
+## Project brand
+
+If the project carries a `.readable/` brand layer (created by the `brand` skill: `brand.css`, optional `brand.json` + `logo.svg`), `build.py` finds it automatically above the content file and reskins the report — project palette, logo/wordmark header, brand fonts inlined. Nothing to do; `--no-brand` opts out. This is the ONLY sanctioned reskin path.
+
 ## Hard rules
 
-- Never restyle, "improve", or hand-write CSS; the template is the design. If the user wants a different look, say this skill is template-locked.
+- Never restyle, "improve", or hand-write CSS; the template is the design. If the user wants a different look, point them to the `brand` skill (`/readable:brand`) — never hand-edit styles.
 - Content language decides `--lang`; mixed content follows the dominant language (the kit is BiDi-safe either way).
 - The report has a built-in light/dark toggle and print styles; PDF = open in browser and print. Do not add extra machinery.

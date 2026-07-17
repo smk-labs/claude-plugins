@@ -69,7 +69,10 @@ function check(name, cond) {
   const email = tools.tools[2];
   const readf = tools.tools[3];
   const copyt = tools.tools[4];
-  check('five tools: card + save_card + render_email + read_card_file + copy_text', tools.tools.length === 5 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email' && readf.name === 'read_card_file' && copyt.name === 'copy_text');
+  const brandt = tools.tools[5];
+  check('six tools: card + save_card + render_email + read_card_file + copy_text + read_brand', tools.tools.length === 6 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email' && readf.name === 'read_card_file' && copyt.name === 'copy_text' && brandt.name === 'read_brand');
+  check('read_brand carries no ui meta', brandt._meta === undefined);
+  check('card schema advertises the brand dir param', card.inputSchema.properties.brand && card.inputSchema.properties.brand.type === 'string');
   check('tool links template via _meta.ui.resourceUri', card._meta.ui.resourceUri === 'ui://readable/card.html');
   check('inputSchema offers html or htmlFile, neither hard-required', Boolean(card.inputSchema.properties.html && card.inputSchema.properties.htmlFile) && card.inputSchema.required === undefined);
   check('save_card carries no ui meta (Desktop meta parser is fragile)', save._meta === undefined);
@@ -91,15 +94,19 @@ function check(name, cond) {
   check('hoisted Vazirmatn import survives intact (its url contains semicolons)', html.includes("family=Vazirmatn:wght@400;500;700;800&display=swap')") && html.includes(';--ca:'));
   check('assembly aliases hot kit vars on .rc, defs first (4.11.0; sources keep long names)', html.includes('.rc{--bd:.5px solid var(--border);') && html.includes('border:var(--bd)') && !html.includes('1var(') && (html.match(/var\(--text-accent\)/g) || []).length === 2);
   check('per-code-block copy button rides both hosts via menu.js (4.11.0)', html.includes("closest('#card pre')") && html.includes('#rccp{position:absolute') && html.includes('#rcmenu .act,#rccp{') && html.includes("textContent.replace(/\\n$/,'')"));
-  check('copies go host-first through copy_text (sandboxed iframe swallows page clipboard writes, 4.11.1)', html.includes("{name:'copy_text',arguments:{text:t}}") && html.includes('if(window.__rcRpc){window.__rcRpc('));
+  check('copies go host-first through copy_text (sandboxed iframe swallows page clipboard writes, 4.11.1)', html.includes("{name:'copy_text',arguments:{text:t}}") && html.includes('if(W.__rcRpc){W.__rcRpc('));
   check('template stamps card dir from majority script + LTR overrides', html.includes('dirOf') && html.includes('.rc[dir=ltr]{text-align:left'));
   check('dir detection ignores code/pre content (long paths must not flip Persian cards to LTR)', html.includes('<(code|pre)'));
   check('template speaks MCP Apps bridge', html.includes('ui/initialize') && html.includes('ui/notifications/tool-input') && html.includes('size-changed'));
   check('template maps sendPrompt to ui/message', html.includes("rpc('ui/message'"));
   check('template has 5x2 format/action matrix (Email row back in 4.4, rendered server-side)', ['class="row"', 'class="fmt"', 'copyimg', 'copyemail', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlemail', 'dlhtml', 'dlmd', 'dltxt'].every((l) => html.includes(l)) && html.split('row(I.').length === 6);
   check('email export fetches render_email and rich-copies both flavors, no lying execCommand fallback (4.12.0)', html.includes("name:'render_email'") && html.includes("'text/html'") && !html.includes('contentEditable'));
-  check('open menu grows the iframe (fixed menu never enters scrollHeight)', html.includes('window.__rcFit=fit') && html.split('window.__rcFit()').length === 3);
-  check('template stays under the host resource-size ceiling', html.length < 30000);
+  check('open menu grows the iframe (fixed menu never enters scrollHeight)', html.includes('W.__rcFit=fit') && html.split('W.__rcFit()').length === 3);
+  const scriptSrc = html.split('<script>')[1].split('</script>')[0];
+  check('squeezed template script still parses (assembly squeeze is syntax-safe)', (() => { try { new Function(scriptSrc); return true; } catch (e) { return false; } })());
+  check('squeeze hoists the host-object globals exactly once', scriptSrc.indexOf('var D=document,W=window;') === 0 && !scriptSrc.includes('document.') && !scriptSrc.includes('window.'));
+  check('template stays under the host resource-size ceiling (' + html.length + 'B of 30000)', html.length < 30000);
+  check('template applies project brands via read_brand (4.13.0)', html.includes("name:'read_brand'") && html.includes("id='rcbrand'") && html.includes('if(a.brand)bApply(a.brand)') && html.includes('if(s.brand)bApply(s.brand)'));
   check('saves go through save_card then ui/download-file', html.includes("name:'save_card'") && html.includes('ui/download-file'));
   check('png export is dependency-free (foreignObject, blob URL)', html.includes('foreignObject') && html.includes('createObjectURL') && !html.includes('html2canvas'));
   check('menu has per-item states (spinner/ok/err)', html.includes('rcspin .7s') && html.includes('ICON_OK') && html.includes('classList.add(st)'));
@@ -219,6 +226,35 @@ function check(name, cond) {
     (e) => String(e.message).includes('-32602')
   );
   check('copy_text rejects missing text', cp2);
+
+  // 8a2. brand: .readable/brand.css reskins cards — explicit dir arg, css
+  // normalization (breakout strip, import filter, dark-selector raise), and
+  // the no-brand default staying byte-identical to 4.12 behavior.
+  const BRAND_PROJ = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-brand-'));
+  const BRAND_DIR = path.join(BRAND_PROJ, '.readable');
+  fs.mkdirSync(BRAND_DIR);
+  fs.writeFileSync(path.join(BRAND_DIR, 'brand.css'),
+    "@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');\n" +
+    "@import url('https://evil.example.com/steal.css');\n" +
+    ':root{--text-accent:#C2410C;--surface-1:#FDFBF6}\n' +
+    '[data-theme="dark"]{--text-accent:#FB923C;--surface-1:#0F1626}\n' +
+    '</style><script>alert(1)</script>\n');
+  const br = await rpc('tools/call', { name: 'read_brand', arguments: { dir: BRAND_DIR } });
+  const brCss = br.content[0].text;
+  check('read_brand returns the brand css with google import first', !br.isError && brCss.indexOf('@import') === 0 && brCss.includes('fonts.googleapis') && brCss.includes('--text-accent:#C2410C'));
+  check('read_brand drops non-google imports', !brCss.includes('evil.example.com'));
+  check('read_brand strips < (no style/script breakout can survive)', !brCss.includes('<'));
+  check('read_brand raises bare dark selectors to html[data-theme]', brCss.includes('html[data-theme="dark"]{--text-accent:#FB923C'));
+  const cardBr = await rpc('tools/call', { name: 'card', arguments: { html: '<p>برند</p>', brand: BRAND_DIR } });
+  check('card call carries the brand dir into structuredContent', cardBr.structuredContent.brand === BRAND_DIR && cardBr.structuredContent.html === '<p>برند</p>');
+  const cardNoBr = await rpc('tools/call', { name: 'card', arguments: { html: '<p>ساده</p>' } });
+  check('card without a resolvable brand omits the field entirely', cardNoBr.structuredContent.brand === undefined);
+  const brRel = await rpc('tools/call', { name: 'read_brand', arguments: { dir: '.readable' } });
+  check('read_brand rejects relative dirs', brRel.isError && brRel.content[0].text.includes('absolute'));
+  const brWrong = await rpc('tools/call', { name: 'read_brand', arguments: { dir: BRAND_PROJ } });
+  check('read_brand rejects dirs not named .readable', brWrong.isError);
+  const cardBadBrand = await rpc('tools/call', { name: 'card', arguments: { html: '<p>x</p>', brand: '/nonexistent/.readable' } });
+  check('a dangling brand arg degrades to the default look, never an error', !cardBadBrand.isError && cardBadBrand.structuredContent.brand === undefined && cardBadBrand.structuredContent.html === '<p>x</p>');
 
   // 8b. roots: a client that advertises roots gets asked roots/list, and saves
   // land in the first root (the session's project dir) instead of Downloads.

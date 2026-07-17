@@ -40,8 +40,10 @@ const KIT_CSS = fs.readFileSync(KIT_CANDIDATES.find((p) => fs.existsSync(p)), 'u
  * is NOT safe — the host composites the iframe onto an opaque light canvas
  * (color-scheme mismatch), which rendered dark-theme text on a white backing.
  * color-scheme follows the theme so native UI and the canvas agree too. */
+/* Chart hues (--ca..--cd) live on .rc in the kit itself — the menu never
+ * reads them outside the card, so the template palette carries none. */
 const PALETTE = [
-  ':root{color-scheme:light;--ca:#0f9d58;--cb:#3f8ac9;--cc:#e0a52e;--cd:#d96666;--text-primary:#1f1f1f;--text-secondary:#6f6f6a;--text-accent:#2f66c4;--surface-1:#fff;--surface-2:#f2f2ef;--border:#dcdcd6;--border-strong:#b8b8b0;--bg-success:#e6f4ec;--bg-accent:#e8effc;--bg-warning:#faf0d9;--bg-danger:#fbe9e7;--font-mono:ui-monospace,Menlo,monospace}',
+  ':root{color-scheme:light;--text-primary:#1f1f1f;--text-secondary:#6f6f6a;--text-accent:#2f66c4;--surface-1:#fff;--surface-2:#f2f2ef;--border:#dcdcd6;--border-strong:#b8b8b0;--bg-success:#e6f4ec;--bg-accent:#e8effc;--bg-warning:#faf0d9;--bg-danger:#fbe9e7;--font-mono:ui-monospace,Menlo,monospace}',
   'html[data-theme="dark"]{color-scheme:dark;--text-primary:#ececea;--text-secondary:#9f9f98;--text-accent:#82abec;--surface-1:#262624;--surface-2:#302f2c;--border:#3e3e3a;--border-strong:#55554f;--bg-success:#143122;--bg-accent:#16283f;--bg-warning:#382c13;--bg-danger:#3a1d19}',
   'html,body{margin:0;background:var(--surface-1);overflow:hidden}',
 ].join('\n');
@@ -130,14 +132,17 @@ const BRIDGE_JS = [
   "/* The 4.3.5 stall auto-dump (save_card at 5s without input) is gone: the lifecycle bug it chased was fixed in 4.3.8, and its bytes now pay for the Email row. __rcLog + alt-click diagnostics remain. */",
   "function applyTheme(ctx){if(ctx&&ctx.theme)document.documentElement.setAttribute('data-theme',ctx.theme==='dark'?'dark':'light')}",
   "window.__rcRpc=rpc;",
+  "/* Project brand (4.13.0): when a call carries a brand dir, fetch its normalized css through the app-only read_brand tool (same channel as htmlFile) and mount it as a late <style> — variable overrides win by source order. One-shot per iframe (bLoaded guard), so no element reuse; palette swaps don't change height and a brand font swap re-fits via the body ResizeObserver. A failed read silently keeps the default look. */",
+  "var bLoaded=null;",
+  "function bApply(p){if(!p||p===bLoaded)return;bLoaded=p;rpc('tools/call',{name:'read_brand',arguments:{dir:p}},function(res,err){var c=!err&&res&&!res.isError&&res.content,t=c&&c[0]&&c[0].text;if(!t)return;var s=document.createElement('style');s.id='rcbrand';s.textContent=t;document.head.appendChild(s)})}",
   "/* Host adapter for the shared menu (assets/menu.js): email HTML renders server-side (render_email tool, static style map) because the ui:// template must stay under the host's ~30KB resource ceiling. The report shell swaps in a computed-style walker instead. */",
   "window.__rcEmail=function(cb){rpc('tools/call',{name:'render_email',arguments:{html:document.getElementById('card').innerHTML,theme:'light'}},function(res,err){var t=!err&&res&&!res.isError&&res.content&&res.content[0]&&res.content[0].text;if(t)cb(t,null);else cb(null,err?String(err.code||'')+' '+String(err.message||'').slice(0,60):'render failed')})};",
   "window.addEventListener('message',function(e){var m=e.data;if(typeof m==='string'){try{m=JSON.parse(m)}catch(err){return}}if(!m||m.jsonrpc!=='2.0')return;tap('<',m);",
   "/* A response is a message carrying result or error for a pending id. Do NOT discriminate on the absence of 'method': at least one real host echoes the method field in its responses, and treating those as requests silently kills the ui/initialize handshake, which keeps the iframe visibility:hidden forever (anthropics/claude-ai-mcp#61). */",
   "if(m.id!=null&&pending[m.id]&&(('result' in m)||('error' in m))){var cb=pending[m.id];delete pending[m.id];cb(m.result,m.error);return}",
-  "if(m.method==='ui/notifications/tool-input'&&m.params&&m.params.arguments){var a=m.params.arguments;if(a.html)render(a.html,true);else fCard(a.htmlFile)}",
+  "if(m.method==='ui/notifications/tool-input'&&m.params&&m.params.arguments){var a=m.params.arguments;if(a.brand)bApply(a.brand);if(a.html)render(a.html,true);else fCard(a.htmlFile)}",
   "else if(m.method==='ui/notifications/tool-input-partial'&&m.params&&m.params.arguments){render(m.params.arguments.html,false)}",
-  "else if(m.method==='ui/notifications/tool-result'&&m.params&&m.params.structuredContent){var s=m.params.structuredContent;if(s.html)render(s.html,true);else fCard(s.htmlFile)}",
+  "else if(m.method==='ui/notifications/tool-result'&&m.params&&m.params.structuredContent){var s=m.params.structuredContent;if(s.brand)bApply(s.brand);if(s.html)render(s.html,true);else fCard(s.htmlFile)}",
   "else if(m.method&&m.method.indexOf('host-context-changed')!==-1&&m.params){applyTheme(m.params.hostContext||m.params)}",
   "else if(m.id!=null&&m.method){send({jsonrpc:'2.0',id:m.id,error:{code:-32601,message:'not supported'}})}",
   "});",
@@ -163,11 +168,21 @@ const MENU_CANDIDATES = [
 const MENU_SRC = fs.readFileSync(MENU_CANDIDATES.find((p) => fs.existsSync(p)), 'utf8')
   .replace(/\r\n/g, '\n').split('\n').filter((l) => l.slice(0, 2) !== '/*').join('');
 
+/* Assembly-time JS squeeze, template copy only (sources keep the long names,
+ * same move as the kit var aliases): the script opens with two tiny globals
+ * and every dotted host-object use shrinks. Property positions only — bare
+ * `document`/`window` tokens (none today) would stay long and still work.
+ * Frees ~0.4KB of the 30KB host ceiling, which pays for project brands
+ * (4.13.0). test.js parse-checks the squeezed script. */
+function squeezeJs(js) {
+  return 'var D=document,W=window;' + js.split('document.').join('D.').split('window.').join('W.');
+}
+
 const TEMPLATE_HTML =
   '<!DOCTYPE html><html><head><meta charset="utf-8"><style>\n' +
   KIT_IMPORTS + '\n' + PALETTE + '\n' + KIT_RULES + '\n' + FLUSH_CSS + '\n' + LTR_CSS +
   '\n</style></head><body><div class="rc" id="card" dir="rtl"><p>…</p></div>' +
-  '<script>' + BRIDGE_JS + MENU_SRC + '</script></body></html>';
+  '<script>' + squeezeJs(BRIDGE_JS + MENU_SRC) + '</script></body></html>';
 
 const TOOL = {
   name: 'card',
@@ -176,7 +191,8 @@ const TOOL = {
     'FILE MODE: when a background worker/delegate has ALREADY written its report as card-block HTML to a file ' +
     'ending in -card.html, pass htmlFile (the absolute path) INSTEAD of html — the card renders straight from ' +
     'the file and its HTML never passes through your context. Do not read the file or copy its content into ' +
-    'html. Pass exactly one of html | htmlFile.',
+    'html. Pass exactly one of html | htmlFile. ' +
+    'BRAND: if the session rule announces a project brand dir, ALSO pass brand (that absolute path) on every call — the card then renders in the project\'s own palette.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -187,6 +203,10 @@ const TOOL = {
       htmlFile: {
         type: 'string',
         description: 'Absolute path to a pre-written *-card.html report file (e.g. a background worker\'s output). The card renders from the file; never copy its content into html. Exactly one of html | htmlFile.',
+      },
+      brand: {
+        type: 'string',
+        description: 'Absolute path to the project\'s .readable brand dir. Pass it on every call when the session rule announces one; omit otherwise.',
       },
     },
   },
@@ -305,6 +325,80 @@ function readCardFile(p) {
   if (!text.trim()) throw new Error('htmlFile is empty');
   if (/<\s*(style|script)\b/i.test(text)) throw new Error('htmlFile must not contain <style> or <script>');
   return text;
+}
+
+/* brand (4.13.0): a project can carry a committable .readable/brand.css
+ * (palette-variable overrides, light + dark) that reskins its cards. ccd
+ * spawns this server without the project cwd and answers roots=NO, so the
+ * model passes the dir on each call (announced per-project by the plugin's
+ * SessionStart hook); when the host DOES hand over roots or a project cwd
+ * (CLI plugin spawn), brandDirFor resolves it server-side and the model can
+ * stay silent. The bridge fetches the css through read_brand (app-only), so
+ * it never enters the model's context; structuredContent carries only the
+ * dir path. */
+const BRAND_TOOL = {
+  name: 'read_brand',
+  description:
+    'Internal: returns a project\'s .readable brand layer (normalized CSS) for the card UI to apply. Called by the embedded card interface, never by the assistant.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      dir: { type: 'string', description: 'absolute path of the project\'s .readable dir' },
+    },
+    required: ['dir'],
+  },
+};
+
+const BRAND_CSS_MAX = 16 * 1024;
+const brandCache = new Map(); // dir -> { key, css }
+
+function brandDirOk(d) {
+  return typeof d === 'string' && d.trim() !== '' && path.isAbsolute(d) &&
+    path.basename(d) === '.readable' && fs.existsSync(path.join(d, 'brand.css'));
+}
+
+/* Explicit call arg first; then the session's workspace roots; then a bounded
+ * walk up from cwd (plugin-spawned servers inherit the project dir). The walk
+ * stops before home and /, so a stray ~/.readable can never brand everything. */
+function brandDirFor(explicit) {
+  if (brandDirOk(explicit)) return path.resolve(String(explicit));
+  for (const r of clientRoots) {
+    const c = path.join(r, '.readable');
+    if (brandDirOk(c)) return c;
+  }
+  let d = process.cwd();
+  if (!d || d === '/' || d === os.homedir()) return null;
+  for (let i = 0; i < 8; i++) {
+    const c = path.join(d, '.readable');
+    if (brandDirOk(c)) return c;
+    const up = path.dirname(d);
+    if (up === d || up === os.homedir() || up === '/') break;
+    d = up;
+  }
+  return null;
+}
+
+/* The css lands in a <style> tag inside the card iframe: '<' never appears in
+ * valid CSS, so stripping it kills any </style> breakout. @import lines are
+ * dropped except Google Fonts (the one host the iframe CSP is known to allow,
+ * it already serves Vazirmatn/Inter), and bare [data-theme="dark"] selectors
+ * are raised to html[data-theme="dark"] so they tie with the template palette
+ * and win by source order. */
+function readBrand(dir) {
+  if (!brandDirOk(dir)) throw new Error('dir must be an absolute path to a project .readable dir containing brand.css');
+  const p = path.join(dir, 'brand.css');
+  const st = fs.statSync(p);
+  if (st.size > BRAND_CSS_MAX) throw new Error('brand.css too large (max 16KB)');
+  const key = st.mtimeMs + ':' + st.size;
+  const hit = brandCache.get(dir);
+  if (hit && hit.key === key) return hit.css;
+  let css = fs.readFileSync(p, 'utf8').replace(/</g, '');
+  const imports = (css.match(/@import[^\n]+/g) || []).filter((l) => l.indexOf('fonts.googleapis') !== -1);
+  css = css.replace(/@import[^\n]+/g, '');
+  css = css.replace(/(^|[}\s,])\[data-theme=/g, '$1html[data-theme=');
+  css = imports.concat([css]).join('\n');
+  brandCache.set(dir, { key, css });
+  return css;
 }
 
 const EMAIL_PAL = {
@@ -656,7 +750,7 @@ function handle(msg) {
       return;
     }
     case 'tools/list':
-      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL, READ_TOOL, COPY_TOOL] });
+      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL, READ_TOOL, COPY_TOOL, BRAND_TOOL] });
       return;
     case 'tools/call': {
       if (params && params.name === 'copy_text') {
@@ -697,6 +791,16 @@ function handle(msg) {
         respond({ content: [{ type: 'text', text: renderEmail(a.html, a.theme) }] });
         return;
       }
+      if (params && params.name === 'read_brand') {
+        const a = params.arguments || {};
+        if (typeof a.dir !== 'string' || !a.dir.trim()) return fail(-32602, 'dir (string) is required');
+        try {
+          respond({ content: [{ type: 'text', text: readBrand(a.dir) }] });
+        } catch (e) {
+          respond({ isError: true, content: [{ type: 'text', text: 'brand read failed: ' + String(e && e.message) }] });
+        }
+        return;
+      }
       if (params && params.name === 'read_card_file') {
         const a = params.arguments || {};
         if (typeof a.path !== 'string' || !a.path.trim()) return fail(-32602, 'path (string) is required');
@@ -710,25 +814,29 @@ function handle(msg) {
       if (!params || params.name !== 'card') return fail(-32602, 'unknown tool');
       const html = params.arguments && params.arguments.html;
       const htmlFile = params.arguments && params.arguments.htmlFile;
+      // Resolve the project brand once per call: explicit arg > roots > cwd.
+      // The result rides structuredContent as a path only; the bridge pulls
+      // the css itself, so branding costs the model nothing.
+      const brand = brandDirFor(params.arguments && params.arguments.brand);
       if (typeof htmlFile === 'string' && htmlFile.trim()) {
         if (typeof html === 'string' && html.trim()) return fail(-32602, 'pass exactly one of html | htmlFile, not both');
         // Validate now so the model gets an actionable error while it can still
         // fall back to the html argument; the bridge re-reads via read_card_file.
         try { readCardFile(htmlFile); } catch (e) { return fail(-32602, String(e && e.message) + ' — fix the file or pass the content as html'); }
-        try { process.stderr.write('[readable-card] tools/call card, mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') + ', htmlFile=' + htmlFile + '\n'); } catch (e) {}
+        try { process.stderr.write('[readable-card] tools/call card, mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') + ', htmlFile=' + htmlFile + ', brand=' + (brand || 'none') + '\n'); } catch (e) {}
         const fileNote = clientSupportsUi
           ? 'Card rendered by the host UI from the file. Do not repeat the content as text.'
           : 'Host did not negotiate MCP Apps UI; the card was NOT rendered and the user saw nothing. Read the file and deliver its content another way (plain text, or show_widget with the readable kit), and stop calling this tool in this conversation.';
-        respond({ content: [{ type: 'text', text: fileNote }], structuredContent: { htmlFile: htmlFile } });
+        respond({ content: [{ type: 'text', text: fileNote }], structuredContent: brand ? { htmlFile: htmlFile, brand } : { htmlFile: htmlFile } });
         return;
       }
       if (typeof html !== 'string' || !html.trim()) return fail(-32602, 'html (string) is required (or htmlFile for a pre-written *-card.html)');
       if (/<\s*(style|script)\b/i.test(html)) return fail(-32602, 'html must not contain <style> or <script>; send content only');
-      try { process.stderr.write('[readable-card] tools/call card, mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') + ', html=' + html.length + 'B\n'); } catch (e) {}
+      try { process.stderr.write('[readable-card] tools/call card, mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') + ', html=' + html.length + 'B, brand=' + (brand || 'none') + '\n'); } catch (e) {}
       const note = clientSupportsUi
         ? 'Card rendered by the host UI. Do not repeat the content as text.'
         : 'Host did not negotiate MCP Apps UI; the card was NOT rendered and the user saw nothing. Repeat the reply now as plain text (if an inline HTML widget tool like show_widget exists, use it with the readable kit instead), and stop calling this tool in this conversation.';
-      respond({ content: [{ type: 'text', text: note }], structuredContent: { html } });
+      respond({ content: [{ type: 'text', text: note }], structuredContent: brand ? { html, brand } : { html } });
       return;
     }
     case 'resources/list':
@@ -758,7 +866,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.12.0 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.13.0 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();
