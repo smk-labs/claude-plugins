@@ -1,10 +1,10 @@
 ---
-name: promptsaz
+name: mkprompt
 description: >
-  پرامپت‌ساز: از روی موضوعی که کاربر می‌دهد، یک پرامپت کامل و آماده برای ایجنت یا سشن مستقل می‌سازد و آن را خام در متن چت می‌فرستد تا همان‌جا کپی شود. Use when the user says "پرامپت بساز", "یه پرامپت آماده کن برای", "پرامپت بده", "پرامپت کامل", "promptsaz", "write me a prompt for", or asks to prepare a standalone prompt to hand to another agent or session.
+  پرامپت‌ساز: از روی موضوعی که کاربر می‌دهد، یک پرامپت کامل و آماده برای ایجنت یا سشن مستقل می‌سازد و آن را خام در متن چت می‌فرستد تا همان‌جا کپی شود. Use when the user says "پرامپت بساز", "یه پرامپت آماده کن برای", "پرامپت بده", "پرامپت کامل", "mkprompt", "/mkprompt", "write me a prompt for", or asks to prepare a standalone prompt to hand to another agent or session.
 ---
 
-# promptsaz: پرامپت آمادهٔ کپی
+# mkprompt: پرامپت آمادهٔ کپی
 
 ورودی: موضوع یا کار. اگر ابهام تعیین‌کننده دارد (مقصد اجرا؟ کدام ریپو؟) حداکثر یک پرسش batched؛ وگرنه با پیش‌فرض معقول بساز.
 
