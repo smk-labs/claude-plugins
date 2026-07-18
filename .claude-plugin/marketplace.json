@@ -75,8 +75,8 @@
     {
       "name": "daily-tools",
       "source": "./plugins/daily-tools",
-      "description": "Everyday Persian-first helpers: four-phase swarm QA campaigns (swarm-qa), copy-ready prompt writing (mkprompt), light multi-agent research (mini-research), plain-language step-by-step guides (chetor), and ultra-terse resume-and-continue (go).",
-      "version": "1.2.0",
+      "description": "Everyday Persian-first helpers: four-phase swarm QA campaigns (swarm-qa), copy-ready prompt writing (mkprompt), light multi-agent research (mini-research), plain-language step-by-step guides (steps), and ultra-terse resume-and-continue (go).",
+      "version": "1.3.0",
       "category": "daily"
     },
     {
