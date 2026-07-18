@@ -327,14 +327,15 @@ function readCardFile(p) {
   return text;
 }
 
-/* brand (4.13.0): a project can carry a committable .readable/brand.css
- * (palette-variable overrides, light + dark) that reskins its cards. ccd
- * spawns this server without the project cwd and answers roots=NO, so the
- * model passes the dir on each call (announced per-project by the plugin's
- * SessionStart hook); when the host DOES hand over roots or a project cwd
- * (CLI plugin spawn), brandDirFor resolves it server-side and the model can
- * stay silent. The bridge fetches the css through read_brand (app-only), so
- * it never enters the model's context; structuredContent carries only the
+/* brand (4.13.0; guessing tightened in 4.13.1): a project can carry a
+ * committable .readable/brand.css (palette-variable overrides, light +
+ * dark) that reskins its cards. The desktop app runs ONE server for every
+ * open project and may report them all as roots, so the explicit per-call
+ * dir (announced per-project by the plugin's SessionStart hook) is the only
+ * session-accurate source; brandDirFor guesses server-side ONLY when the
+ * guess is unambiguous (a lone root, or a project cwd on CLI plugin
+ * spawns). The bridge fetches the css through read_brand (app-only), so it
+ * never enters the model's context; structuredContent carries only the
  * dir path. */
 const BRAND_TOOL = {
   name: 'read_brand',
@@ -357,14 +358,19 @@ function brandDirOk(d) {
     path.basename(d) === '.readable' && fs.existsSync(path.join(d, 'brand.css'));
 }
 
-/* Explicit call arg first; then the session's workspace roots; then a bounded
- * walk up from cwd (plugin-spawned servers inherit the project dir). The walk
- * stops before home and /, so a stray ~/.readable can never brand everything. */
+/* Explicit call arg first. Otherwise guess only when the guess is
+ * unambiguous: a lone workspace root, or (rootless spawn) a bounded walk up
+ * from cwd, which stops before home and / so a stray ~/.readable can never
+ * brand everything. With several roots open, one shared server serves every
+ * session and cannot attribute a call to a project, so it must not guess at
+ * all: 4.13.0 guessed here and skinned one project's cards with a parallel
+ * project's brand. */
 function brandDirFor(explicit) {
   if (brandDirOk(explicit)) return path.resolve(String(explicit));
-  for (const r of clientRoots) {
-    const c = path.join(r, '.readable');
-    if (brandDirOk(c)) return c;
+  if (clientRoots.length > 1) return null;
+  if (clientRoots.length === 1) {
+    const c = path.join(clientRoots[0], '.readable');
+    return brandDirOk(c) ? c : null;
   }
   let d = process.cwd();
   if (!d || d === '/' || d === os.homedir()) return null;
@@ -606,8 +612,10 @@ function renderEmail(html, theme) {
 
 function saveDir() {
   if (process.env.READABLE_SAVE_DIR) return process.env.READABLE_SAVE_DIR;
-  // The session's workspace root (MCP roots/list) is the user's project.
-  if (clientRoots.length && fs.existsSync(clientRoots[0])) return clientRoots[0];
+  // A lone workspace root (MCP roots/list) is the session's project; with
+  // several open projects the caller is unknown, so fall through rather than
+  // dropping the file into whichever root happens to be listed first.
+  if (clientRoots.length === 1 && fs.existsSync(clientRoots[0])) return clientRoots[0];
   const cwd = process.cwd();
   // Plugin-spawned servers inherit the project dir; app-spawned ones sit at /.
   if (cwd && cwd !== '/' && cwd !== os.homedir()) return cwd;
@@ -814,7 +822,8 @@ function handle(msg) {
       if (!params || params.name !== 'card') return fail(-32602, 'unknown tool');
       const html = params.arguments && params.arguments.html;
       const htmlFile = params.arguments && params.arguments.htmlFile;
-      // Resolve the project brand once per call: explicit arg > roots > cwd.
+      // Resolve the project brand once per call: explicit arg, else an
+      // unambiguous lone-root/cwd guess (never across parallel projects).
       // The result rides structuredContent as a path only; the bridge pulls
       // the css itself, so branding costs the model nothing.
       const brand = brandDirFor(params.arguments && params.arguments.brand);

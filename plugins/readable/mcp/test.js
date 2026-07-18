@@ -6,8 +6,13 @@ const fs = require('fs');
 const path = require('path');
 
 const SAVE_DIR = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-save-'));
+// Hermetic cwd: the repo itself carries a .readable/ at its root, so a server
+// inheriting the checkout cwd would find a brand via the walk and poison the
+// no-brand assertions. Every spawned server gets a bare temp dir instead.
+const NEUTRAL_CWD = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-cwd-'));
 const srv = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
   stdio: ['pipe', 'pipe', 'inherit'],
+  cwd: NEUTRAL_CWD,
   env: Object.assign({}, process.env, { READABLE_SAVE_DIR: SAVE_DIR, READABLE_COPY_CMD: 'cat' }),
 });
 const pending = new Map();
@@ -261,7 +266,7 @@ function check(name, cond) {
   const ROOTS_DIR = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-root-'));
   const env3 = Object.assign({}, process.env);
   delete env3.READABLE_SAVE_DIR;
-  const srv3 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'], env: env3 });
+  const srv3 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'], env: env3, cwd: NEUTRAL_CWD });
   const rootSave = await new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('timeout: roots flow')), 3000);
     let b = '';
@@ -284,6 +289,55 @@ function check(name, cond) {
   });
   check('roots/list is requested on initialized and the first root becomes the save dir', rootSave.result.content[0].text === path.join(ROOTS_DIR, 'root.txt') && fs.readFileSync(path.join(ROOTS_DIR, 'root.txt'), 'utf8') === 'r');
   srv3.kill();
+
+  // 8c. multi-root (4.13.1): the desktop app runs ONE server for every open
+  // project, so with several roots a brand-less call must not be guessed (in
+  // 4.13.0 it took the first branded root and skinned one project's cards
+  // with a parallel project's brand); an explicit dir still wins, and a lone
+  // root resumes auto-branding after roots/list_changed.
+  const MR_A = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-mrA-'));
+  const MR_B = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-mrB-'));
+  for (const p of [MR_A, MR_B]) {
+    fs.mkdirSync(path.join(p, '.readable'));
+    fs.writeFileSync(path.join(p, '.readable', 'brand.css'), ':root{--text-accent:#123456}');
+  }
+  const srv4 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'], env: env3, cwd: NEUTRAL_CWD });
+  const mr = await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout: multi-root flow')), 3000);
+    let b = '';
+    let openRoots = [MR_A, MR_B];
+    const got = {};
+    srv4.stdout.on('data', (d) => {
+      b += d;
+      let j;
+      while ((j = b.indexOf('\n')) !== -1) {
+        const l = b.slice(0, j); b = b.slice(j + 1);
+        if (!l.trim()) continue;
+        const m = JSON.parse(l);
+        if (m.method === 'roots/list' && m.id != null) {
+          srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: m.id, result: { roots: openRoots.map((p) => ({ uri: 'file://' + p })) } }) + '\n');
+          if (openRoots.length === 2) {
+            srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'card', arguments: { html: '<p>a</p>' } } }) + '\n');
+            srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'card', arguments: { html: '<p>b</p>', brand: path.join(MR_B, '.readable') } } }) + '\n');
+          } else {
+            srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'card', arguments: { html: '<p>c</p>' } } }) + '\n');
+          }
+        }
+        if (m.id === 11 || m.id === 12 || m.id === 13) got[m.id] = m;
+        if (m.id === 12) {
+          openRoots = [MR_B];
+          srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/roots/list_changed', params: {} }) + '\n');
+        }
+        if (m.id === 13) { clearTimeout(t); resolve(got); }
+      }
+    });
+    srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: { roots: { listChanged: true } } } }) + '\n');
+    srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }) + '\n');
+  });
+  check('multi-root: a brand-less call is never guessed (4.13.1)', mr[11].result.structuredContent.brand === undefined && mr[11].result.structuredContent.html === '<p>a</p>');
+  check('multi-root: an explicit brand dir still wins', mr[12].result.structuredContent.brand === path.join(MR_B, '.readable'));
+  check('lone root resumes auto-branding after roots/list_changed', mr[13].result.structuredContent.brand === path.join(MR_B, '.readable'));
+  srv4.kill();
 
   // 7. fallback path: a second server WITHOUT ui capability gets the fallback note
   const srv2 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'] });

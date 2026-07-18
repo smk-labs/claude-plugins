@@ -55,7 +55,7 @@
       "name": "readable",
       "source": "./plugins/readable",
       "description": "Replies as styled cards (Persian/RTL always, English by default) via a bundled MCP Apps card server: content-only output, template-side styling. Cards can render straight from *-card.html files written by background workers (htmlFile mode). Per-project brand layer (.readable/) reskins cards and reports. Plus report export and a visualize skill.",
-      "version": "4.13.0",
+      "version": "4.13.1",
       "category": "writing"
     },
     {

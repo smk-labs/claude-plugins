@@ -5,7 +5,7 @@ description: Give THIS project its own readable brand - after this, every chat c
 
 # brand: a per-project skin for cards and reports
 
-Output = a small committable `.readable/` dir at the project root. From then on `/report` reskins automatically, and chat cards do too (the session hook announces the dir; cards need an app restart to pick up a brand created mid-session).
+Output = a small committable `.readable/` dir at the project root (ONLY at a project root, never `~/.claude` or `$HOME`: config dirs are not projects). From then on `/report` reskins automatically, and chat cards do too (the session hook announces the dir at session start; an app restart lets other sessions pick up a brand created mid-session). Since 4.13.1 the card server never guesses a brand across open projects: a call without an announced `brand` renders stock, so parallel branded projects cannot leak into each other.
 
 ## 1. Detect before asking
 
@@ -40,5 +40,5 @@ Rules of taste: derive the full ramp from the 1-2 given colors — tinted, not g
 ## 3. Prove it, then hand over
 
 1. Build a sample report through the report skill's `build.py` with a 5-block fragment; verify in a browser: both themes, palette applied, header shows, accent contrast holds.
-2. Render one chat card passing `brand: "<abs>/.readable"` — if the running card server predates 4.13 it ignores the param harmlessly; tell the user cards start branding after an app restart.
+2. Render one chat card passing `brand: "<abs>/.readable"`, then keep passing it on EVERY card for the rest of this session (the hook only announces at session start, so a just-created brand is otherwise invisible until restart). A pre-4.13 card server ignores the param harmlessly; tell the user other sessions start branding after an app restart.
 3. Tell the user to commit `.readable/` (it is team-shared config, not local state).
