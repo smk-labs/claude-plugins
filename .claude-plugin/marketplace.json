@@ -73,6 +73,13 @@
       "category": "engineering"
     },
     {
+      "name": "rozmarre",
+      "source": "./plugins/rozmarre",
+      "description": "Everyday Persian-first helpers: four-phase swarm QA campaigns (swarm-qa), copy-ready prompt writing (promptsaz), light multi-agent research (scout), plain-language step-by-step guides (chetor), and ultra-terse resume-and-continue (edame).",
+      "version": "1.0.0",
+      "category": "daily"
+    },
+    {
       "name": "backlog-md",
       "source": {
         "source": "github",
