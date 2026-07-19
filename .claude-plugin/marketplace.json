@@ -80,6 +80,13 @@
       "category": "daily"
     },
     {
+      "name": "decode",
+      "source": "./plugins/decode",
+      "description": "Code in product language for PMs who don't read code: per-file and per-chunk id-cards (role, trigger, in/out, touches, risk, evidence), a standalone HTML codebase atlas with user journeys and search, and diff/PR translation as product release notes. Persian-first.",
+      "version": "1.0.0",
+      "category": "writing"
+    },
+    {
       "name": "backlog-md",
       "source": {
         "source": "github",

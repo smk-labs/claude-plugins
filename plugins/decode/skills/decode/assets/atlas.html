@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
+:root{color-scheme:light;--page-bg:#f4f4f1;--text-primary:#1f1f1f;--text-secondary:#6f6f6a;--text-accent:#2f66c4;--surface-1:#fff;--surface-2:#f2f2ef;--border:#dcdcd6;--border-strong:#b8b8b0;--bg-success:#e6f4ec;--bg-accent:#e8effc;--bg-warning:#faf0d9;--bg-danger:#fbe9e7;--ca:#0f9d58;--cb:#3f8ac9;--cc:#c98a1a;--cd:#d96666;--font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+:root[data-theme="dark"]{color-scheme:dark;--page-bg:#1b1b19;--text-primary:#ececea;--text-secondary:#a2a29b;--text-accent:#7ea6e0;--surface-1:#242422;--surface-2:#2d2d2a;--border:#3a3a36;--border-strong:#55554f;--bg-success:#1f3329;--bg-accent:#20304a;--bg-warning:#3a3020;--bg-danger:#402724;--cc:#e0a52e}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--page-bg:#1b1b19;--text-primary:#ececea;--text-secondary:#a2a29b;--text-accent:#7ea6e0;--surface-1:#242422;--surface-2:#2d2d2a;--border:#3a3a36;--border-strong:#55554f;--bg-success:#1f3329;--bg-accent:#20304a;--bg-warning:#3a3020;--bg-danger:#402724;--cc:#e0a52e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page-bg);color:var(--text-primary);font-family:Vazirmatn,Tahoma,sans-serif;font-size:14px;line-height:1.9;text-align:right}
+.wrap{max-width:940px;margin:0 auto;padding:34px 20px 70px}
+h1{font-size:1.5rem;font-weight:800;margin:0}
+.sub{color:var(--text-secondary);margin-top:4px;font-size:.95em}
+.tools{display:flex;gap:10px;margin:20px 0 4px}
+#q{flex:1;background:var(--surface-1);border:.5px solid var(--border);border-radius:10px;padding:8px 14px;font:inherit;color:inherit;outline:none}
+#q:focus{border-color:var(--border-strong)}
+#theme{background:var(--surface-1);border:.5px solid var(--border);border-radius:10px;padding:8px 13px;font:inherit;color:var(--text-secondary);cursor:pointer}
+code{font-family:var(--font-mono);direction:ltr;unicode-bidi:isolate;background:var(--surface-2);border:.5px solid var(--border);border-radius:6px;padding:1px 7px;font-size:.86em}
+h2{font-size:1.12rem;font-weight:800;margin:2.1em 0 .6em;padding-bottom:.35em;border-bottom:.5px solid var(--border)}
+h3.dir{font-size:.92rem;font-weight:700;color:var(--text-secondary);margin:1.6em 2px .5em}
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:1.2em 0 0}
+.mod{background:var(--surface-1);border:.5px solid var(--border);border-radius:12px;padding:12px 14px}
+.mod code{background:transparent;border:none;padding:0;font-weight:700;font-size:.92em}
+.mod p{margin:.3em 0 .25em;color:var(--text-secondary);font-size:.93em;line-height:1.7}
+.mod .n{font-size:.8em;color:var(--text-secondary)}
+.journey{background:var(--surface-1);border:.5px solid var(--border);border-radius:12px;padding:14px 16px;margin:12px 0}
+.journey h3{margin:0 0 12px;font-size:1em;font-weight:700}
+.rail{display:flex;flex-wrap:wrap;align-items:stretch;gap:30px}
+.step{position:relative;background:var(--surface-2);border:.5px solid var(--border);border-radius:9px;padding:6px 13px;font-size:.92em;font-weight:500}
+.step::after{content:'\2190';position:absolute;left:-24px;top:50%;transform:translateY(-50%);color:var(--border-strong)}
+.step:last-child::after{content:none}
+.step code{display:block;margin-top:2px;font-size:.8em;color:var(--text-secondary);background:transparent;border:none;padding:0;font-weight:400}
+details.file{background:var(--surface-1);border:.5px solid var(--border);border-radius:12px;margin:10px 0}
+details.file summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:11px 14px}
+details.file summary::-webkit-details-marker{display:none}
+details.file summary::before{content:'\25BE';color:var(--text-secondary);font-size:.8em}
+details.file:not([open]) summary::before{content:'\25C2'}
+.path{font-weight:700}
+.role{color:var(--text-secondary);font-size:.93em;flex:1;min-width:170px}
+.badge{display:inline-block;font-size:.75em;font-weight:700;padding:1px 9px;border-radius:20px;background:var(--surface-2);color:var(--text-secondary);border:.5px solid var(--border)}
+.badge.db{background:var(--bg-accent);color:var(--cb);border-color:transparent}
+.badge.ext{background:var(--bg-warning);color:var(--cc);border-color:transparent}
+.badge.ui{background:var(--bg-success);color:var(--ca);border-color:transparent}
+.badge.risk{background:var(--bg-danger);color:var(--cd);border-color:transparent}
+.fbody{padding:2px 14px 12px;border-top:.5px solid var(--border)}
+.fnote{color:var(--text-secondary);font-size:.94em;margin:.6em 2px}
+.chunk{border:.5px solid var(--border);border-radius:10px;margin:10px 0;background:var(--page-bg)}
+.chead{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:.5px solid var(--border)}
+.chead code{font-weight:700;background:transparent;border:none;padding:0}
+.lines{font-size:.8em;color:var(--text-secondary);margin-inline-start:auto}
+.kv{padding:4px 12px 8px}
+.kv>div{display:flex;gap:14px;padding:5px 2px;border-bottom:.5px dashed var(--border)}
+.kv>div:last-child{border:none}
+.kv b{flex:0 0 100px;color:var(--text-secondary);font-weight:500}
+.kv span{flex:1}
+footer{margin-top:52px;color:var(--text-secondary);font-size:.85em;text-align:center}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>{{TITLE}}</h1>
+  <div class="sub">{{SUBTITLE}}</div>
+  <div class="tools">
+    <input id="q" type="search" placeholder="جستجو در فایل‌ها، نقش‌ها و توضیح‌ها...">
+    <button id="theme" title="تغییر تم">&#9680;</button>
+  </div>
+</header>
+<main id="atlas">
+{{BODY}}
+</main>
+<footer>ساخته‌شده با پلاگین decode · {{DATE}}</footer>
+</div>
+<script>
+(function(){
+  var q=document.getElementById('q');
+  q.addEventListener('input',function(){
+    var t=q.value.trim().toLowerCase();
+    document.querySelectorAll('#atlas details.file').forEach(function(f){
+      var hit=t===''||f.textContent.toLowerCase().indexOf(t)>-1||(f.dataset.path||'').toLowerCase().indexOf(t)>-1;
+      f.classList.toggle('hidden',!hit);
+    });
+    document.querySelectorAll('#atlas .journey').forEach(function(j){
+      j.classList.toggle('hidden',t!==''&&j.textContent.toLowerCase().indexOf(t)===-1);
+    });
+  });
+  document.getElementById('theme').addEventListener('click',function(){
+    var r=document.documentElement,cur=r.getAttribute('data-theme');
+    var dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+    r.setAttribute('data-theme',dark?'light':'dark');
+  });
+})();
+</script>
+</body>
+</html>
