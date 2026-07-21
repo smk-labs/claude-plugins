@@ -124,11 +124,13 @@ var css=(collectCss().replace(/@import url\([^)]*\)\s*;?/g,'')+varCss('rcexport'
 css=css.replace(/&/g,'&amp;').replace(/</g,'&lt;');
 var xhtml=new XMLSerializer().serializeToString(card);
 cb('<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" class="rcexport"><style>'+css+'</style>'+xhtml+'</div></foreignObject></svg>',w,h)}
-function pngBlob(cb){makeSvg(function(svg,w,h){
+/* Raster export can't load an external @import font (SVG-as-Image never fetches), so the actual font bytes must be inlined. ensureFonts mounts a #rcfont <style> of base64 @font-face rules once: the card pulls them from the server's read_fonts tool; the standalone report injects #rcfont itself on load (no MCP server). collectCss then picks the data-URI faces up (they are NOT @import, so makeSvg keeps them), and text rasterizes in the real font. No host / offline -> no #rcfont -> graceful system-font fallback. */
+function ensureFonts(cb){if(document.getElementById('rcfont')||!window.__rcRpc){cb();return}window.__rcRpc('tools/call',{name:'read_fonts',arguments:{}},function(r,e){var t=!e&&r&&!r.isError&&r.content&&r.content[0]&&r.content[0].text;if(t){var s=document.createElement('style');s.id='rcfont';s.textContent=t;document.head.appendChild(s)}cb()})}
+function pngBlob(cb){ensureFonts(function(){makeSvg(function(svg,w,h){
 var img=new Image();
 img.onload=function(){try{var c=document.createElement('canvas'),s=2;c.width=w*s;c.height=h*s;var x=c.getContext('2d');x.scale(s,s);x.fillStyle=effBg();x.fillRect(0,0,w,h);x.drawImage(img,0,0);c.toBlob(function(b){if(b)cb(b,null);else cb(null,'canvas export blocked')},'image/png')}catch(e){cb(null,'canvas: '+e.message)}};
 img.onerror=function(){cb(null,'svg render failed')};
-img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
+img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})})}
 function withEmail(btn,cb){if(!window.__rcEmail){setState(btn,'err');toast('email needs the host bridge');return}
 var done=false;var t=setTimeout(function(){done=true;setState(btn,'err');toast('email: timeout')},5000);
 window.__rcEmail(function(h,err){if(done)return;done=true;clearTimeout(t);if(!h){setState(btn,'err');toast('email: '+err);return}cb(h)})}

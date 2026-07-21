@@ -75,8 +75,10 @@ function check(name, cond) {
   const readf = tools.tools[3];
   const copyt = tools.tools[4];
   const brandt = tools.tools[5];
-  check('six tools: card + save_card + render_email + read_card_file + copy_text + read_brand', tools.tools.length === 6 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email' && readf.name === 'read_card_file' && copyt.name === 'copy_text' && brandt.name === 'read_brand');
+  const fontt = tools.tools[6];
+  check('seven tools: card + save_card + render_email + read_card_file + copy_text + read_brand + read_fonts', tools.tools.length === 7 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email' && readf.name === 'read_card_file' && copyt.name === 'copy_text' && brandt.name === 'read_brand' && fontt.name === 'read_fonts');
   check('read_brand carries no ui meta', brandt._meta === undefined);
+  check('read_fonts carries no ui meta and takes no args', fontt._meta === undefined && Object.keys(fontt.inputSchema.properties).length === 0);
   check('card schema advertises the brand dir param', card.inputSchema.properties.brand && card.inputSchema.properties.brand.type === 'string');
   check('tool links template via _meta.ui.resourceUri', card._meta.ui.resourceUri === 'ui://readable/card.html');
   check('inputSchema offers html or htmlFile, neither hard-required', Boolean(card.inputSchema.properties.html && card.inputSchema.properties.htmlFile) && card.inputSchema.required === undefined);
@@ -109,11 +111,12 @@ function check(name, cond) {
   check('open menu grows the iframe (fixed menu never enters scrollHeight)', html.includes('W.__rcFit=fit') && html.split('W.__rcFit()').length === 3);
   const scriptSrc = html.split('<script>')[1].split('</script>')[0];
   check('squeezed template script still parses (assembly squeeze is syntax-safe)', (() => { try { new Function(scriptSrc); return true; } catch (e) { return false; } })());
-  check('squeeze hoists the host-object globals exactly once', scriptSrc.indexOf('var D=document,W=window;') === 0 && !scriptSrc.includes('document.') && !scriptSrc.includes('window.'));
+  check('squeeze hoists the host-object globals + DOM-method helpers once, and each long form survives only in its helper def', scriptSrc.indexOf('var D=document,W=window,CE=function') === 0 && !scriptSrc.includes('document.') && !scriptSrc.includes('window.') && (scriptSrc.match(/querySelectorAll/g) || []).length === 1 && (scriptSrc.match(/\.createElement\(/g) || []).length === 1 && (scriptSrc.match(/\.getElementById\(/g) || []).length === 1);
   check('template stays under the host resource-size ceiling (' + html.length + 'B of 30000)', html.length < 30000);
   check('template applies project brands via read_brand (4.13.0)', html.includes("name:'read_brand'") && html.includes("id='rcbrand'") && html.includes('if(a.brand)bApply(a.brand)') && html.includes('if(s.brand)bApply(s.brand)'));
   check('saves go through save_card then ui/download-file', html.includes("name:'save_card'") && html.includes('ui/download-file'));
   check('png export is dependency-free (foreignObject, blob URL)', html.includes('foreignObject') && html.includes('createObjectURL') && !html.includes('html2canvas'));
+  check('png export inlines real font bytes: mounts #rcfont via read_fonts before rastering, and makeSvg strips only @import (data-URI @font-face survive)', html.includes("name:'read_fonts'") && html.includes("id='rcfont'") && html.includes('ensureFonts(function(){makeSvg') && html.includes('@import url'));
   check('menu has per-item states (spinner/ok/err)', html.includes('rcspin .7s') && html.includes('ICON_OK') && html.includes('classList.add(st)'));
   check('clipboard has execCommand fallback', html.includes("execCommand('copy')"));
   check('CTA clicks survive blocked inline handlers (delegation)', html.includes("closest('#card [onclick]')"));

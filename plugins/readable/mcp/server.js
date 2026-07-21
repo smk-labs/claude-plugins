@@ -169,13 +169,20 @@ const MENU_SRC = fs.readFileSync(MENU_CANDIDATES.find((p) => fs.existsSync(p)), 
   .replace(/\r\n/g, '\n').split('\n').filter((l) => l.slice(0, 2) !== '/*').join('');
 
 /* Assembly-time JS squeeze, template copy only (sources keep the long names,
- * same move as the kit var aliases): the script opens with two tiny globals
- * and every dotted host-object use shrinks. Property positions only — bare
- * `document`/`window` tokens (none today) would stay long and still work.
- * Frees ~0.4KB of the 30KB host ceiling, which pays for project brands
- * (4.13.0). test.js parse-checks the squeezed script. */
+ * same move as the kit var aliases): the script opens with a few tiny globals
+ * and every dotted host-object use shrinks. `document.`/`window.` collapse to
+ * D./W.; on top of that the three hottest DOM methods get one-letter helpers —
+ * createElement (always on document) and getElementById (always on document)
+ * fold by plain substring, querySelectorAll (called on many elements) folds by
+ * a receiver regex. Frees ~0.8KB of the 30KB host ceiling, which pays for the
+ * PNG font embed (4.14.1). test.js parse-checks AND behavior-checks the
+ * squeezed script. */
 function squeezeJs(js) {
-  return 'var D=document,W=window;' + js.split('document.').join('D.').split('window.').join('W.');
+  const s = js.split('document.').join('D.').split('window.').join('W.')
+    .split('D.createElement(').join('CE(')
+    .split('D.getElementById(').join('G(')
+    .replace(/([\w$]+)\.querySelectorAll\(/g, 'Q($1,');
+  return 'var D=document,W=window,CE=function(t){return D.createElement(t)},G=function(i){return D.getElementById(i)},Q=function(e,s){return e.querySelectorAll(s)};' + s;
 }
 
 const TEMPLATE_HTML =
@@ -274,6 +281,72 @@ const COPY_TOOL = {
     required: ['text'],
   },
 };
+
+/* read_fonts (4.14.1): base64-embedded @font-face css for the kit fonts. An SVG
+ * rendered via Image->canvas (the PNG export) CANNOT load an external @import
+ * font — it rasterizes in a system fallback (Vazirmatn -> Tahoma), which is why
+ * copied images looked "wrong font". The fix is to inline the actual font bytes.
+ * The card UI can't afford the fetch+base64 code inside the 30KB template, so
+ * the server (which owns the kit imports and has real network) does it here and
+ * hands back ready @font-face css the card mounts before export. Offline -> ''
+ * (graceful fallback to the system font, same as before). Not for the model. */
+const FONTS_TOOL = {
+  name: 'read_fonts',
+  description:
+    'Internal: returns base64-embedded @font-face CSS (the kit web fonts) so the card UI can inline real font bytes into PNG exports. Called by the embedded card interface, never by the assistant.',
+  inputSchema: { type: 'object', properties: {} },
+};
+
+const FONT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+/* Vazirmatn is an Arabic-script face; keep only the subsets a Persian/English
+ * card actually uses so the embedded payload stays a few hundred KB, not MBs. */
+const FONT_SUBSETS = ['arabic', 'latin', 'latin-ext'];
+let fontCache = null;
+
+async function fetchText(url, headers) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const r = await fetch(url, { headers: headers || {}, signal: ctrl.signal });
+    return r.ok ? await r.text() : '';
+  } finally { clearTimeout(t); }
+}
+
+/* Fetch each kit @import sheet (Google Fonts, woff2 via the browser UA), then
+ * for every kept @font-face swap its gstatic url for a data: URI of the actual
+ * bytes. Cached after the first success; a fully offline run returns '' and is
+ * not cached, so a later online export can still embed. */
+async function embedFonts() {
+  if (fontCache) return fontCache;
+  const urls = [];
+  KIT_IMPORTS.replace(/url\((['"]?)([^'")]+)\1\)/g, (_, q, u) => { urls.push(u); return _; });
+  let out = '';
+  for (const u of urls) {
+    let sheet = '';
+    try { sheet = await fetchText(u, { 'user-agent': FONT_UA }); } catch (e) { sheet = ''; }
+    if (!sheet) continue;
+    const re = /(?:\/\*\s*([\w-]+)\s*\*\/\s*)?@font-face\s*\{([^}]*)\}/g;
+    let m;
+    while ((m = re.exec(sheet))) {
+      const subset = m[1], body = m[2];
+      if (subset && FONT_SUBSETS.indexOf(subset) < 0) continue;
+      const um = body.match(/url\((https:\/\/[^)]+\.woff2)\)/);
+      if (!um) continue;
+      let data = '';
+      try {
+        const ctrl = new AbortController();
+        const to = setTimeout(() => ctrl.abort(), 8000);
+        const fr = await fetch(um[1], { signal: ctrl.signal });
+        clearTimeout(to);
+        if (fr.ok) data = 'data:font/woff2;base64,' + Buffer.from(await fr.arrayBuffer()).toString('base64');
+      } catch (e) { data = ''; }
+      if (!data) continue;
+      out += '@font-face{' + body.replace(um[1], data) + '}';
+    }
+  }
+  if (out) fontCache = out;
+  return out;
+}
 
 /* READABLE_COPY_CMD overrides the helper (tests use `cat` so runs never touch
  * the developer's real clipboard). clip.exe reads UTF-16LE; the text is encoded
@@ -811,7 +884,7 @@ function handle(msg) {
       return;
     }
     case 'tools/list':
-      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL, READ_TOOL, COPY_TOOL, BRAND_TOOL] });
+      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL, READ_TOOL, COPY_TOOL, BRAND_TOOL, FONTS_TOOL] });
       return;
     case 'tools/call': {
       if (params && params.name === 'copy_text') {
@@ -850,6 +923,13 @@ function handle(msg) {
         if (typeof a.html !== 'string' || !a.html.trim()) return fail(-32602, 'html (string) is required');
         if (/<\s*(style|script)\b/i.test(a.html)) return fail(-32602, 'html must not contain <style> or <script>');
         respond({ content: [{ type: 'text', text: renderEmail(a.html, a.theme) }] });
+        return;
+      }
+      if (params && params.name === 'read_fonts') {
+        embedFonts().then(
+          (css) => respond({ content: [{ type: 'text', text: css }] }),
+          (e) => respond({ isError: true, content: [{ type: 'text', text: 'font embed failed: ' + String(e && e.message) }] })
+        );
         return;
       }
       if (params && params.name === 'read_brand') {
@@ -928,7 +1008,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.14.0 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.14.1 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();

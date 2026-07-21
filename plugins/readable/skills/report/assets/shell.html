@@ -130,6 +130,43 @@ window.__rcEmail = function (cb) {
   });
   if (pdf) pdf.addEventListener('click', function () { window.print() });
 })();
+/* PNG export inlines the font bytes (an SVG-as-image can't load an external
+   @import font, so it would otherwise rasterize in a system fallback). The
+   report has no MCP server, so it embeds client-side: fetch every @import
+   sheet, swap each gstatic url for a data: URI, mount as #rcfont. menu.js's
+   ensureFonts then finds #rcfont and keeps it in the export. Best-effort:
+   any failure just leaves the system-font fallback. */
+(function () {
+  var imports = [];
+  document.querySelectorAll('style').forEach(function (s) {
+    (s.textContent.match(/@import url\((?:['"]?)([^'")]+)(?:['"]?)\)/g) || []).forEach(function (m) {
+      var u = m.replace(/@import url\((?:['"]?)|(?:['"]?)\)$/g, '');
+      if (imports.indexOf(u) < 0) imports.push(u);
+    });
+  });
+  if (!imports.length) return;
+  var SUBSETS = ['arabic', 'latin', 'latin-ext'];
+  function toData(url) {
+    return fetch(url).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
+      if (!b) return null;
+      return new Promise(function (res) { var f = new FileReader(); f.onload = function () { res(f.result) }; f.onerror = function () { res(null) }; f.readAsDataURL(b); });
+    }).catch(function () { return null; });
+  }
+  Promise.all(imports.map(function (u) { return fetch(u).then(function (r) { return r.ok ? r.text() : '' }).catch(function () { return '' }); })).then(function (sheets) {
+    var faces = [];
+    sheets.join('\n').replace(/(?:\/\*\s*([\w-]+)\s*\*\/\s*)?@font-face\s*\{([^}]*)\}/g, function (_, subset, body) {
+      if (subset && SUBSETS.indexOf(subset) < 0) return _;
+      var um = body.match(/url\((https:\/\/[^)]+\.woff2)\)/);
+      if (um) faces.push({ body: body, url: um[1] });
+      return _;
+    });
+    return Promise.all(faces.map(function (f) { return toData(f.url).then(function (d) { return d ? '@font-face{' + f.body.replace(f.url, d) + '}' : '' }); }));
+  }).then(function (rules) {
+    var css = rules.filter(Boolean).join('');
+    if (!css || document.getElementById('rcfont')) return;
+    var s = document.createElement('style'); s.id = 'rcfont'; s.textContent = css; document.head.appendChild(s);
+  }).catch(function () {});
+})();
 </script>
 </body>
 </html>
