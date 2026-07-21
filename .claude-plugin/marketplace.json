@@ -82,8 +82,8 @@
     {
       "name": "decode",
       "source": "./plugins/decode",
-      "description": "Code in product language for PMs who don't read code: per-file and per-chunk id-cards (role, trigger, in/out, touches, risk, evidence), a standalone HTML codebase atlas with user journeys and search, and diff/PR translation as product release notes. Persian-first.",
-      "version": "1.0.0",
+      "description": "A senior-style narrated tour of any codebase for PMs who don't read code: a two-minute story, a VS Code-like browsable file tree, clean per-file canvases weighted by importance, small software-engineering lessons, and diff/PR translation in product language. Persian-first.",
+      "version": "2.0.0",
       "category": "writing"
     },
     {
