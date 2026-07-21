@@ -17,7 +17,13 @@ html,body{margin:0;background:var(--page-bg)}
 .meta{color:var(--text-secondary);font-family:inherit;font-size:11.5px;margin:10px 4px 0;text-align:end;font-family:Vazirmatn,Inter,Tahoma,sans-serif}
 .theme-toggle{position:fixed;top:16px;inset-inline-end:16px;width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:linear-gradient(90deg,var(--surface-1) 50%,var(--text-primary) 50%);cursor:pointer;padding:0}
 .theme-toggle:hover{border-color:var(--text-accent)}
-@media print{.theme-toggle,#rcmenu,#rctoast,#rccp{display:none}html,body{background:#fff}.rc{border:none;padding:0}.wrap{max-width:none;padding:0}}
+/* Copy + PDF: the two one-click actions, on the inline-START corner (opposite the theme toggle + menu on the end corner). PDF prints the rendered page — a standalone report is a real document, so the browser's Save as PDF is exact. */
+.rbar{position:fixed;top:16px;inset-inline-start:16px;display:flex;gap:6px;z-index:9}
+.rbar button{width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:var(--surface-1);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.rbar button:hover{border-color:var(--text-accent);color:var(--text-accent)}
+.rbar svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rbar button.ok{color:var(--text-accent);border-color:var(--text-accent)}
+@media print{.theme-toggle,.rbar,#rcmenu,#rctoast,#rccp{display:none}html,body{background:#fff}.rc{border:none;padding:0}.wrap{max-width:none;padding:0}}
 </style>
 <style>
 {{EXTRA}}
@@ -28,6 +34,10 @@ html,body{margin:0;background:var(--page-bg)}
 </head>
 <body>
 <button class="theme-toggle" title="light / dark" onclick="(function(){var r=document.documentElement,d=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);r.setAttribute('data-theme',d?'light':'dark');try{localStorage.setItem('report-theme',r.getAttribute('data-theme'))}catch(e){}})()"></button>
+<div class="rbar">
+<button id="rbcopy" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+<button id="rbpdf" title="Print / Save as PDF"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v6H8z"/></svg></button>
+</div>
 <script>try{var t=localStorage.getItem('report-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <div class="wrap">
 {{BRANDHEAD}}<div class="rc" id="card">
@@ -106,6 +116,19 @@ window.__rcEmail = function (cb) {
 (function () {
   var m = document.getElementById('rcmenu');
   if (m) m.style.cssText = 'top:16px;right:auto;inset-inline-end:62px';
+})();
+/* Copy + PDF one-click buttons. Copy reuses the menu's clipText bridge
+   (window.__rcCopy) so the report's copy path is identical to the menu's;
+   PDF is just the browser print dialog on this real, standalone page. */
+(function () {
+  var card = document.getElementById('card');
+  var cp = document.getElementById('rbcopy'), pdf = document.getElementById('rbpdf');
+  if (cp) cp.addEventListener('click', function () {
+    (window.__rcCopy || function (t, cb) { navigator.clipboard.writeText(t).then(function () { cb(true) }, function () { cb(false) }) })(card.innerText, function (ok) {
+      if (!ok) return; cp.classList.add('ok'); setTimeout(function () { cp.classList.remove('ok') }, 1600);
+    });
+  });
+  if (pdf) pdf.addEventListener('click', function () { window.print() });
 })();
 </script>
 </body>

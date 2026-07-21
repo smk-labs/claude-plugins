@@ -9,10 +9,11 @@
 /* Self-installing: injects its own CSS, menu DOM (#rcmenu) and toast (#rctoast) into the page; needs #card to exist. */
 (function(){
 var CSS='#rcmenu,#rctoast{font-family:system-ui,sans-serif;direction:ltr}'+
-'#rcmenu{position:fixed;top:8px;right:8px;z-index:9}'+
+/* Menu lives on the inline-END corner (line ends), never the inline-START where the title and brand logo anchor, so the dots never sit on top of the heading in either direction (RTL title on the right, LTR title on the left). */
+'#rcmenu{position:fixed;top:8px;inset-inline-end:8px;z-index:9}'+
 '#rcmenu .dots{width:30px;height:30px;border-radius:8px;border:.5px solid var(--border);background:var(--surface-2);color:var(--text-secondary);cursor:pointer;font-size:16px;line-height:1;opacity:.4;padding:0}'+
 '#rcmenu:hover .dots,#rcmenu.open .dots{opacity:1}'+
-'#rcmenu .items{display:none;position:absolute;right:0;top:34px;background:var(--surface-1);border:.5px solid var(--border-strong);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.28)}'+
+'#rcmenu .items{display:none;position:absolute;inset-inline-end:0;top:34px;background:var(--surface-1);border:.5px solid var(--border-strong);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.28)}'+
 '#rcmenu.open .items{display:block}'+
 '#rcmenu .row{display:flex;align-items:center;border-radius:8px;padding:2px 4px}'+
 '#rcmenu .row:hover{background:var(--surface-2)}'+

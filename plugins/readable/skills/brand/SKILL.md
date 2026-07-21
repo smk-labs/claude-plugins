@@ -33,7 +33,7 @@ Rules of taste: derive the full ramp from the 1-2 given colors — tinted, not g
             "files": { "400": "fonts/X-Regular.woff2", "700": "fonts/X-Bold.woff2" } } }
 ```
 
-`wordmark`/`kind`/`logo` feed the report header (cards stay colors-only, no letterhead). `font.files` are inlined into reports; `font.google` is the only font path that also reaches chat cards.
+`wordmark`/`kind`/`logo` feed the letterhead: the report header, and since 4.14.0 a matching `.brand` row mounted above chat cards too (logo + wordmark + kind, fetched by the bridge through `read_brand_head`). `font.files` are inlined into reports; `font.google` is the only font path that also reaches chat cards.
 
 **`logo.svg`** — copy the project mark VERBATIM (no redesign), ≤ 8KB, `currentColor` preferred.
 

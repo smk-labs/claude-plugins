@@ -261,6 +261,35 @@ function check(name, cond) {
   const cardBadBrand = await rpc('tools/call', { name: 'card', arguments: { html: '<p>x</p>', brand: '/nonexistent/.readable' } });
   check('a dangling brand arg degrades to the default look, never an error', !cardBadBrand.isError && cardBadBrand.structuredContent.brand === undefined && cardBadBrand.structuredContent.html === '<p>x</p>');
 
+  // 8a3. letterhead (4.14.0): a brand.json wordmark/logo folds a .rc::before
+  // letterhead INTO the read_brand css (zero template cost, runtime only). It
+  // rides above the card, is invisible to #card exporters, and never appears
+  // when the brand is palette-only (byte-identical to 4.13).
+  const LH = path.join(BRAND_PROJ, '.lh');
+  const mkbrand = (name, json, logo) => {
+    const d = path.join(LH, name, '.readable');
+    fs.mkdirSync(d, { recursive: true });
+    fs.writeFileSync(path.join(d, 'brand.css'), ':root{--text-accent:#2f66c4}');
+    if (json) fs.writeFileSync(path.join(d, 'brand.json'), JSON.stringify(json));
+    if (logo) fs.writeFileSync(path.join(d, 'logo.svg'), logo);
+    return d;
+  };
+  const wmDir = mkbrand('wm', { wordmark: 'پایا' });
+  const wmCss = (await rpc('tools/call', { name: 'read_brand', arguments: { dir: wmDir } })).content[0].text;
+  check('wordmark-only brand folds a .rc::before letterhead with the wordmark as content', wmCss.includes('.rc::before{content:"پایا"') && wmCss.includes('color:var(--text-primary)'));
+  const logoWmDir = mkbrand('lw', { wordmark: 'Acme' }, '<svg viewBox="0 0 10 10"><rect width="10" height="10" fill="#e00"/></svg>');
+  const logoWmCss = (await rpc('tools/call', { name: 'read_brand', arguments: { dir: logoWmDir } })).content[0].text;
+  check('logo+wordmark rides the logo as a background data-URI with text padding + dir positions', logoWmCss.includes('.rc::before{content:"Acme"') && logoWmCss.includes('background:url("data:image/svg+xml,') && logoWmCss.includes('padding-inline-start:32px') && logoWmCss.includes('.rc[dir=rtl]::before{background-position:right center}'));
+  const monoDir = mkbrand('mono', null, '<svg viewBox="0 0 10 10"><rect width="10" height="10" fill="currentColor"/></svg>');
+  const monoCss = (await rpc('tools/call', { name: 'read_brand', arguments: { dir: monoDir } })).content[0].text;
+  check('a currentColor logo-only brand tints via -webkit-mask so it theme-flips', monoCss.includes('.rc::before{content:""') && monoCss.includes('-webkit-mask:url("data:image/svg+xml,') && monoCss.includes('background:var(--text-primary)'));
+  const scriptLogoDir = mkbrand('evil', { wordmark: 'X' }, '<svg onload="alert(1)"><script>alert(2)</script><rect/></svg>');
+  const scriptLogoCss = (await rpc('tools/call', { name: 'read_brand', arguments: { dir: scriptLogoDir } })).content[0].text;
+  check('a hostile logo cannot smuggle code: <script> and on*= handlers are stripped before the data-URI', !/alert%281%29|alert%282%29|onload/i.test(scriptLogoCss) && scriptLogoCss.includes('.rc::before'));
+  const plainDir = mkbrand('plain', null, null);
+  const plainCss = (await rpc('tools/call', { name: 'read_brand', arguments: { dir: plainDir } })).content[0].text;
+  check('a palette-only brand (no json/logo) folds NO letterhead (byte-identical to 4.13)', !plainCss.includes('::before'));
+
   // 8b. roots: a client that advertises roots gets asked roots/list, and saves
   // land in the first root (the session's project dir) instead of Downloads.
   const ROOTS_DIR = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-root-'));

@@ -134,7 +134,7 @@ const BRIDGE_JS = [
   "window.__rcRpc=rpc;",
   "/* Project brand (4.13.0): when a call carries a brand dir, fetch its normalized css through the app-only read_brand tool (same channel as htmlFile) and mount it as a late <style> — variable overrides win by source order. One-shot per iframe (bLoaded guard), so no element reuse; palette swaps don't change height and a brand font swap re-fits via the body ResizeObserver. A failed read silently keeps the default look. */",
   "var bLoaded=null;",
-  "function bApply(p){if(!p||p===bLoaded)return;bLoaded=p;rpc('tools/call',{name:'read_brand',arguments:{dir:p}},function(res,err){var c=!err&&res&&!res.isError&&res.content,t=c&&c[0]&&c[0].text;if(!t)return;var s=document.createElement('style');s.id='rcbrand';s.textContent=t;document.head.appendChild(s)})}",
+  "function bApply(p){if(!p||p===bLoaded)return;bLoaded=p;rpc('tools/call',{name:'read_brand',arguments:{dir:p}},function(res,err){var c=!err&&res&&!res.isError&&res.content,t=c&&c[0]&&c[0].text;if(!t)return;var s=document.createElement('style');s.id='rcbrand';s.textContent=t;document.head.appendChild(s);fit()})}",
   "/* Host adapter for the shared menu (assets/menu.js): email HTML renders server-side (render_email tool, static style map) because the ui:// template must stay under the host's ~30KB resource ceiling. The report shell swaps in a computed-style walker instead. */",
   "window.__rcEmail=function(cb){rpc('tools/call',{name:'render_email',arguments:{html:document.getElementById('card').innerHTML,theme:'light'}},function(res,err){var t=!err&&res&&!res.isError&&res.content&&res.content[0]&&res.content[0].text;if(t)cb(t,null);else cb(null,err?String(err.code||'')+' '+String(err.message||'').slice(0,60):'render failed')})};",
   "window.addEventListener('message',function(e){var m=e.data;if(typeof m==='string'){try{m=JSON.parse(m)}catch(err){return}}if(!m||m.jsonrpc!=='2.0')return;tap('<',m);",
@@ -187,7 +187,7 @@ const TEMPLATE_HTML =
 const TOOL = {
   name: 'card',
   description:
-    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language (plain RTL chat text scrambles; this renders it as a correct styled card), and PREFER it for English conversational, explanatory, or structured answers too. Skip it only for replies dominated by code blocks, diffs, or logs. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no reply text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody> (long tables, 100+ rows: wrap as <div class="scroll-table"><table>…</table></div> for a scrollbox with pinned header; add class "wide" to the wrapper when columns are many/wide: cells stay on one line and the box scrolls sideways), <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, trend sparkline <div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,26 25,19 50,22 75,10 100,4"/></svg><div class="x"><span>old</span><span>new</span></div></div> (time series: x evenly spaced 0..100 oldest→newest, y inverted 2≈max 28≈min, computed from the data; optional area: prepend <polygon points="0,30 …same points… 100,30"/>; optional second series: append <polyline class="s2" points="…"/>), flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, <code> around every inline path/URL/code token, <pre><code>…</code></pre> for multiline code (renders LTR), optional CTA buttons <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">label</button></div>. NO <style>, NO <script>, NO wrapper div: the template styles everything, light and dark. Short answers are fine as plain <p> paragraphs inside the card. ' +
+    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language (plain RTL chat text scrambles; this renders it as a correct styled card), and PREFER it for English conversational, explanatory, or structured answers too. Skip it only for replies dominated by code blocks, diffs, or logs. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no reply text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody> (long tables, 100+ rows: wrap as <div class="scroll-table"><table>…</table></div> for a scrollbox with pinned header; add class "wide" to the wrapper when columns are many/wide: cells stay on one line and the box scrolls sideways), <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, trend sparkline <div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,26 25,19 50,22 75,10 100,4"/></svg><div class="x"><span>old</span><span>new</span></div></div> (time series: x evenly spaced 0..100 oldest→newest, y inverted 2≈max 28≈min, computed from the data; optional area: prepend <polygon points="0,30 …same points… 100,30"/>; optional second series: append <polyline class="s2" points="…"/>), flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, <code> around every inline path/URL/code token, <pre><code>…</code></pre> for multiline code (renders LTR), optional CTA buttons <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">label</button></div>. NO <style>, NO <script>, NO wrapper div: the template styles everything, light and dark. Short answers are fine as plain <p> paragraphs inside the card. Open with the substance: NO cover-page preamble (no owner/subject/prepared-by/audience/date/status kv block at the top) — the first line is the answer itself, the <h2> already titles it. ' +
     'FILE MODE: when a background worker/delegate has ALREADY written its report as card-block HTML to a file ' +
     'ending in -card.html, pass htmlFile (the absolute path) INSTEAD of html — the card renders straight from ' +
     'the file and its HTML never passes through your context. Do not read the file or copy its content into ' +
@@ -276,7 +276,10 @@ const COPY_TOOL = {
 };
 
 /* READABLE_COPY_CMD overrides the helper (tests use `cat` so runs never touch
- * the developer's real clipboard). clip.exe only accepts UTF-16LE. */
+ * the developer's real clipboard). clip.exe reads UTF-16LE; the text is encoded
+ * as bare UTF-16LE with NO BOM — a leading BOM (U+FEFF) is pasted as a literal
+ * zero-width character, which showed up as a stray glyph beside every copy and
+ * mangled Persian snippets (field bug on Windows). */
 function copyText(text) {
   const { spawnSync } = require('child_process');
   const env = process.env.READABLE_COPY_CMD;
@@ -284,7 +287,7 @@ function copyText(text) {
     process.platform === 'darwin' ? [['pbcopy']] :
     process.platform === 'win32' ? [['clip']] :
     [['wl-copy'], ['xclip', '-selection', 'clipboard'], ['xsel', '-ib']];
-  const input = !env && process.platform === 'win32' ? Buffer.from('﻿' + text, 'utf16le') : text;
+  const input = !env && process.platform === 'win32' ? Buffer.from(text, 'utf16le') : text;
   for (const [cmd, ...args] of cands) {
     const r = spawnSync(cmd, args, { input });
     if (!r.error && r.status === 0) return cmd;
@@ -384,28 +387,78 @@ function brandDirFor(explicit) {
   return null;
 }
 
+/* The letterhead is a .rc::before rule, so it ships INSIDE the brand css at
+ * runtime and costs the 30KB template ceiling nothing. The wordmark renders as
+ * the pseudo's text content; a logo rides as a data-URI — a currentColor mark
+ * uses -webkit-mask so it tints to the text color and theme-flips (logo-only
+ * case), otherwise a background-image keeps the mark's own colors. It sits at
+ * the very top of the card, above the title, and is invisible to every #card
+ * exporter (pseudo-elements never serialize), mirroring the report whose .brand
+ * header lives outside #card. Trusted (committed config) but hardened: the svg
+ * loses its xml prolog, comments, any <script>, every on*= handler and any
+ * javascript: url before it ever reaches the iframe. */
+function brandHeadCss(dir) {
+  let meta = {};
+  const mf = path.join(dir, 'brand.json');
+  try { if (fs.existsSync(mf)) meta = JSON.parse(fs.readFileSync(mf, 'utf8')); } catch (e) { meta = {}; }
+  const wordmark = String(meta.wordmark || meta.name || '');
+  let uri = '', mono = false;
+  const lf = path.join(dir, String(meta.logo || 'logo.svg'));
+  try {
+    if (fs.existsSync(lf) && path.extname(lf) === '.svg' && fs.statSync(lf).size <= 8 * 1024) {
+      const svg = fs.readFileSync(lf, 'utf8')
+        .replace(/<\?xml[^]*?\?>|<!--[^]*?-->|<script[^]*?<\/script>/gi, '')
+        .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+        .replace(/javascript:/gi, '').replace(/[\r\n\t]+/g, ' ').trim();
+      mono = /currentColor/i.test(svg);
+      uri = 'url("data:image/svg+xml,' + encodeURIComponent(svg).replace(/'/g, '%27') + '")';
+    }
+  } catch (e) { uri = ''; }
+  if (!wordmark && !uri) return '';
+  const label = '"' + wordmark.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  const bgPos = '.rc[dir=rtl]::before{background-position:right center}.rc[dir=ltr]::before{background-position:left center}';
+  if (uri && wordmark) {
+    return '.rc::before{content:' + label + ';display:block;font-weight:800;font-size:14.5px;line-height:24px;color:var(--text-primary);margin-bottom:14px;padding-inline-start:32px;background:' + uri + ' no-repeat;background-size:24px 24px}' + bgPos;
+  }
+  if (uri) {
+    if (mono) return '.rc::before{content:"";display:block;height:24px;margin-bottom:14px;background:var(--text-primary);-webkit-mask:' + uri + ' no-repeat center/24px;mask:' + uri + ' no-repeat center/24px}';
+    return '.rc::before{content:"";display:block;height:24px;margin-bottom:14px;background:' + uri + ' no-repeat left center/24px}.rc[dir=rtl]::before{background-position:right center}';
+  }
+  return '.rc::before{content:' + label + ';display:block;font-weight:800;font-size:14.5px;color:var(--text-primary);margin-bottom:12px}';
+}
+
 /* The css lands in a <style> tag inside the card iframe: '<' never appears in
  * valid CSS, so stripping it kills any </style> breakout. @import lines are
  * dropped except Google Fonts (the one host the iframe CSP is known to allow,
  * it already serves Vazirmatn/Inter), and bare [data-theme="dark"] selectors
  * are raised to html[data-theme="dark"] so they tie with the template palette
- * and win by source order. */
-function readBrand(dir) {
+ * and win by source order. The letterhead ::before rule rides along only when
+ * the brand has a logo/wordmark, so a plain palette brand pays nothing extra. */
+function brandParts(dir) {
   if (!brandDirOk(dir)) throw new Error('dir must be an absolute path to a project .readable dir containing brand.css');
   const p = path.join(dir, 'brand.css');
   const st = fs.statSync(p);
   if (st.size > BRAND_CSS_MAX) throw new Error('brand.css too large (max 16KB)');
-  const key = st.mtimeMs + ':' + st.size;
+  const mtime = (f) => { try { return fs.statSync(path.join(dir, f)).mtimeMs; } catch (e) { return 0; } };
+  const key = st.mtimeMs + ':' + st.size + ':' + mtime('brand.json') + ':' + mtime('logo.svg');
   const hit = brandCache.get(dir);
-  if (hit && hit.key === key) return hit.css;
+  if (hit && hit.key === key) return hit;
   let css = fs.readFileSync(p, 'utf8').replace(/</g, '');
   const imports = (css.match(/@import[^\n]+/g) || []).filter((l) => l.indexOf('fonts.googleapis') !== -1);
   css = css.replace(/@import[^\n]+/g, '');
   css = css.replace(/(^|[}\s,])\[data-theme=/g, '$1html[data-theme=');
   css = imports.concat([css]).join('\n');
-  brandCache.set(dir, { key, css });
-  return css;
+  const head = brandHeadCss(dir);
+  if (head) css += '\n' + head;
+  const parts = { key, css };
+  brandCache.set(dir, parts);
+  return parts;
 }
+
+/* One app-only call: read_brand returns the normalized palette css, with the
+ * letterhead ::before rule already folded in when the brand has one. The bridge
+ * mounts it as a late <style>; the model never sees it. */
+function readBrand(dir) { return brandParts(dir).css; }
 
 const EMAIL_PAL = {
   light: { tx: '#1f1f1f', sub: '#6f6f6a', ac: '#2f66c4', s1: '#ffffff', s2: '#f2f2ef', bd: '#dcdcd6', bs: '#b8b8b0', gok: '#e6f4ec', gac: '#e8effc', gwa: '#faf0d9', gda: '#fbe9e7' },
@@ -875,7 +928,7 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.13.0 file=' + __filename + '\n'); } catch (e) {}
+try { process.stderr.write('[readable-card] build 4.14.0 file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();

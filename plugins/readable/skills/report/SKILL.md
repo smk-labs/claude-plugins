@@ -24,6 +24,7 @@ If the project carries a `.readable/` brand layer (created by the `brand` skill:
 
 ## Hard rules
 
+- Open with the substance. NO cover-page preamble: never lead with an owner / subject / prepared-by / audience / date / status metadata block. The `<h2>` titles the report and the footer already stamps the date; the first real line is the answer itself.
 - Never restyle, "improve", or hand-write CSS; the template is the design. If the user wants a different look, point them to the `brand` skill (`/readable:brand`) — never hand-edit styles.
 - Content language decides `--lang`; mixed content follows the dominant language (the kit is BiDi-safe either way).
 - The report has a built-in light/dark toggle and print styles; PDF = open in browser and print. Do not add extra machinery.
