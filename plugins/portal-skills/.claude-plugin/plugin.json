@@ -1,0 +1,9 @@
+{
+  "name": "portal-skills",
+  "description": "Platform engineering and security skills: GitLab CI/CD + Helm chart generation for Kubernetes, data-driven pod rightsizing from Prometheus, a proactive secure-coding baseline, and a deep OWASP reference (Top 10:2025, LLM Top 10, Agentic AI).",
+  "version": "1.0.0",
+  "author": {
+    "name": "Seyed M. Keramati",
+    "url": "https://github.com/SMKeramati"
+  }
+}
