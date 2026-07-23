@@ -45,6 +45,13 @@
       "category": "engineering"
     },
     {
+      "name": "spring-clean",
+      "source": "./plugins/spring-clean",
+      "description": "Repo housekeeping as a disciplined workflow: measure, delete or gitignore what does not belong, split oversized files, draw package boundaries, and leave architecture tests so the mess never comes back.",
+      "version": "1.0.0",
+      "category": "engineering"
+    },
+    {
       "name": "tldr",
       "source": "./plugins/tldr",
       "description": "Bilingual English and Persian TL;DR summaries, written for product managers.",

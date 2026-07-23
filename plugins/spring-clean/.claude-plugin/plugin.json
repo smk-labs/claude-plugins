@@ -1,0 +1,9 @@
+{
+  "name": "spring-clean",
+  "description": "Repo housekeeping as a disciplined workflow: measure, delete or gitignore what does not belong, split oversized files, draw package boundaries, and leave architecture tests so the mess never comes back.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Seyed M. Keramati",
+    "url": "https://github.com/SMKeramati"
+  }
+}

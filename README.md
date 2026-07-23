@@ -34,6 +34,7 @@ For example, to install the fig plugin:
 | --- | --- | --- |
 | dev-agents | A ten-agent dev squad (architect, frontend, backend, devops, tester, reviewer and more) plus a browser-test command. | `/plugin install dev-agents@smk` |
 | multirepo-git | Branch and merge across multiple sub-repos with two commands: isolate and merge. | `/plugin install multirepo-git@smk` |
+| spring-clean | Repo housekeeping (خونه تکونی): delete dead surfaces, gitignore build artifacts, split huge files, draw package boundaries, and leave architecture tests that keep it clean. | `/plugin install spring-clean@smk` |
 
 ## Writing and Docs
 
