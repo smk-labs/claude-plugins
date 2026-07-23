@@ -1,6 +1,6 @@
 ---
 name: spring-clean
-description: Deep-clean and simplify a whole repo or codebase, then leave guardrails so it stays clean. Delete dead surfaces, gitignore build artifacts, relocate dev docs and notes to the project's workspace repo, split oversized files and functions, unify duplicated logic, draw package boundaries, and encode the rules as architecture tests. Use when the user asks to clean up, declutter, tidy, simplify, restructure, or modularize a repo, wants dev docs moved out of the code tree, says "spring clean", "housekeeping", "خونه تکونی", "تمیزکاری", "ساده‌سازی کدبیس", "ریپو رو مرتب کن", complains that the repo is a mess or a file is huge, or wants dead code removed and LoC reduced. Repo-scale work on the whole tree or a subtree, not a single diff.
+description: Deep-clean and simplify a whole repo or codebase, then leave guardrails so it stays clean. Delete dead surfaces, gitignore build artifacts, relocate dev docs, notes, clones and dumps to the project's workspace repo (the assistant-dev home base), split oversized files and functions, unify duplicated logic, draw package boundaries, run a clean-code pass (naming, function size, DRY, KISS, magic numbers, linter-warning burn-down), and encode the rules as architecture tests. Use when the user asks to clean up, declutter, tidy, simplify, restructure, or modularize a repo, asks for clean code or SOLID, wants dev docs moved out of the code tree, says "spring clean", "housekeeping", "خونه تکونی", "تمیزکاری", "کلین کد", "ساده‌سازی کدبیس", "ریپو رو مرتب کن", complains that the repo is a mess or a file is huge, or wants dead code removed and LoC reduced. Repo-scale work on the whole tree or a subtree, not a single diff.
 ---
 
 Spring-clean a repository the way خونه تکونی cleans a house before the new year: everything comes out, only what belongs goes back, and the house gets rules that keep it clean. The pass is net-negative and behavior-preserving. Success is fewer lines, fewer surfaces, identical behavior, and tests that stop the mess from regrowing. Calibration from one real three-day pass on a production TypeScript service: 409 files touched, 9,272 lines added, 70,666 deleted, entrypoint from 723 lines to 44.
@@ -14,8 +14,10 @@ Read-only inventory before any edit. On big repos, fan out explorer subagents fo
 - Dead surfaces: routes, panels, feature gates, scripts, CI jobs with no live caller. Check triggers too: a job whose only trigger was removed is dead even though its YAML looks alive.
 - Vendored code that has an upstream home, and eval/test plumbing riding inside production code paths.
 - Companion material living in the code tree: engineering docs, plan archives, audit reports, notes, research, prompts, QA evidence, assistant config (`.claude/`, `CLAUDE.md`). It helps development but is not shipped code.
+- The untracked working tree, not just tracked files. **Gitignored is not clean**: reference clones, raw data dumps, generated reports, and scratch folders hiding behind `.gitignore` are still mess. Inventory them like everything else. The only untracked thing a code repo may keep is runtime scratch the code itself recreates on demand, in one intention-revealing dir (`var/`, not `local/` or `tmp/` or `stuff/`).
 - Duplicated tables: the same retry policy, URL map, or constant list maintained in two places.
 - Import-graph smells: cycles, `../` imports crossing package lines, deep imports bypassing entry points, god files everyone imports.
+- Clean-code offenders in the worst files: meaningless names, functions doing several things, magic numbers, commented-out code, comments that restate the code.
 
 Output: an inventory where every item carries one verdict.
 
@@ -31,18 +33,30 @@ Output: an inventory where every item carries one verdict.
 
 ## The workspace repo
 
-Every project gets one sibling repo named `<project>-workspace`. One per project, not one per code repo: a multi-repo product (backend, frontend, agent service) shares a single workspace.
+Every project gets one sibling repo named `<project>-workspace`. One per project, not one per code repo: a multi-repo product (backend, frontend, agent service) shares a single workspace. The workspace is not an archive: it is **the home base for assistant-driven development**. Sessions start there and reach into the code repos for code.
 
-- Moves there: engineering docs and handoffs, plan archives, audit reports, notes, research, references, prompts, QA evidence, and assistant config (`.claude/`, `CLAUDE.md`) that the build does not read.
-- Stays in the code repo: whatever the build, CI, or the next code commit needs. README, ARCHITECTURE.md, KNOWN-ISSUES, LICENSE, CI and deploy configs. The boundary test: if the code changes, must this file change in the same branch? Then it stays. If only humans read it across time, it moves.
-- Leave a one-line pointer in the main README so newcomers find the workspace. If assistant sessions run inside the code repo, a thin `CLAUDE.md` pointing at the workspace is fine.
-- Real pass: one commit removed the whole `docs/` tree (engineering handoffs, plan archives, done-plans) from a service repo; the markdown that stayed was exactly the code-locked set above.
+- Moves there: engineering docs and handoffs, plan archives, audit reports, notes, research, references, prompts, QA evidence, generated reports, and assistant config that the build does not read. Reference repo clones and raw data dumps also live under the workspace, gitignored **there** (re-clonable or PII-bearing, disk-only), never in the code tree.
+- Stays in the code repo: whatever the build, CI, or the next code commit needs. README, ARCHITECTURE.md, KNOWN-ISSUES, LICENSE, CI and deploy configs. The boundary test: if the code changes, must this file change in the same branch? Then it stays. If only humans read it across time, it moves. End state: the code repo is code, minimal code-locked docs, and CI. Nothing else.
+- The full `CLAUDE.md` (project context, layout, conventions, gates) lives in the workspace. The code repo gets a thin `CLAUDE.md` that says what the repo is and points at the workspace. Leave the same one-line pointer in the main README.
+- Real pass: one commit removed the whole `docs/` tree (engineering handoffs, plan archives, done-plans) from a service repo; the markdown that stayed was exactly the code-locked set above. A second pass moved four reference clones (13k files) and a PII scratch dir out of the code repo's untracked tree into the workspace.
 
 ## Phase 1: execute in slices
 
-Safest first: (1) dead deletions, (2) artifact ignores, (3) workspace relocations, (4) unifications, (5) splits and boundaries. One branch per concern, one commit per slice, full gate (typecheck, tests, lint) between slices, merge fast. A long-lived refactor branch is a merge-conflict farm.
+Safest first: (1) dead deletions, (2) artifact ignores, (3) workspace relocations, (4) unifications, (5) splits and boundaries, (6) the clean-code pass. One branch per concern, one commit per slice, full gate (typecheck, tests, lint) between slices, merge fast. A long-lived refactor branch is a merge-conflict farm.
 
 Defects found along the way get fixed in the same branch and named in the commit ("... and fix three defects"), never smuggled inside a refactor diff.
+
+## The clean-code pass
+
+Structure alone is not clean. After the moves and splits, apply the classic rules to the code the pass touched and to the worst offenders repo-wide, still behavior-preserving:
+
+- **Names reveal intent**, for everything with a name: variables, functions, files, directories, env knobs. `w1-replay.sh` beats `replay.sh`; `var/` beats `local/`. If a name needs a comment, rename instead.
+- **Functions do one thing**, 20 to 40 lines; more than 3 parameters becomes one args object. Splitting a function means naming its stages, not just moving lines.
+- **DRY** one source of truth per fact; **KISS/YAGNI** the simplest thing that works, no speculative hooks (dormant "future fallback" code is a Delete verdict, not a Keep).
+- **No magic numbers or strings**: named constants next to their capability.
+- **Comments say why, never what.** Delete commented-out code and comments that restate the line below; keep the ones carrying a constraint or consequence.
+- **Linter warnings burn down like the size ledger**: fix every mechanically safe one, suppress the rest one by one with the reason inline, and record the remaining count so it only shrinks. A warning wall nobody reads is debt with no ledger.
+- **Boy-scout rule** as standing policy after the pass: every future edit leaves the file cleaner than it found it.
 
 ## The target shape
 
@@ -75,3 +89,5 @@ Architecture lives in failing tests, not in docs or conventions that drift:
 - Deleting knowledge that belongs in the workspace repo. If it would help the next developer, relocate it, don't trash it.
 - Behavior changes hiding inside refactor commits.
 - Caps enforced by review or convention instead of a failing test.
+- Calling the repo clean while gitignored piles (clones, dumps, scratch) still sit in its working tree.
+- A "cleanup" that reorganizes files but leaves 150-line functions, magic numbers, and dead knobs in place.
