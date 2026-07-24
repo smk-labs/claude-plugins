@@ -35,8 +35,8 @@ Output: an inventory where every item carries one verdict.
 
 Every project gets one sibling repo named `<project>-workspace`. One per project, not one per code repo: a multi-repo product (backend, frontend, agent service) shares a single workspace. The workspace is not an archive: it is **the home base for assistant-driven development**. Sessions start there and reach into the code repos for code.
 
-- Moves there: engineering docs and handoffs, plan archives, audit reports, notes, research, references, prompts, QA evidence, generated reports, and assistant config that the build does not read. Reference repo clones and raw data dumps also live under the workspace, gitignored **there** (re-clonable or PII-bearing, disk-only), never in the code tree.
-- Stays in the code repo: whatever the build, CI, or the next code commit needs. README, ARCHITECTURE.md, KNOWN-ISSUES, LICENSE, CI and deploy configs. The boundary test: if the code changes, must this file change in the same branch? Then it stays. If only humans read it across time, it moves. End state: the code repo is code, minimal code-locked docs, and CI. Nothing else.
+- Moves there: engineering docs and handoffs, plan archives, audit reports, notes, research, references, prompts, QA evidence, generated reports, and assistant config that the build does not read. Design contracts, principles and living checklists move too — code comments cite their workspace path. Reference repo clones and raw data dumps also live under the workspace, gitignored **there** (re-clonable or PII-bearing, disk-only), never in the code tree.
+- Stays in the code repo: only what the build or CI literally reads, plus README, LICENSE, and deploy configs. The boundary test: does a machine consume this file? Then it stays. If only humans (or the assistant) read it, it moves — "the code cites it" is a pointer, not a residency permit. End state: the code repo is code, README, CI/deploy. Nothing else.
 - The full `CLAUDE.md` (project context, layout, conventions, gates) lives in the workspace. The code repo gets a thin `CLAUDE.md` that says what the repo is and points at the workspace. Leave the same one-line pointer in the main README.
 - Real pass: one commit removed the whole `docs/` tree (engineering handoffs, plan archives, done-plans) from a service repo; the markdown that stayed was exactly the code-locked set above. A second pass moved four reference clones (13k files) and a PII scratch dir out of the code repo's untracked tree into the workspace.
 
@@ -59,6 +59,14 @@ Structure alone is not clean. After the moves and splits, apply the classic rule
 - **Boy-scout rule** as standing policy after the pass: every future edit leaves the file cleaner than it found it.
 
 ## The target shape
+
+Repo root first — these are defaults, not judgment calls:
+
+- **A single-service repo hosts the service at its root.** `server.ts`, `src`/`modules`, `package.json`, Dockerfile, compose all at top level. A repo whose only content sits inside `<repo>/service/` (or `app/`, `backend/`) is nesting for no reader. Only a genuinely multi-service repo gets per-service dirs.
+- **Deploy config is one directory.** CI file at root (the platform requires it); everything else deploy-shaped — runbook, helm charts, k8s manifests, terraform — under `deploy/`. Not `helm/` as a root sibling.
+- **Docs in the code repo default to zero.** README plus a thin `CLAUDE.md` pointer, and that is the target. Even "law" and "contract" docs live in the workspace; code comments cite the workspace path (`<project>-workspace/docs/...`). When the boundary test feels arguable, the doc moves.
+
+Inside the code:
 
 - Entrypoint is boot only. Routing and handlers live in their own package; the real pass took `server.ts` from 723 lines to 44.
 - Capability packages: `modules/<name>/` with `index.ts` as the sole public entry. Big peers stay flat next to `modules/`, not nested inside.
@@ -91,3 +99,5 @@ Architecture lives in failing tests, not in docs or conventions that drift:
 - Caps enforced by review or convention instead of a failing test.
 - Calling the repo clean while gitignored piles (clones, dumps, scratch) still sit in its working tree.
 - A "cleanup" that reorganizes files but leaves 150-line functions, magic numbers, and dead knobs in place.
+- A single-service repo still nesting its code one directory deep, or deploy config scattered across root siblings (`helm/` next to `deploy/`).
+- Keeping a doc in the code repo because code comments cite it. Citations follow the doc to the workspace.
