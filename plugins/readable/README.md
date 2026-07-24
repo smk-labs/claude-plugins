@@ -35,9 +35,9 @@ Ask "show me", "visualize this", "با شکل نشون بده" and Claude turns 
 
 ## 3. card MCP server (experimental, opt-in)
 
-The endgame for token cost: the model sends only content and never outputs CSS at all. [mcp/server.js](mcp/server.js) is a zero-dependency MCP Apps server (SEP-1865) with one tool, `card`: input is building-block HTML, and the host renders it inside a predeclared `ui://readable/card.html` template that carries the whole kit plus its own light/dark palette (host CSS variables do not reach inside the MCP Apps iframe).
+The endgame for token cost: the model sends only content and never outputs CSS at all. [server/server.js](server/server.js) is a zero-dependency MCP Apps server (SEP-1865) with one tool, `card`: input is building-block HTML, and the host renders it inside a predeclared `ui://readable/card.html` template that carries the whole kit plus its own light/dark palette (host CSS variables do not reach inside the MCP Apps iframe).
 
-- Protocol-tested: `node plugins/readable/mcp/test.js` runs a 97-check JSON-RPC exchange, including capability negotiation (`io.modelcontextprotocol/ui`), the `roots/list` save-dir handshake, template mime `text/html;profile=mcp-app`, `_meta.ui.resourceUri` linkage, and the no-UI-host fallback (tool answer tells the model to fall back and re-deliver as text/widget).
+- Protocol-tested: `node plugins/readable/server/test.js` runs a 97-check JSON-RPC exchange, including capability negotiation (`io.modelcontextprotocol/ui`), the `roots/list` save-dir handshake, template mime `text/html;profile=mcp-app`, `_meta.ui.resourceUri` linkage, and the no-UI-host fallback (tool answer tells the model to fall back and re-deliver as text/widget).
 - Template-tested: the bridge (`ui/initialize` → `ui/notifications/tool-input` → `ui/notifications/size-changed`) renders the card correctly in a sandboxed iframe; CTA buttons map `sendPrompt()` onto `ui/message`.
 - Production-verified (2026-07): Claude Desktop chat negotiates `mcp-apps=YES` for local servers and renders the card inline, light and dark.
 - Since 4.5.0 the plugin does NOT register the server itself. Root cause (field-debugged 2026-07): only the desktop app's own MCP client (`claude_desktop_config.json`) negotiates MCP Apps; servers spawned by the Claude Code CLI (plugin `mcpServers`, project `.mcp.json`, user scope) connect as `client=claude-code, mcp-apps=NO`, so their cards render as raw tool rows inside the grouped-tools container. Worse, a duplicate registration exposes two same-named `card` tools and the model picks one at random, which surfaced as "the widget sometimes does not render". One registration, the right one: `claude_desktop_config.json` (global to every project's desktop session); with multiple profiles, [claude-sync](https://github.com/smk-labs/claude-sync) v2.2+ propagates that entry everywhere.
@@ -71,19 +71,21 @@ Limits, honestly: already-rendered cards don't re-brand; hosted Claude Desktop (
 /plugin install readable@smk
 ```
 
-Then register the card server once in `~/Library/Application Support/Claude/claude_desktop_config.json` (the only MCP client that renders MCP Apps widgets; point it at a stable checkout of this repo, since the marketplace cache path changes on every version):
+That's it. On the first session the plugin's `setup.sh` hook copies the server to a stable dir (`~/.claude/plugins/data/readable/server/`, immune to cache-path churn on updates) and registers it in the Claude desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\` on Windows) — the only registration path that renders MCP Apps widgets. Restart the app once after that first session and cards are live. A healthy existing `readable-card` entry (e.g. a dev override pointing at a checkout) is never rewritten.
+
+Manual fallback, same shape the hook writes:
 
 ```json
 "readable-card": {
   "command": "node",
-  "args": ["/absolute/path/to/claude-plugins/plugins/readable/mcp/server.js"]
+  "args": ["/Users/you/.claude/plugins/data/readable/server/server.js"]
 }
 ```
 
-Restart the session after installing (the rule loads at session start). Do NOT also add the server to plugin `mcpServers`, a project `.mcp.json`, or `claude mcp add`: those spawn a duplicate that cannot render widgets, and the model may pick it.
+Do NOT add the server to plugin `mcpServers`, a project `.mcp.json`, or `claude mcp add`: those spawn a plugin-scoped duplicate that cannot render widgets, and the model may pick it.
 
 ## Requirements and scope
 
 - A client that runs Claude Code plugins and has the `mcp__visualize__show_widget` tool (Claude Desktop / Cowork). Without that tool, the rule falls back to BiDi-safe plain text.
-- No dependencies of any kind: the only hook is a `cat` of the rule at session start. No Python, no Node, no network.
+- No dependencies beyond Node, which the card server needs to run anyway (the setup hook uses the same Node once to write the config entry). No Python, no network.
 - readable styles Claude's replies. It does not change how the app renders the text you type; that is what [claude-rtl](https://github.com/smk-labs/claude-rtl) fixes at the app level.

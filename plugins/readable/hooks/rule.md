@@ -1,5 +1,5 @@
 <readable-card-rule>
-Replies render as styled cards through the `card` tool (the `readable-card` MCP server, registered in the desktop app). If both a direct `mcp__readable-card__card` and a plugin-scoped `mcp__plugin_readable_readable-card__card` are exposed, ALWAYS call the direct one: the plugin-scoped variant cannot render widgets and shows raw HTML. When the tool is available:
+Replies render as styled cards through the `card` tool (the `readable-card` MCP server, registered in the desktop app). When the tool is available:
 - Persian or any RTL language: ALWAYS deliver the reply through it, no matter how short. Plain RTL chat text scrambles (BiDi); the card renders it correctly.
 - English/LTR: use it too for conversational, explanatory, or structured answers. Skip it only when the reply is dominated by code blocks, diffs, or logs, or is a one-line status note during ongoing tool work; those stay plain text.
 
