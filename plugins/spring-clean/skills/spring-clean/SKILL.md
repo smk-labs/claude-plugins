@@ -65,6 +65,8 @@ Repo root first — these are defaults, not judgment calls:
 - **A single-service repo hosts the service at its root.** `server.ts`, `src`/`modules`, `package.json`, Dockerfile, compose all at top level. A repo whose only content sits inside `<repo>/service/` (or `app/`, `backend/`) is nesting for no reader. Only a genuinely multi-service repo gets per-service dirs.
 - **Deploy config is one directory.** CI file at root (the platform requires it); everything else deploy-shaped — runbook, helm charts, k8s manifests, terraform — under `deploy/`. Not `helm/` as a root sibling.
 - **Docs in the code repo default to zero.** README plus a thin `CLAUDE.md` pointer, and that is the target. Even "law" and "contract" docs live in the workspace; code comments cite the workspace path (`<project>-workspace/docs/...`). When the boundary test feels arguable, the doc moves.
+- **Source lives in `src/`, and structural directories get conventional names, not codenames.** `brain/`, `core/`, `engine/` are branding; `src/` is information. Map the import alias into it (`@/*` → `src/*`) so specifiers stay `@/modules/...` with no extra noise. Vendored-path mirroring with an upstream repo is a sed away, not a reason to keep the codename.
+- **Runtime content is not source.** Knowledge corpora, prompt files, and other data the code loads at runtime sit at the repo root (`knowledge/`, `prompts/`), not inside `src/`; every asset path anchors in one path module so a move is a one-file change.
 
 Inside the code:
 
