@@ -23,6 +23,10 @@ html,body{margin:0;background:var(--page-bg)}
 .rbar button:hover{border-color:var(--text-accent);color:var(--text-accent)}
 .rbar svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .rbar button.ok{color:var(--text-accent);border-color:var(--text-accent)}
+/* The shared menu (assets/menu.js) installs itself on the card's own end corner at 8px; in a report it belongs beside the theme toggle, one toggle-width in (16+34+12). The toggle follows the ROOT dir, so the menu's side is read from <html dir> here, not from menu.js's #card sibling rule (#card is nested in .wrap, so that rule never matches in a report). Higher specificity than menu.js's #rcmenu rules, so it wins whichever <style> is appended last. */
+html[dir=ltr] #rcmenu{top:16px;right:62px}
+html[dir=rtl] #rcmenu{top:16px;left:62px;right:auto}
+html[dir=rtl] #rcmenu .items{left:0;right:auto}
 @media print{.theme-toggle,.rbar,#rcmenu,#rctoast,#rccp{display:none}html,body{background:#fff}.rc{border:none;padding:0}.wrap{max-width:none;padding:0}}
 </style>
 <style>
@@ -111,12 +115,6 @@ window.__rcEmail = function (cb) {
     if (prev) root.setAttribute('data-theme', prev); else root.removeAttribute('data-theme');
   }
 };
-/* The menu installs itself top-right for the chat card iframe; in the report it
-   sits next to the theme toggle (same inline-end side in both directions). */
-(function () {
-  var m = document.getElementById('rcmenu');
-  if (m) m.style.cssText = 'top:16px;right:auto;inset-inline-end:62px';
-})();
 /* Copy + PDF one-click buttons. Copy reuses the menu's clipText bridge
    (window.__rcCopy) so the report's copy path is identical to the menu's;
    PDF is just the browser print dialog on this real, standalone page. */

@@ -119,6 +119,15 @@ function check(name, cond) {
   // guarantee: the <pre> branch returns BEFORE the menu-rail line, so the menu
   // holds still while the pointer is over a block that has its own button.
   check('both export controls ride the pointer, so a tall card exports from any height (4.15.0)', html.includes("addEventListener('mousemove'") && !html.includes("addEventListener('mouseover'") && html.includes('Math.min(e.clientX,innerWidth-e.clientX)<70') && html.includes("menu.className.indexOf('open')<0") && html.includes('Math.min(innerHeight-40,y-15)') && html.includes('Math.min(r.bottom+scrollY-35,y+scrollY-15)') && html.includes("cpBtn.style.display='flex';return}"));
+  // 4.16.0: #rcmenu forces direction:ltr on ITSELF so its dots and labels never
+  // mirror, which also makes inset-inline-end resolve to the physical right
+  // always. 4.14.0's "sits where lines end, both directions" was therefore true
+  // only in LTR, and every Persian card wore the dots on top of its title. The
+  // side is now a physical right flipped by a #card[dir=rtl] sibling rule. The
+  // kit's own inset-inline-* rules live on .rc, which DOES follow the card's
+  // direction, so the ban below is scoped to #rcmenu rule bodies.
+  check('the menu takes the corner where the card\'s lines END in BOTH directions: physical right, flipped by #card[dir=rtl] (4.16.0)', html.includes('#rcmenu{position:fixed;top:8px;right:8px;z-index:9}') && html.includes('#card[dir=rtl]~#rcmenu{left:8px;right:auto}') && !/#rcmenu[^}]*inset-inline/.test(html));
+  check('the dropdown flips with the dots, so a left-side menu opens inward instead of past the viewport edge (4.16.0)', html.includes('#rcmenu .items{display:none;position:absolute;right:0;') && html.includes('#card[dir=rtl]~#rcmenu .items{left:0;right:auto}'));
   check('template stays under the host resource-size ceiling (' + html.length + 'B of 30000)', html.length < 30000);
   check('template applies project brands via read_brand (4.13.0)', html.includes("name:'read_brand'") && html.includes("id='rcbrand'") && html.includes('if(a.brand)bApply(a.brand)') && html.includes('if(s.brand)bApply(s.brand)'));
   check('saves go through save_card then ui/download-file', html.includes("name:'save_card'") && html.includes('ui/download-file'));
@@ -377,6 +386,18 @@ function check(name, cond) {
   check('multi-root: an explicit brand dir still wins', mr[12].result.structuredContent.brand === path.join(MR_B, '.readable'));
   check('lone root resumes auto-branding after roots/list_changed', mr[13].result.structuredContent.brand === path.join(MR_B, '.readable'));
   srv4.kill();
+
+  // 8d. report shell: the OTHER host of the same assets/menu.js. Its #card is
+  // nested inside .wrap, so menu.js's #card[dir=rtl] sibling flip cannot reach
+  // it, and the report seats the menu beside the theme toggle instead of on the
+  // card corner, so the shell owns its own side, read off the ROOT dir. Until
+  // 4.16.0 that seat was an inline inset-inline-end on a direction:ltr element,
+  // i.e. always physical right: in a Persian report (toggle on the left, the
+  // Copy/PDF bar on the right) the dots landed 28px on top of the Copy button.
+  const shell = fs.readFileSync(path.join(__dirname, '..', 'skills', 'report', 'assets', 'shell.html'), 'utf8');
+  check('report seats the menu beside the theme toggle, on whichever side the ROOT dir puts it (4.16.0)', shell.includes('html[dir=ltr] #rcmenu{top:16px;right:62px}') && shell.includes('html[dir=rtl] #rcmenu{top:16px;left:62px;right:auto}') && shell.includes('html[dir=rtl] #rcmenu .items{left:0;right:auto}'));
+  check('report no longer pins the menu inline with a logical inset (a direction:ltr element cannot see the page dir)', !shell.includes('inset-inline-end:62px') && !shell.includes('m.style.cssText'));
+  check('report keeps the theme toggle and the Copy/PDF bar on opposite logical corners', shell.includes('.theme-toggle{position:fixed;top:16px;inset-inline-end:16px') && shell.includes('.rbar{position:fixed;top:16px;inset-inline-start:16px'));
 
   // 7. fallback path: a second server WITHOUT ui capability gets the fallback note
   const srv2 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'] });

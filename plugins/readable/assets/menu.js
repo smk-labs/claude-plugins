@@ -9,11 +9,16 @@
 /* Self-installing: injects its own CSS, menu DOM (#rcmenu) and toast (#rctoast) into the page; needs #card to exist. */
 (function(){
 var CSS='#rcmenu,#rctoast{font-family:system-ui,sans-serif;direction:ltr}'+
-/* Menu lives on the inline-END corner (line ends), never the inline-START where the title and brand logo anchor, so the dots never sit on top of the heading in either direction (RTL title on the right, LTR title on the left). */
-'#rcmenu{position:fixed;top:8px;inset-inline-end:8px;z-index:9}'+
+/* The menu takes the corner where the card's lines END, so the dots never land on the heading: an LTR title anchors left so the menu goes right, an RTL title (and the brand letterhead) anchors right so the menu goes left. */
+/* That side is read off #card, never off a logical inset. #rcmenu forces direction:ltr on ITSELF (its dots and labels must not mirror), and inset-inline-* resolves against the element's own writing mode, so inset-inline-end was always physical right. 4.14.0 claimed both directions on that basis and only ever worked in LTR: every Persian card wore the dots on top of its title (field bug, fixed 4.16.0). Physical right plus a #card[dir=rtl] flip says what it actually does. */
+/* Sibling combinator: #rcmenu is appended to <body>, where the chat template's #card is the other child. The standalone report nests #card inside .wrap, so this never matches there; shell.html sets the report's side off the ROOT dir instead, keeping the menu beside the theme toggle. */
+'#rcmenu{position:fixed;top:8px;right:8px;z-index:9}'+
+'#card[dir=rtl]~#rcmenu{left:8px;right:auto}'+
 '#rcmenu .dots{width:30px;height:30px;border-radius:8px;border:.5px solid var(--border);background:var(--surface-2);color:var(--text-secondary);cursor:pointer;font-size:16px;line-height:1;opacity:.4;padding:0}'+
 '#rcmenu:hover .dots,#rcmenu.open .dots{opacity:1}'+
-'#rcmenu .items{display:none;position:absolute;inset-inline-end:0;top:34px;background:var(--surface-1);border:.5px solid var(--border-strong);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.28)}'+
+'#rcmenu .items{display:none;position:absolute;right:0;top:34px;background:var(--surface-1);border:.5px solid var(--border-strong);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.28)}'+
+/* The panel hangs off the dots' outer edge, so it has to flip with them: anchored right on a left-side menu it would open past the viewport edge and clip. */
+'#card[dir=rtl]~#rcmenu .items{left:0;right:auto}'+
 '#rcmenu.open .items{display:block}'+
 '#rcmenu .row{display:flex;align-items:center;border-radius:8px;padding:2px 4px}'+
 '#rcmenu .row:hover{background:var(--surface-2)}'+

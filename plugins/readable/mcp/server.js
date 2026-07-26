@@ -1016,7 +1016,28 @@ function write(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-try { process.stderr.write('[readable-card] build 4.14.1 file=' + __filename + '\n'); } catch (e) {}
+/* The banner exists to say WHICH build the host loaded, so its version is read
+ * off the manifest, never typed in. As a literal it drifted: it still said
+ * 4.14.1 after 4.15.0 shipped, i.e. it lied exactly when you reach for it.
+ * Same layout probe as KIT_CANDIDATES/MENU_CANDIDATES, except existence is not
+ * enough here (a file can be present and unparsable), so each candidate is
+ * tried through the parse; the .mcpb manifest carries `version` too, so one
+ * field name covers both layouts. */
+const VERSION_CANDIDATES = [
+  path.join(__dirname, '..', '.claude-plugin', 'plugin.json'), // plugin layout
+  path.join(__dirname, 'manifest.json'), // bundled layout (.mcpb extension)
+];
+function readVersion() {
+  for (const p of VERSION_CANDIDATES) {
+    try {
+      const v = JSON.parse(fs.readFileSync(p, 'utf8')).version;
+      if (v) return String(v);
+    } catch (e) { /* absent or unparsable: try the next layout */ }
+  }
+  return 'unknown';
+}
+
+try { process.stderr.write('[readable-card] build ' + readVersion() + ' file=' + __filename + '\n'); } catch (e) {}
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   line = line.trim();
