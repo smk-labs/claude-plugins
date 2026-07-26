@@ -227,6 +227,105 @@ def has_persian(s: str) -> bool:
     return bool(re.search(P, s))
 
 
+# ---------------------------------------------------------------------------
+# Texture: does this read like a person wrote it, or like a machine filled a
+# word count? Thresholds below are calibrated against a real corpus, not
+# invented: a published human-written article from the target site scored
+# CV 0.61, openers 0.12, phrases 0.04, while seven frontier models scored
+# CV 0.17-0.44, openers 0.31-0.43, phrases 0.04-0.26. The worst offender was
+# the model a human reviewer independently described as "metronomic".
+# ---------------------------------------------------------------------------
+
+# Closing sentences that say nothing. Machines end every section with one.
+EMPTY_CLOSERS = [
+    "بستگی دارد", "به سلیقه تو", "همه چیز به", "در نهایت انتخاب",
+    "انتخاب با توست", "تصمیم با خودت", "امیدواریم این مطلب",
+]
+
+
+def prose_sentences(masked: str) -> list[str]:
+    """Body sentences only: no headings, list items, or table rows."""
+    t = re.sub(r"^#.*$", "", masked, flags=re.M)
+    t = re.sub(r"^\s*[-*|>].*$", "", t, flags=re.M)
+    out = []
+    for s in re.split(r"[.؟!\n]+", t):
+        s = s.strip()
+        if len(re.findall(r"[" + PERSIAN + r"]+", s)) >= 4:
+            out.append(s)
+    return out
+
+
+# Rhythm needs a real sample. Measured on the target site: articles run 19-40
+# body sentences and spread CV 0.33-0.59, while product pages run 12-14 and
+# cluster at 0.30 — not because they are robotic but because short product copy
+# is genuinely more uniform, and CV is noisy at n=12. Judging them by the
+# article yardstick flagged 29 of 79 good pages. Repetition counts survive at
+# lower n, so they keep the smaller gate.
+RHYTHM_MIN_SENTENCES = 18
+REPETITION_MIN_SENTENCES = 12
+
+
+def texture(masked: str, path: str) -> list[dict]:
+    """Flag machine-shaped prose. Silent on text too short to judge."""
+    ss = prose_sentences(masked)
+    if len(ss) < REPETITION_MIN_SENTENCES:
+        return []
+
+    import collections
+    import statistics
+
+    def f(rule, level, message, fix):
+        return {"rule": rule, "level": level, "line": 1, "col": 1, "file": path,
+                "text": "کل متن", "message": message, "fix": fix}
+
+    out: list[dict] = []
+
+    if len(ss) >= RHYTHM_MIN_SENTENCES:
+        lengths = [len(re.findall(r"[" + PERSIAN + r"]+", s)) for s in ss]
+        mean = statistics.mean(lengths)
+        cv = statistics.pstdev(lengths) / mean if mean else 0
+        if cv < 0.30:
+            out.append(f("rhythm-robotic", "error",
+                         f"ریتم جمله‌ها یکنواخت است (CV={cv:.2f}؛ انسان حدود ۰٫۶)",
+                         "جمله کوتاه و بلند را قاطی کن. یک جمله سه کلمه‌ای بگذار."))
+        elif cv < 0.40:
+            out.append(f("rhythm-flat", "warn",
+                         f"تنوع طول جمله کم است (CV={cv:.2f})",
+                         "چند جمله را کوتاه‌تر و چند تا را بلندتر کن."))
+
+    first = collections.Counter(s.split()[0] for s in ss if s.split())
+    dup = sum(v - 1 for v in first.values() if v > 1)
+    rate = dup / len(ss)
+    if rate > 0.25:
+        top = ", ".join(f"«{w}» {c} بار" for w, c in first.most_common(2) if c > 1)
+        lvl = "error" if rate > 0.40 else "warn"
+        out.append(f("repeated-openers", lvl,
+                     f"جمله‌ها با واژه‌های تکراری شروع می‌شوند ({top})",
+                     "شروع جمله‌ها را عوض کن."))
+
+    grams: collections.Counter = collections.Counter()
+    for s in ss:
+        w = re.findall(r"[" + PERSIAN + r"]+", s)
+        for i in range(len(w) - 3):
+            grams[" ".join(w[i:i + 4])] += 1
+    rep = {k: v for k, v in grams.items() if v > 1}
+    extra = sum(rep.values()) - len(rep)
+    if rep and extra / len(ss) > 0.08:
+        worst = max(rep.items(), key=lambda kv: kv[1])
+        lvl = "error" if extra / len(ss) > 0.15 else "warn"
+        out.append(f("repeated-phrases", lvl,
+                     f"عبارت تکراری: «{worst[0]}» {worst[1]} بار",
+                     "یک بار بگو. تکرار، متن را ماشینی می‌کند."))
+
+    for closer in EMPTY_CLOSERS:
+        if closer in masked:
+            out.append(f("empty-closer", "warn",
+                         f"جمله پایانی توخالی: «{closer}»",
+                         "یا حرف تازه‌ای بزن یا حذفش کن."))
+            break
+    return out
+
+
 def long_sentences(text: str, limit: int = 26):
     """Yield (offset, word_count) for sentences longer than `limit` words."""
     for m in re.finditer(r"[^.؟!\n]+", text):
@@ -260,6 +359,7 @@ def lint(text: str, path: str) -> list[dict]:
             found.append({"rule": rid, "level": level, "line": line, "col": col,
                           "text": frag[:40], "message": msg, "fix": fix,
                           "file": path})
+    found += texture(masked, path)
     for off, n in long_sentences(masked):
         line, col = pos(off)
         found.append({"rule": "long-sentence", "level": "warn", "line": line,
