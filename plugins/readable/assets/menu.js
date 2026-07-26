@@ -1,6 +1,6 @@
 /* readable card menu - single source of truth for the 5x2 copy/download matrix (Image, Email, HTML, Markdown, Text). */
 /* Consumed by BOTH hosts: */
-/*   - mcp/server.js inlines it into the ui:// card template (comment lines dropped, rest joined with no separator; the host's ~30KB resource ceiling applies, keep it lean) */
+/*   - server/server.js inlines it into the ui:// card template (comment lines dropped, rest joined with no separator; the host's ~30KB resource ceiling applies, keep it lean) */
 /*   - skills/report/build.py inlines it into the standalone report shell */
 /* STYLE CONTRACT: one complete statement (or string-concat chunk) per line; block comments alone on their own lines; no // comments; no blank lines. */
 /* HOST ADAPTERS looked up on window at click time (define them anywhere): */

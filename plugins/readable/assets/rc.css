@@ -1,6 +1,6 @@
 /* readable kit - single source of truth.
    BASE = always in every card; sections marked @TAG are pay-per-use component snippets.
-   The @REPORT tail is report tier (report skill, hosted kit, inline snippets): mcp/server.js
+   The @REPORT tail is report tier (report skill, hosted kit, inline snippets): server/server.js
    cuts the sheet at that marker so the chat card template stays under the host's 30KB
    resource ceiling, and the chat rule does not offer those variants. */
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
@@ -69,7 +69,7 @@
 /*@CTA*/
 .rc .cta{display:inline-flex;align-items:center;gap:6px;background:var(--text-accent);color:var(--surface-1);border:none;border-radius:9px;padding:7px 15px;font-family:inherit;font-size:1em;font-weight:700;cursor:pointer;margin-top:.4em}.rc .cta::after{content:'←';font-weight:400}.rc .cta:hover{opacity:.88}
 .rc .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:.6em}.rc .cta.ghost{background:transparent;color:var(--text-accent);border:1px solid var(--border-strong)}
-/*@REPORT - report tier from here down: components the chat rule does not offer (dense stat variants + donut) plus print rules (an MCP iframe never prints), for the report skill, hosted kit, and inline snippets. NOT in the chat card template (mcp/server.js cuts the sheet at this marker, 30KB host ceiling).*/
+/*@REPORT - report tier from here down: components the chat rule does not offer (dense stat variants + donut) plus print rules (an MCP iframe never prints), for the report skill, hosted kit, and inline snippets. NOT in the chat card template (server/server.js cuts the sheet at this marker, 30KB host ceiling).*/
 @media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}.rc .scroll-table.wide table{width:100%;white-space:normal}}
 .rc table.zebra tbody tr:nth-child(2n) td{background:var(--surface-2)}
 .rc table.zebra tbody tr:hover td{background:var(--border)}
