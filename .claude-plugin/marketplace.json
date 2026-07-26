@@ -87,6 +87,13 @@
       "category": "engineering"
     },
     {
+      "name": "cursor-copy-writing-fa",
+      "source": "./plugins/cursor-copy-writing-fa",
+      "description": "Persian web copy (blog articles, product descriptions, landing pages, microcopy, SEO meta) written by Cursor workers on the Cursor subscription's quota, with Claude holding the brief and the acceptance gate. Model routing is measured, not guessed: a seven-model bake-off showed Opus 5 writes the best Persian prose, GPT-5.6 Sol is the sharpest proofreader, and free auto is fine for bulk drafts, so each stage goes to the model that won it. Ships fa-lint, a dependency-free Persian copy linter that enforces ZWNJ, Persian punctuation and digits, administrative words, ad clichés and voice as a real exit code.",
+      "version": "1.0.0",
+      "category": "content"
+    },
+    {
       "name": "daily-tools",
       "source": "./plugins/daily-tools",
       "description": "Everyday Persian-first helpers: four-phase swarm QA campaigns (swarm-qa), copy-ready prompt writing (mkprompt), light multi-agent research (mini-research), plain-language step-by-step guides (steps), and ultra-terse resume-and-continue (go).",
