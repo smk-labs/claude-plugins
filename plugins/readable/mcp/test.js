@@ -111,12 +111,19 @@ function check(name, cond) {
   check('open menu grows the iframe (fixed menu never enters scrollHeight)', html.includes('W.__rcFit=fit') && html.split('W.__rcFit()').length === 3);
   const scriptSrc = html.split('<script>')[1].split('</script>')[0];
   check('squeezed template script still parses (assembly squeeze is syntax-safe)', (() => { try { new Function(scriptSrc); return true; } catch (e) { return false; } })());
-  check('squeeze hoists the host-object globals + DOM-method helpers once, and each long form survives only in its helper def', scriptSrc.indexOf('var D=document,W=window,CE=function') === 0 && !scriptSrc.includes('document.') && !scriptSrc.includes('window.') && (scriptSrc.match(/querySelectorAll/g) || []).length === 1 && (scriptSrc.match(/\.createElement\(/g) || []).length === 1 && (scriptSrc.match(/\.getElementById\(/g) || []).length === 1);
+  check('squeeze hoists the host-object globals + DOM-method helpers once, and each long form survives only in its helper def', scriptSrc.indexOf('var D=document,W=window,CE=t=>D.createElement(t)') === 0 && !scriptSrc.includes('document.') && !scriptSrc.includes('window.') && (scriptSrc.match(/querySelectorAll/g) || []).length === 1 && (scriptSrc.match(/querySelector\(/g) || []).length === 1 && (scriptSrc.match(/\.createElement\(/g) || []).length === 1 && (scriptSrc.match(/\.getElementById\(/g) || []).length === 1);
+  check('squeeze arrows every anonymous callback (neither source uses this or the arguments object)', !/function\s*\(/.test(scriptSrc) && scriptSrc.includes('=>{'));
+  // 4.15.0: the card iframe is grown to the whole card and never scrolls, so
+  // position:fixed pins to the card, not the app window — both export controls
+  // ride the pointer instead. The 'flex';return} literal is the no-collision
+  // guarantee: the <pre> branch returns BEFORE the menu-rail line, so the menu
+  // holds still while the pointer is over a block that has its own button.
+  check('both export controls ride the pointer, so a tall card exports from any height (4.15.0)', html.includes("addEventListener('mousemove'") && !html.includes("addEventListener('mouseover'") && html.includes('Math.min(e.clientX,innerWidth-e.clientX)<70') && html.includes("menu.className.indexOf('open')<0") && html.includes('Math.min(innerHeight-40,y-15)') && html.includes('Math.min(r.bottom+scrollY-35,y+scrollY-15)') && html.includes("cpBtn.style.display='flex';return}"));
   check('template stays under the host resource-size ceiling (' + html.length + 'B of 30000)', html.length < 30000);
   check('template applies project brands via read_brand (4.13.0)', html.includes("name:'read_brand'") && html.includes("id='rcbrand'") && html.includes('if(a.brand)bApply(a.brand)') && html.includes('if(s.brand)bApply(s.brand)'));
   check('saves go through save_card then ui/download-file', html.includes("name:'save_card'") && html.includes('ui/download-file'));
   check('png export is dependency-free (foreignObject, blob URL)', html.includes('foreignObject') && html.includes('createObjectURL') && !html.includes('html2canvas'));
-  check('png export inlines real font bytes: mounts #rcfont via read_fonts before rastering, and makeSvg strips only @import (data-URI @font-face survive)', html.includes("name:'read_fonts'") && html.includes("id='rcfont'") && html.includes('ensureFonts(function(){makeSvg') && html.includes('@import url'));
+  check('png export inlines real font bytes: mounts #rcfont via read_fonts before rastering, and makeSvg strips only @import (data-URI @font-face survive)', html.includes("name:'read_fonts'") && html.includes("id='rcfont'") && html.includes('ensureFonts(()=>{makeSvg') && html.includes('@import url'));
   check('menu has per-item states (spinner/ok/err)', html.includes('rcspin .7s') && html.includes('ICON_OK') && html.includes('classList.add(st)'));
   check('clipboard has execCommand fallback', html.includes("execCommand('copy')"));
   check('CTA clicks survive blocked inline handlers (delegation)', html.includes("closest('#card [onclick]')"));

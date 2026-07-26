@@ -171,18 +171,26 @@ const MENU_SRC = fs.readFileSync(MENU_CANDIDATES.find((p) => fs.existsSync(p)), 
 /* Assembly-time JS squeeze, template copy only (sources keep the long names,
  * same move as the kit var aliases): the script opens with a few tiny globals
  * and every dotted host-object use shrinks. `document.`/`window.` collapse to
- * D./W.; on top of that the three hottest DOM methods get one-letter helpers —
+ * D./W.; on top of that the four hottest DOM methods get one-letter helpers —
  * createElement (always on document) and getElementById (always on document)
- * fold by plain substring, querySelectorAll (called on many elements) folds by
- * a receiver regex. Frees ~0.8KB of the 30KB host ceiling, which pays for the
- * PNG font embed (4.14.1). test.js parse-checks AND behavior-checks the
- * squeezed script. */
+ * fold by plain substring, querySelectorAll/querySelector (called on many
+ * elements) fold by a receiver regex (All first, so the shorter name cannot
+ * eat the longer one). Last pass: every ANONYMOUS function literal becomes an
+ * arrow. That is only safe because neither source uses `this` or the
+ * `arguments` object (the `arguments` in here are MCP tool-call payload keys),
+ * and it is worth ~0.4KB across the ~65 callbacks; named declarations keep the
+ * keyword, since the regex needs `(` straight after it. Frees ~1.2KB of the
+ * 30KB host ceiling, which pays for the pointer-tracked export controls
+ * (4.15.0). test.js parse-checks AND behavior-checks the squeezed script. */
 function squeezeJs(js) {
   const s = js.split('document.').join('D.').split('window.').join('W.')
     .split('D.createElement(').join('CE(')
     .split('D.getElementById(').join('G(')
-    .replace(/([\w$]+)\.querySelectorAll\(/g, 'Q($1,');
-  return 'var D=document,W=window,CE=function(t){return D.createElement(t)},G=function(i){return D.getElementById(i)},Q=function(e,s){return e.querySelectorAll(s)};' + s;
+    .replace(/([\w$]+)\.querySelectorAll\(/g, 'Q($1,')
+    .replace(/([\w$]+)\.querySelector\(/g, 'S($1,')
+    .replace(/\bfunction\s*\(([^)]*)\)\s*\{/g, '($1)=>{')
+    .replace(/\(([\w$]+)\)=>\{/g, '$1=>{');
+  return 'var D=document,W=window,CE=t=>D.createElement(t),G=i=>D.getElementById(i),Q=(e,s)=>e.querySelectorAll(s),S=(e,s)=>e.querySelector(s);' + s;
 }
 
 const TEMPLATE_HTML =

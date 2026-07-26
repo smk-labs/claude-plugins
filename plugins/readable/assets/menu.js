@@ -147,13 +147,25 @@ if(kind==='dlhtml'){saveFile(fileBase()+'.html',exportHtml(),null,btn);return}
 if(kind==='dlmd'){saveFile(fileBase()+'.md',toMd(),null,btn);return}
 if(kind==='dltxt'){saveFile(fileBase()+'.txt',C().innerText,null,btn);return}}
 menu.querySelector('.items').addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('button');if(b&&!b.classList.contains('busy'))act(b.getAttribute('data-act'),b)});
-/* Per-code-block copy: ONE floating button, shown while hovering a <pre> in #card, copying that block's plain textContent (setState caches its idle icon under the null data-act key; it is the only keyless button). It lives OUTSIDE #card so every exporter (png serializer, html/md/text walkers, email) stays blind to it and #card re-renders never orphan it; absolute position + scroll offsets keep it glued to the block when the report page scrolls (the card iframe never scrolls). */
+/* Per-code-block copy: ONE floating button, shown while the pointer is over a <pre> in #card, copying that block's plain textContent (setState caches its idle icon under the null data-act key; it is the only keyless button). It lives OUTSIDE #card so every exporter (png serializer, html/md/text walkers, email) stays blind to it and #card re-renders never orphan it; absolute position + scroll offsets keep it glued to the block when the report page scrolls. */
 var cpPre=null,cpBtn=document.createElement('button');
 cpBtn.id='rccp';
 cpBtn.title='Copy';
 cpBtn.innerHTML='<span class="ic">'+I.copy+'</span>';
 document.body.appendChild(cpBtn);
-document.addEventListener('mouseover',function(e){if(cpBtn.contains(e.target))return;var p=e.target.closest?e.target.closest('#card pre'):null;if(p){cpPre=p;var r=p.getBoundingClientRect();cpBtn.style.top=r.top+scrollY+5+'px';cpBtn.style.left=r.right+scrollX-35+'px';cpBtn.style.display='flex'}else{cpPre=null;cpBtn.style.display='none'}});
+/* Both export controls ride the pointer, so a tall card stays exportable from any height (4.15.0). The chat host grows the card iframe to the WHOLE card and the iframe never scrolls, so position:fixed pins to the card, NOT to the app window: on a long card the ... menu sat stranded at the top and you had to scroll the chat back up to reach it. Nothing inside the frame can read the app's scroll offset — but the pointer implies it, since whatever the pointer is over is on screen. So the menu glides to the pointer's height while the pointer rides either vertical edge, and the per-block button follows the pointer down its own block's edge. Two details earn their bytes: both center on the cursor (top = y-15, the buttons are 30px), which is what stops them running away as you reach for them (on arrival the cursor already sits inside the button); and the menu holds still while the pointer is over a <pre>, so it never lands on top of that block's own copy button. The reading area is left alone, so nothing twitches while you read. Wheel-scrolling the chat leaves the menu at its old height until the pointer next moves, which costs nothing: reaching for it IS a pointer move. */
+document.addEventListener('mousemove',function(e){var y=e.clientY;
+if(cpBtn.contains(e.target))return;
+var p=e.target.closest?e.target.closest('#card pre'):null;
+if(p){cpPre=p;
+var r=p.getBoundingClientRect();
+cpBtn.style.left=r.right+scrollX-35+'px';
+cpBtn.style.top=Math.max(r.top+scrollY+5,Math.min(r.bottom+scrollY-35,y+scrollY-15))+'px';
+cpBtn.style.display='flex';
+return}
+cpPre=null;
+cpBtn.style.display='none';
+if(menu.className.indexOf('open')<0&&Math.min(e.clientX,innerWidth-e.clientX)<70)menu.style.top=Math.max(8,Math.min(innerHeight-40,y-15))+'px'});
 cpBtn.addEventListener('click',function(){if(cpPre)clipText(cpPre.textContent.replace(/\n$/,''),function(ok){setState(cpBtn,ok?'ok':'err','Failed')})});
 window.__rcCopy=clipText;
 })();
