@@ -167,16 +167,47 @@ def build_rules() -> list[tuple[str, str, re.Pattern, str, str]]:
 RULES = build_rules()
 
 # Regions we must not lint: fenced code, inline code, YAML frontmatter,
-# JSX/MDX tags and attributes, URLs, and pure-Latin runs.
+# JSX/MDX tags and expression containers, URLs, and markdown links.
 MASK_PATTERNS = [
     re.compile(r"^---\n.*?\n---\n", re.S),          # frontmatter
     re.compile(r"```.*?```", re.S),                  # fenced code
     re.compile(r"`[^`\n]*`"),                        # inline code
-    re.compile(r"<[^>]{1,400}>", re.S),              # html/jsx tags
-    re.compile(r"\{[^{}\n]{0,200}\}"),               # jsx expressions
     re.compile(r"https?://\S+"),                     # urls
     re.compile(r"!?\[[^\]\n]*\]\([^)\n]*\)"),        # md links
 ]
+
+
+def _blank(out: list[str], start: int, end: int) -> None:
+    for i in range(start, end):
+        if out[i] != "\n":
+            out[i] = " "
+
+
+def _mask_balanced(out: list[str], text: str, open_ch: str, close_ch: str,
+                   limit: int) -> None:
+    """Blank balanced open/close spans, nesting- and newline-aware.
+
+    JSX expression containers like `items={[{question: "..."}]}` span many lines
+    and nest, so a flat regex cannot reach their closing brace. Latin quotes
+    inside them are JavaScript syntax, not Persian typography, and linting them
+    produces nothing but false alarms.
+    """
+    i, n = 0, len(text)
+    while i < n:
+        if text[i] != open_ch or out[i] == " ":
+            i += 1
+            continue
+        depth, j = 0, i
+        while j < n and j - i <= limit:
+            if text[j] == open_ch:
+                depth += 1
+            elif text[j] == close_ch:
+                depth -= 1
+                if depth == 0:
+                    _blank(out, i, j + 1)
+                    break
+            j += 1
+        i = (j + 1) if depth == 0 and j < n else (i + 1)
 
 
 def mask(text: str) -> str:
@@ -184,9 +215,11 @@ def mask(text: str) -> str:
     out = list(text)
     for pat in MASK_PATTERNS:
         for m in pat.finditer(text):
-            for i in range(m.start(), m.end()):
-                if out[i] != "\n":
-                    out[i] = " "
+            _blank(out, m.start(), m.end())
+    # Braces first: once expression containers are blank, the surrounding
+    # JSX tag is short enough to match cleanly.
+    _mask_balanced(out, text, "{", "}", 20000)
+    _mask_balanced(out, "".join(out), "<", ">", 2000)
     return "".join(out)
 
 
