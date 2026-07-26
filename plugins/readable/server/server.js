@@ -181,7 +181,7 @@ const MENU_SRC = fs.readFileSync(MENU_CANDIDATES.find((p) => fs.existsSync(p)), 
  * and it is worth ~0.4KB across the ~65 callbacks; named declarations keep the
  * keyword, since the regex needs `(` straight after it. Frees ~1.2KB of the
  * 30KB host ceiling, which pays for the pointer-tracked export controls
- * (4.15.0). test.js parse-checks AND behavior-checks the squeezed script. */
+ * (4.16.0). test.js parse-checks AND behavior-checks the squeezed script. */
 function squeezeJs(js) {
   const s = js.split('document.').join('D.').split('window.').join('W.')
     .split('D.createElement(').join('CE(')
@@ -1018,7 +1018,7 @@ function write(obj) {
 
 /* The banner exists to say WHICH build the host loaded, so its version is read
  * off the manifest, never typed in. As a literal it drifted: it still said
- * 4.14.1 after 4.15.0 shipped, i.e. it lied exactly when you reach for it.
+ * 4.14.1 after 4.16.0 shipped, i.e. it lied exactly when you reach for it.
  * Same layout probe as KIT_CANDIDATES/MENU_CANDIDATES, except existence is not
  * enough here (a file can be present and unparsable), so each candidate is
  * tried through the parse; the .mcpb manifest carries `version` too, so one
