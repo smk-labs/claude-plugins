@@ -145,6 +145,10 @@ def build_rules() -> list[tuple[str, str, re.Pattern, str, str]]:
     R.append(("emoji", "error",
               re.compile("[\U0001F000-\U0001FAFF☀-➿]"),
               "ایموجی در متن", "آیکون SVG بگذار، نه ایموجی"))
+    # Address form is a per-project decision, never a universal rule: a shop may
+    # be right to say «تو» and a B2B product right to say «شما». So this is a
+    # warning, and --voice formal switches it off entirely. What is wrong in
+    # every voice is mixing the two, and that is checked separately.
     R.append(("formal-you", "warn",
               re.compile(r"(?<![" + PERSIAN + r"])شما(?![" + PERSIAN + r"])"),
               "مخاطب جمع و رسمی", "مفرد و صمیمی بنویس: «تو»"))
@@ -337,7 +341,26 @@ def long_sentences(text: str, limit: int = 26):
             yield m.start(), len(words)
 
 
-def lint(text: str, path: str) -> list[dict]:
+# Unambiguous second-person-singular verb endings. Used only to detect a file
+# that addresses the reader both ways; that is a defect in any house voice.
+INFORMAL_MARKERS = re.compile(
+    r"(?<![" + PERSIAN + r"])(?:می‌(?:توانی|کنی|شوی|دانی|خواهی|بینی|گیری|دهی)"
+    r"|نمی‌(?:توانی|کنی|دانی)|بخری|بزنی|داری|هستی)(?![" + PERSIAN + r"])")
+FORMAL_MARKER = re.compile(r"(?<![" + PERSIAN + r"])شما(?![" + PERSIAN + r"])")
+
+
+def mixed_address(masked: str, path: str) -> list[dict]:
+    formal = len(FORMAL_MARKER.findall(masked))
+    informal = len(INFORMAL_MARKERS.findall(masked))
+    if formal and informal:
+        return [{"rule": "mixed-address", "level": "warn", "line": 1, "col": 1,
+                 "file": path, "text": f"شما×{formal} / تو×{informal}",
+                 "message": "مخاطب در یک متن قاطی شده (هم «شما» هم «تو»)",
+                 "fix": "یکی را انتخاب کن و در کل صفحه نگه دار"}]
+    return []
+
+
+def lint(text: str, path: str, voice: str = "informal") -> list[dict]:
     masked = mask(text)
     starts = [m.start() for m in re.finditer(r"^", masked, re.M)]
 
@@ -348,6 +371,8 @@ def lint(text: str, path: str) -> list[dict]:
 
     found: list[dict] = []
     for rid, level, pat, msg, fix in RULES:
+        if rid == "formal-you" and voice != "informal":
+            continue
         for m in pat.finditer(masked):
             frag = m.group().strip()
             # digit rule: only complain when the line is actually Persian prose
@@ -360,6 +385,7 @@ def lint(text: str, path: str) -> list[dict]:
                           "text": frag[:40], "message": msg, "fix": fix,
                           "file": path})
     found += texture(masked, path)
+    found += mixed_address(masked, path)
     for off, n in long_sentences(masked):
         line, col = pos(off)
         found.append({"rule": "long-sentence", "level": "warn", "line": line,
@@ -390,11 +416,15 @@ def main() -> int:
     ap.add_argument("--stdin", action="store_true")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--voice", choices=["informal", "formal"], default="informal",
+                    help="house address form. 'informal' (default) warns on «شما»; "
+                         "'formal' allows it, for B2B products whose own voice doc "
+                         "says so. Mixing the two is flagged either way.")
     args = ap.parse_args()
 
     all_findings: list[dict] = []
     if args.stdin:
-        all_findings += lint(sys.stdin.read(), "<stdin>")
+        all_findings += lint(sys.stdin.read(), "<stdin>", args.voice)
     for path in args.files:
         try:
             with open(path, encoding="utf-8") as fh:
@@ -402,7 +432,7 @@ def main() -> int:
         except OSError as exc:
             print(f"cannot read {path}: {exc}", file=sys.stderr)
             return 2
-        all_findings += lint(unicodedata.normalize("NFC", raw), path)
+        all_findings += lint(unicodedata.normalize("NFC", raw), path, args.voice)
 
     if not args.files and not args.stdin:
         ap.print_help()

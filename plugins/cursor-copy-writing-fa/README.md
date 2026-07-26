@@ -64,6 +64,23 @@ lower sample sizes and keep the smaller gate.
 A linter cannot taste prose. These checks catch the mechanical tells; the final
 call stays with a reader.
 
+Caught in the wild: after a fleet ran a copy pass over the coffee site, every
+word-level error was gone, but four enriched product pages had crossed the
+18-sentence threshold and come out metronomic (CV 0.25 to 0.28), and one article
+opened 14 sentences with the same word. Fixing spelling is easy to automate;
+keeping the rhythm human is the part that needs measuring.
+
+### Voice is per project, never universal
+
+`--voice informal` (default) warns on «شما»; `--voice formal` allows it, for a
+B2B product whose own voice doc says so. Mixing both in one file is flagged
+either way, because that is a defect in any house voice.
+
+This matters most on a multi-repo pass. A consumer shop is right to say «تو» and
+an enterprise product is right to say «شما»; a fleet let loose will flatten one
+site's tone into another's. The project's own `BRAND.md` / `voice-tone.md` /
+`AGENTS.md` outranks this plugin's rulebook, always.
+
 ## Requires
 
 The `cursor-delegate` plugin (Cursor CLI plus `~/.claude-deck/cursor/agent-keys.json`).
