@@ -369,11 +369,20 @@ def lint(text: str, path: str, voice: str = "informal") -> list[dict]:
         line = bisect.bisect_right(starts, off)
         return line, off - starts[line - 1] + 1
 
+    def is_masked(a: int, b: int) -> bool:
+        """True if the span was blanked out by mask() rather than being source."""
+        return any(masked[i] == " " != text[i] for i in range(a, b))
+
     found: list[dict] = []
     for rid, level, pat, msg, fix in RULES:
         if rid == "formal-you" and voice != "informal":
             continue
-        for m in pat.finditer(masked):
+        # Whitespace rules must read the source: mask() blanks JSX and code to
+        # spaces, which manufactures space runs that never existed in the file.
+        subject = text if rid == "double-space" else masked
+        for m in pat.finditer(subject):
+            if subject is text and is_masked(m.start(), m.end()):
+                continue
             frag = m.group().strip()
             # digit rule: only complain when the line is actually Persian prose
             if rid == "latin-digit":
