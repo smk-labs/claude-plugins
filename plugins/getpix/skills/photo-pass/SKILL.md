@@ -59,3 +59,4 @@ Script: `${CLAUDE_PLUGIN_ROOT}/scripts/getpix.sh`
 - Judge by eye: `thumb N` prints a local path; Read it. Filter for the shared visual language, and drop any candidate under 2000px source width (dimensions are in the search output).
 - Fetch the winner: `get N -d <assets dir> -w <slot width> --name <new-filename>`. The output line includes photographer, source link, and license: copy it into CREDITS.md.
 - One search plus at most 3 thumbnails per placement. Reword once if results are off-family, then move on; a placement with no worthy image stays imageless.
+- Fetching placements in parallel: every worker exports its own `GETPIX_SESSION` (the placement slug is a good id) before its first getpix call. Workers that share a session share one search cache and fetch each other's images, with no error to warn you.

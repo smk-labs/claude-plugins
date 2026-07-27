@@ -50,6 +50,21 @@ Cost: one search plus 1 to 2 thumbnails. Do this proactively when it genuinely h
 - Never `cat` the raw JSON in `${TMPDIR}/getpix/`; the script's stdout is the only interface.
 - If a `get` fails with a slow-origin error, take the next candidate instead of retrying the same one.
 
+## Running several at once
+
+getpix stores search results in one cache file. Two runs that share it overwrite each other, so `get 3` quietly downloads the other run's third result. When several agents or workers use getpix at the same time, give each one its own session id:
+
+```bash
+export GETPIX_SESSION=hero-coffee    # e.g. the slug this worker owns
+```
+
+Or per command: `search "..." --session hero-coffee`, then `get 1 --session hero-coffee`. Ids keep letters, digits, dot, dash and underscore; anything else is replaced.
+
+- One id per worker, on every getpix call that worker makes. The same id on two workers is the same bug again.
+- `get` prints the search it resolved against: `from search "espresso crema" (5 results)`. If that names a query you did not ask for, the cache was shared.
+- Each session leads with a different source, so a fleet spreads its downloads over the five APIs instead of aiming them all at one. To spread the search calls too, pin a different `-s` per worker.
+- Session dirs under `${TMPDIR}/getpix/` are swept after a day. Nothing to clean up by hand.
+
 ## Keys (all free, all optional)
 
 | Env var | Where | Free limit |

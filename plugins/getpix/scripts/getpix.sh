@@ -3,14 +3,30 @@
 # Sources: Openverse + Wikimedia (no key), Pexels + Pixabay + Unsplash (free key via env).
 set -uo pipefail
 
-CD="${TMPDIR:-/tmp}/getpix"; mkdir -p "$CD"
-CACHE="$CD/last.json"
 UA="getpix/1.0 (+https://github.com/smk-labs/claude-plugins)"
 
 die(){ echo "getpix: $*" >&2; exit 1; }
 have(){ command -v "$1" >/dev/null 2>&1; }
 have python3 || die "python3 is required"
 have curl || die "curl is required"
+
+# One cache dir per session. Two runs that share a cache dir overwrite each
+# other's last.json and delete each other's downloads, so "get 3" fetches the
+# other run's third result. Set GETPIX_SESSION (or pass --session) to isolate.
+# Unset, the path stays exactly what it always was.
+ROOT="${TMPDIR:-/tmp}/getpix"
+SESSION=""
+CD="$ROOT"; CACHE="$CD/last.json"
+use_session(){
+  local s; s=$(printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_')
+  case "$s" in ""|.|..) die "bad session id: use letters, digits, dot, dash, underscore";; esac
+  # Say so when the id changed: two workers whose ids differ only in punctuation
+  # would land in one dir, which is the collision this flag exists to prevent.
+  [ "$s" = "$1" ] || echo "getpix: session '$1' -> '$s' (kept [A-Za-z0-9._-])" >&2
+  SESSION="$s"; CD="$ROOT/$s"; CACHE="$CD/last.json"; mkdir -p "$CD"
+}
+mkdir -p "$CD"
+[ -n "${GETPIX_SESSION:-}" ] && use_session "$GETPIX_SESSION"
 
 usage(){ cat <<'EOF'
 Usage:
@@ -19,6 +35,9 @@ Usage:
                                                      SOURCE: all|openverse|wikimedia|pexels|pixabay|unsplash
   getpix.sh thumb N                                  download small preview of result N, prints path
   getpix.sh get N -d DIR [-w 1600] [-f webp|jpg] [--name slug]
+
+search, thumb and get also take [--session ID], same as GETPIX_SESSION=ID:
+its own cache dir, so parallel runs stop overwriting each other's results.
 EOF
 }
 
@@ -44,9 +63,15 @@ search)
     -n) N="${2:?}"; shift 2;;
     -o) ORI="${2:?}"; shift 2;;
     -s) SRC="${2:?}"; shift 2;;
+    --session) use_session "${2:?}"; shift 2;;
     *) die "unknown option: $1";;
   esac; done
   QE=$(urlenc "$Q")
+  # Sweep session dirs nobody touched for a day, so /tmp/getpix cannot grow
+  # forever. Guarded: never runs on an empty path or on /.
+  if [ -n "$ROOT" ] && [ "$ROOT" != "/" ] && [ -d "$ROOT" ]; then
+    find "$ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+  fi
   rm -f "$CD"/raw_*.json "$CD"/thumb_* "$CD"/orig_*
   want(){ [ "$SRC" = "all" ] || [ "$SRC" = "$1" ]; }
 
@@ -79,10 +104,11 @@ search)
   fi
   wait
 
-  ORI="$ORI" SRC="$SRC" python3 - "$CD" "$CACHE" "$Q" <<'PY'
-import json, os, re, sys
+  ORI="$ORI" SRC="$SRC" SESSION="$SESSION" python3 - "$CD" "$CACHE" "$Q" <<'PY'
+import json, os, re, sys, zlib
 cd, cache, query = sys.argv[1], sys.argv[2], sys.argv[3]
 ori, src_filter = os.environ.get("ORI",""), os.environ.get("SRC","all")
+session = os.environ.get("SESSION","")
 
 def load(name):
     p = os.path.join(cd, f"raw_{name}.json")
@@ -163,8 +189,18 @@ elif d:
             alt=r.get("alt_description") or "", dl=(r.get("links") or {}).get("download_location",""), attr=""))
     recs["unsplash"] = out
 
-# round-robin interleave so the top of the list mixes sources
-order = [s for s in ("pexels","unsplash","pixabay","openverse","wikimedia") if recs.get(s)]
+# Round-robin interleave so the top of the list mixes sources. Each session
+# starts the ring at its own source, so a fleet of workers does not aim every
+# "get 1" at one API. Weights follow the free-tier limits: pixabay (100/min)
+# and pexels (200/hour) can carry more traffic than unsplash (50/hour) or
+# anonymous openverse (~200/day). No session, no rotation: order stays as it was.
+RANK = ("pexels", "unsplash", "pixabay", "openverse", "wikimedia")
+WEIGHT = {"pexels": 3, "pixabay": 3, "wikimedia": 2, "unsplash": 1, "openverse": 1}
+ring = [s for s in RANK for _ in range(WEIGHT[s])]
+off = zlib.crc32(session.encode()) % len(ring) if session else 0
+order = []
+for s in ring[off:] + ring[:off]:
+    if recs.get(s) and s not in order: order.append(s)
 merged, i = [], 0
 while any(len(recs[s]) > i for s in order):
     for s in order:
@@ -189,39 +225,53 @@ PY
 
 thumb)
   IDX="${1:-}"; [ -n "$IDX" ] || die "thumb needs a result number"
+  shift
+  while [ $# -gt 0 ]; do case "$1" in
+    --session) use_session "${2:?}"; shift 2;;
+    *) die "unknown option: $1";;
+  esac; done
   [ -f "$CACHE" ] || die "no search cache; run search first"
   URL=$(python3 -c 'import json,sys;r=json.load(open(sys.argv[1]))["results"][int(sys.argv[2])-1];print(r["thumb"])' "$CACHE" "$IDX") || die "bad index"
   [ -n "$URL" ] || die "no thumbnail for this result"
   EXT="jpg"; case "$URL" in *.png*) EXT="png";; esac
-  OUT="$CD/thumb_$IDX.$EXT"
+  # $$ in the name: two runs previewing result 3 must not write one file.
+  OUT="$CD/thumb_$IDX.$$.$EXT"
+  trap 'rm -f "$OUT"' EXIT INT TERM
   curl -sL -m 40 -A "$UA" -o "$OUT" "$URL" || die "thumbnail download failed"
   [ -s "$OUT" ] || die "empty thumbnail"
+  trap - EXIT INT TERM   # the file is the answer: keep it, drop only partials
   echo "$OUT"
   ;;
 
 get)
   IDX="${1:-}"; [ -n "$IDX" ] || die "get needs a result number"
   shift
-  [ -f "$CACHE" ] || die "no search cache; run search first"
   DIR=""; W=1600; FMT="webp"; NAME=""
   while [ $# -gt 0 ]; do case "$1" in
     -d) DIR="${2:?}"; shift 2;;
     -w) W="${2:?}"; shift 2;;
     -f) FMT="${2:?}"; shift 2;;
     --name) NAME="${2:?}"; shift 2;;
+    --session) use_session "${2:?}"; shift 2;;
     *) die "unknown option: $1";;
   esac; done
+  [ -f "$CACHE" ] || die "no search cache; run search first"
   [ -n "$DIR" ] || die "get needs -d DIR (where to save)"
   mkdir -p "$DIR"
 
   REC=$(python3 -c '
 import json,sys
-r=json.load(open(sys.argv[1]))["results"][int(sys.argv[2])-1]
-print("\x1f".join(str(r.get(k,"")) for k in ("src","full","page","creator","license","title","alt","attr","dl")))' "$CACHE" "$IDX") || die "bad index"
-  IFS=$'\x1f' read -r SRC FULL PAGE CREATOR LICENSE TITLE ALT ATTR DL <<< "$REC"
+d=json.load(open(sys.argv[1])); rs=d["results"]; r=rs[int(sys.argv[2])-1]
+print("\x1f".join([str(r.get(k,"")) for k in ("src","full","page","creator","license","title","alt","attr","dl")]
+  + [str(d.get("query","")), str(len(rs))]))' "$CACHE" "$IDX") || die "bad index"
+  IFS=$'\x1f' read -r SRC FULL PAGE CREATOR LICENSE TITLE ALT ATTR DL QUERY NRES <<< "$REC"
   [ -n "$FULL" ] || die "no full-size URL for this result"
+  # Name the search this index came from: a cache another run overwrote used to
+  # be invisible, and you only found out from the wrong picture on the page.
+  echo "from search \"$QUERY\" ($NRES results)"
 
-  TMP="$CD/orig_$IDX"
+  TMP="$CD/orig_$IDX.$$"
+  trap 'rm -f "$TMP"' EXIT INT TERM
   curl -sL -m 90 -A "$UA" -o "$TMP" "$FULL" || die "download failed (origin may be slow or blocked); try another result"
   [ -s "$TMP" ] || die "empty download; try another result"
 

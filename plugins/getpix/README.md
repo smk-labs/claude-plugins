@@ -11,6 +11,16 @@ Claude finds a good free photo on the internet, downloads it, optimizes it, and 
 
 `/getpix:photo-pass` runs a whole-site art-direction pass: audit where photos genuinely earn their place (3 to 6 spots, no decoration), define one visual family, pick every image by eye, melt them into the design with the site's own color tokens, verify both themes, and record every credit in CREDITS.md.
 
+## Several at once
+
+Parallel workers each need their own session id, or they share one search cache and fetch each other's images:
+
+```bash
+export GETPIX_SESSION=<unique-id>    # e.g. the slug the worker owns
+```
+
+`--session <id>` on `search`, `thumb` and `get` does the same per command. Unset, single runs behave exactly as before.
+
 ## Setup (optional)
 
 ```bash
