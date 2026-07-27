@@ -170,6 +170,12 @@ def build_rules() -> list[tuple[str, str, re.Pattern, str, str]]:
 
 RULES = build_rules()
 
+# Rules that count or straddle whitespace MUST read the source. mask() blanks
+# JSX, inline code and links to spaces so byte offsets stay valid, which invents
+# space runs that are not in the file: `tasks.json`. becomes "…      ." and a
+# space-before-punctuation rule reading the mask fires on every one.
+SOURCE_ONLY_RULES = {"double-space", "space-before-punct"}
+
 # Regions we must not lint: fenced code, inline code, YAML frontmatter,
 # JSX/MDX tags and expression containers, URLs, and markdown links.
 MASK_PATTERNS = [
@@ -379,7 +385,7 @@ def lint(text: str, path: str, voice: str = "informal") -> list[dict]:
             continue
         # Whitespace rules must read the source: mask() blanks JSX and code to
         # spaces, which manufactures space runs that never existed in the file.
-        subject = text if rid == "double-space" else masked
+        subject = text if rid in SOURCE_ONLY_RULES else masked
         for m in pat.finditer(subject):
             if subject is text and is_masked(m.start(), m.end()):
                 continue
