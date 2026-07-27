@@ -66,8 +66,11 @@ search)
   fi
   if want pixabay && [ -n "${PIXABAY_API_KEY:-}" ]; then
     o=""; case "$ORI" in landscape) o="&orientation=horizontal";; portrait) o="&orientation=vertical";; esac
+    # Pixabay rejects per_page below 3 with a 400, which used to read as a bad
+    # key and silently dropped the source on any "search -n 1|2".
+    PB_N=$N; [ "$PB_N" -lt 3 ] && PB_N=3
     curl -sL -m 25 -A "$UA" -o "$CD/raw_pixabay.json" \
-      "https://pixabay.com/api/?key=$PIXABAY_API_KEY&q=$QE&per_page=$N&image_type=photo&safesearch=true$o" &
+      "https://pixabay.com/api/?key=$PIXABAY_API_KEY&q=$QE&per_page=$PB_N&image_type=photo&safesearch=true$o" &
   fi
   if want unsplash && [ -n "${UNSPLASH_ACCESS_KEY:-}" ]; then
     o=""; case "$ORI" in landscape) o="&orientation=landscape";; portrait) o="&orientation=portrait";; square) o="&orientation=squarish";; esac
@@ -135,7 +138,12 @@ elif d:
         alt=r.get("alt") or "", attr="", dl="") for r in d["photos"]]
 
 d = load("pixabay")
-if d == "error" or (d and "hits" not in d): notes.append("pixabay: error (check PIXABAY_API_KEY)")
+if d == "error" or (d and "hits" not in d):
+    # Pixabay answers 4xx in plain text, so surface it: blaming the key for what
+    # is usually a bad parameter sends you hunting for the wrong problem.
+    try: why = open(os.path.join(cd, "raw_pixabay.json")).read().strip()[:120]
+    except Exception: why = ""
+    notes.append(f"pixabay: error ({why})" if why else "pixabay: error (check PIXABAY_API_KEY)")
 elif d:
     recs["pixabay"] = [dict(src="pixabay", title=r.get("tags") or "", w=r.get("imageWidth"), h=r.get("imageHeight"),
         license="Pixabay", creator=r.get("user") or "", page=r.get("pageURL") or "",
