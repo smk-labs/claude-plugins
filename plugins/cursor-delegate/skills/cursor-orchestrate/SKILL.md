@@ -49,6 +49,8 @@ Quick slices: several `cursor_run` calls **in a single turn** so they run concur
 
 **Persevere on exit `1`.** A legged run that exits `1` is unfinished, not failed: its leg budget ran out with the session saved. Rerun the exact same command and it resumes where it stopped. Keep resuming until `DONE-ALL` or a real blocker (auth, quota); only then report the stall.
 
+**A run of consecutive `hard failure (no result, no session)` has a name: quota exhaustion.** That line is all the console shows, so read `<out dir>/cursor-legs/*/leg-*.err` before blaming the network. If it says usage limit (or `Cannot use this model` with an empty list), stop the fan-out and tell the user which pool is empty and when it resets (see "Model routing"). Never silently fall back to Claude's own quota.
+
 **Stop safely.** Official stop: `legged-run.sh --stop --id <id>`. Never `pkill -f legged-run` (matches your shell, orphans live legs, risks parallel deploys). Optional: `CURSOR_NET_PROBE_URL` / `CURSOR_NET_MIN_BPS` / `CURSOR_TUNNEL_REVIVE` for legged-run; orchestrator `--wait-online [URL]` waits for connectivity before each round.
 
 **Resume beats restart, in every failure mode.** Any worker that ever produced a `session_id` (the `cursor_run` reply footer, `results.json`, or `<state>/session_id`) can be continued with its full context: harvest its partial output first (`last_result.txt`, `leg-N.json`), then resume with a continue-style prompt ("Continue exactly where you left off; finish the remaining work"). Restart from scratch only when no session ever existed (auth/CLI setup failure). Never let a worker's done-but-unreported work go to waste.
@@ -73,9 +75,52 @@ Read each worker's output and **accept or fix it yourself** — you are the qual
 
 ## Model routing
 
-- **`auto`** (default) — unlimited on paid Cursor plans, draws no quota. Use it for the bulk of execution.
-- **`composer-2.5`** or a **`gpt-5.x-codex`** tier — heavier coding slices where Auto struggles. These draw the monthly pool.
-- A specific strong model (Opus, Fable, GPT-5.x) — only for the single hardest slice; usually keep top-tier reasoning on Claude's side, not the fleet's. `cursor-agent --list-models` (needs auth) prints the live catalog.
+This section is the plugin's single source of truth on quota. The other files point here.
+
+### Two pools, not one
+
+Paid Cursor plans meter two allowances separately. The Cursor account page shows them as two bars under "Included usage":
+
+- **First-party**: models Cursor runs itself. Cheap for Cursor, so the bar is large.
+- **API**: models Cursor buys from Anthropic, OpenAI and others and passes through. Every call has a real dollar cost, so this bar empties fast.
+
+**Read the pool off the model id.** An id starting with `claude-` or `gpt-` is API pool. `auto`, `composer-*` and `cursor-*` are first-party. The catalog changes; the naming rule holds. `cursor-agent --list-models` (needs auth) prints the live list.
+
+One observation, on an Ultra account on 2026-07-27, not a permanent guarantee: the API bar hit 100% used after roughly 389k output tokens of Opus 5 work. The first-party bar then carried about 1.66M output tokens across 96 articles and was still open at the end. Probed at that moment, `auto`, `composer-2.5`, `composer-2.5-fast` and `cursor-grok-4.5-low/medium/high` all answered; `claude-opus-5-high`, `claude-opus-5-medium`, `claude-opus-4-8-thinking-high`, `claude-fable-5-thinking-high`, `gpt-5.2`, `gpt-5.3-codex-high`, `gpt-5.5-high` and `gpt-5.6-sol-high` all returned a usage limit.
+
+### Route by kind of work
+
+- **Mechanical and structural work goes first-party.** File edits, refactors, research gathering, running tools and linters until they pass. `auto` for the bulk; `composer-2.5` or `cursor-grok-4.5-high` for heavier coding slices.
+- **Prose, judgment, architecture and review keep the API-pool models**, spent deliberately, because that budget is small. Usually keep top-tier reasoning on Claude's side, not the fleet's.
+
+First-party is not a free lunch. A blind judge (authoring model hidden) scored real 2000-word Persian articles against two reference articles written by Opus 5: `cursor-grok-4.5-high` 36.5/50, `composer-2.5` 36/50, `auto` 30.5/50. All three sat below the Opus references, which were denser with numbers, took clearer positions, and repeated themselves less.
+
+### Probe before a big fan-out
+
+Before any fan-out larger than a handful of tasks on a named API-pool model, run the probe and report the result:
+
+```bash
+cursor-agent --force --model claude-opus-5-high -p "Reply with exactly: PONG"
+```
+
+`PONG` means the API bar has room. Anything else means route the fan-out to first-party or tell the user. It costs almost nothing and it is the difference between a clean run and fifty dead tasks.
+
+### When a pool runs dry
+
+The real message appears only in the per-leg error files, `<out dir>/cursor-legs/<id>/leg-*.err`:
+
+```
+ActionRequiredError: You've hit your usage limit for Opus ... Your usage
+limits will reset when your monthly cycle ends on 7/28/2026.
+```
+
+Three traps:
+
+1. The same condition can instead surface as `Cannot use this model: <model>. Available models:` with an **empty** list. That reads like a bad model name or a proxy fault. It is not; it is the quota block.
+2. On screen you only get `hard failure (no result, no session)`. Dozens of tasks fail in a row and nothing says "quota".
+3. A plain internet outage produces a similar-looking pile of failures (`Failed to reach the Cursor API...`). Tell them apart by the times on the `leg-*.err` files: an outage clusters every error into one window, while quota exhaustion keeps failing from the moment it starts and never recovers.
+
+**Salvage instead of stopping.** When the API pool dies mid-job, first-party models can still do the mechanical pass now, and the API-pool model does a much cheaper editing pass later, once the cycle resets. That turns a hard stop into a delay.
 
 ## Cost, trust & honesty
 

@@ -22,6 +22,15 @@
 // that already finished return their saved result instantly (legged-run keeps
 // a done marker), so a rerun costs nothing for completed work.
 //
+// Quota: Cursor meters TWO pools. --model auto / composer-* / cursor-* draw the
+// large first-party allowance; claude-* / gpt-* draw a small API allowance that
+// empties fast. When it empties, every task in the fleet dies as "hard failure
+// (no result, no session)" and the only real message sits in
+// <out dir>/cursor-legs/<id>/leg-*.err ("You've hit your usage limit ..."),
+// sometimes disguised as "Cannot use this model" with an EMPTY model list.
+// Probe with one PONG call before a big fan-out on an API-pool model. Full
+// rule: the cursor-orchestrate skill, "Model routing".
+//
 // Crash safety: results.json is rewritten (atomically) after every finished
 // task, so a killed run leaves a usable partial file; SIGINT/SIGTERM kill the
 // whole fleet (no orphaned cursor-agent keeps spending quota) with state

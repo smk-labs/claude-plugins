@@ -10,7 +10,7 @@ Works with your single Cursor login out of the box. An optional account input ta
 
 | Component | Role |
 |-----------|------|
-| `cursor_run` MCP tool | Structured call: `task` (required), `account`, `model`, `extraArgs`, `dryRun`. The interface for one **quick** task (< ~4 min). |
+| `cursor_run` MCP tool | Structured call: `task` (required), `account`, `model`, `extraArgs`, `dryRun`. The interface for one **quick** task (< ~4 min). `model` also picks which quota pool the run spends: see Billing below. |
 | `cursor-delegate` skill | Teaches Claude when/how to delegate one task, quick-vs-legged routing, and that `account` is optional. |
 | `cursor-orchestrate` skill | Scales it up: Claude plans and reviews, a **fleet** of Cursor workers executes in parallel. Auto-picks the approach by size; say **"sub"** to force one worker or **"workflow"**/**"w"** to force the JS harness. |
 | `cursor-worker` subagent | Owns one delegation end-to-end and reports back. |
@@ -75,7 +75,7 @@ Or drive the script directly:
 
 ## Notes
 
-- **Billing:** Cursor **Auto** (`model: auto`) is unlimited on paid plans (no quota drawn); named models draw the monthly pool. To rule out surprise charges, turn off on-demand spending in Cursor's billing settings.
+- **Billing: two pools, not one.** Paid plans meter **first-party** models (`auto`, `composer-*`, `cursor-*`, run by Cursor itself) separately from **API** models (`claude-*`, `gpt-*`, bought from the provider and passed through). The Cursor account page shows them as two bars under "Included usage". The first-party bar is large; the API bar is small and empties fast, and running it dry looks like a network fault rather than a quota error. Route mechanical work to first-party and keep API-pool models for prose, judgment and review. The full rule (naming rule, measured scale, pre-flight probe, exhaustion signature, salvage pattern) lives in the `cursor-orchestrate` skill under "Model routing". To rule out surprise charges, turn off on-demand spending in Cursor's billing settings.
 - **Self-contained tasks only:** `cursor-agent` starts with a blank context, so include file paths, the goal, and acceptance criteria in the task.
 - **Runs close themselves:** `cursor-agent` sometimes never exits after printing its result. `cursor-run.sh` supervises every run: in JSON mode it kills the process ~1.5s after the result object appears (the run still exits 0 with full output), and `--timeout` (default 900s) hard-kills anything hung before a result. No delegation can hang open.
 - **Resume beats restart:** every run yields a `session_id` (the `cursor_run` reply footer; `<state>/session_id` for legged runs). On any failure, harvest the partial output (`last_result.txt`, `leg-N.json`) and continue the same session (`--resume`) with a "continue where you left off" prompt — restart only when no session ever existed.

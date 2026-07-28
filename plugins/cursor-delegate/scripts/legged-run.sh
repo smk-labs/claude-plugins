@@ -53,6 +53,14 @@ EOF
 
 die() { echo "legged-run: $1" >&2; exit "${2:-1}"; }
 
+# The completion marker must stand on a line of its OWN (light markdown or list
+# decoration allowed). Matching it as a plain substring used to accept an honest
+# worker line like "DONE-ALL is not yet earned; continuing next turn": the task
+# was recorded as finished, the leg loop stopped, and its real output was never
+# written. Cost of being strict: at worst one extra leg for a worker that
+# decorated the marker oddly, which the resume prompt fixes on its own.
+done_all() { printf '%s' "$1" | grep -Eq '^[[:space:]>*_`-]*DONE-ALL[[:space:]*_.!`]*$'; }
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --account) ACCOUNT="${2:-}"; shift 2 ;;
@@ -261,7 +269,7 @@ if [ -f "$STATE/leg.pid" ]; then
         printf '%s\n' "$SESSION" > "$STATE/session_id"
       fi
       if [ -n "$LEGRESULT" ]; then RESULT="$LEGRESULT"; fi
-      if printf '%s' "$RESULT" | grep -q "DONE-ALL"; then
+      if done_all "$RESULT"; then
         DONE=1
         printf '%s' "$RESULT" > "$STATE/last_result.txt"
         if [ -n "$RESULT" ]; then : > "$STATE/done"; fi
@@ -344,7 +352,7 @@ for n in $(seq 1 "$MAX_LEGS"); do
     break
   fi
 
-  if printf '%s' "$RESULT" | grep -q "DONE-ALL"; then
+  if done_all "$RESULT"; then
     DONE=1
     printf '%s' "$RESULT" > "$STATE/last_result.txt"
     if [ -n "$RESULT" ]; then
