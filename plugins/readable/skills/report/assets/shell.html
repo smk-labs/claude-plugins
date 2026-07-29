@@ -27,7 +27,26 @@ html,body{margin:0;background:var(--page-bg)}
 html[dir=ltr] #rcmenu{top:16px;right:62px}
 html[dir=rtl] #rcmenu{top:16px;left:62px;right:auto}
 html[dir=rtl] #rcmenu .items{left:0;right:auto}
-@media print{.theme-toggle,.rbar,#rcmenu,#rctoast,#rccp{display:none}html,body{background:#fff}.rc{border:none;padding:0}.wrap{max-width:none;padding:0}}
+@page{margin:15mm 14mm}
+@media print{
+.theme-toggle,.rbar,#rcmenu,#rctoast,#rccp{display:none}
+html,body{background:#fff}
+.rc{border:none;padding:0}
+.wrap{max-width:none;padding:0}
+/* Browsers drop every background in print unless told otherwise, which is what
+   strips the palette, the callouts, the badges and the table stripes. */
+*{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+/* Keep a heading with what it introduces, and never split a self-contained
+   block across a page. */
+h2,h3{break-after:avoid;page-break-after:avoid}
+h2,h3,p,li{orphans:3;widows:3}
+.cal,.kpi,.kv>div,.bar,.spark,.donut,.tl>div,.flow,blockquote,pre,tr,img,svg{break-inside:avoid;page-break-inside:avoid}
+thead{display:table-header-group}
+tfoot{display:table-footer-group}
+/* A long table should still be allowed to flow onto the next page. */
+table,.grid,.bars,.scroll-table{break-inside:auto;page-break-inside:auto}
+a{text-decoration:none}
+}
 </style>
 <style>
 {{EXTRA}}
