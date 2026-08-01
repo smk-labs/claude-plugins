@@ -50,6 +50,12 @@ For example, to install the fig plugin:
 | --- | --- | --- |
 | getpix | Finds free licensed images from five sources (works with zero API keys), shows them right in the chat, or drops optimized WebP into your project with alt text and attribution. Includes photo-pass, a whole-site art-direction pass. | `/plugin install getpix@smk` |
 
+## Learning
+
+| Plugin | What it does | Install command |
+| --- | --- | --- |
+| learnable | A course you actually finish, on any subject. Measures your real level with a quiz you cannot game, researches the whole domain with a fleet of agents, then writes books of chapters and lessons that teach themselves: one hard question first, plain answer second, then a pause until you say go. Lives on disk, so it never loses the thread. | `/plugin install learnable@smk` |
+
 ## Task Management
 
 | Plugin | What it does | Install command |

@@ -133,6 +133,13 @@
       },
       "description": "Installs Garry Tan's gstack natively from upstream: clones the repo and runs its real ./setup build (browse binary, 60+ bin tools), always current. Alternative to the gstack snapshot plugin.",
       "category": "third-party"
+    },
+    {
+      "name": "learnable",
+      "source": "./plugins/learnable",
+      "description": "Turns any subject into a course you actually finish: a placement quiz that finds your real level, a researched taxonomy and plan aimed at your gaps, and lesson files that teach themselves one hard question at a time and wait for your questions before moving on.",
+      "version": "0.1.0",
+      "category": "learning"
     }
   ]
 }
