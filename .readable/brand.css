@@ -1,0 +1,34 @@
+/* Anthropic palette for readable cards and reports.
+   Source: anthropic brand guidelines (dark #141413, ivory #faf9f5, clay #d97757,
+   blue #6a9bcc, green #788c5d). Accent text shades are WCAG-fitted, not eyeballed:
+   light #a3553b = 5.09:1 on surface-1, 4.61:1 on surface-2. */
+:root {
+  --text-primary: #141413;
+  --text-secondary: #73716c;
+  --text-accent: #a3553b;
+  --surface-1: #faf9f5;
+  --surface-2: #f0eee6;
+  --border: #d4d2c9;
+  --border-strong: #b0aea5;
+  --bg-accent: #f6e8e0;
+  --bg-success: #e6e9de;
+  --bg-warning: #f1e7d5;
+  --bg-danger: #f3e3de;
+  --page-bg: #f0eee6;
+}
+[data-theme="dark"] {
+  --text-primary: #f0eee4;
+  --text-secondary: #a6a396;
+  --text-accent: #d97757;
+  --surface-1: #1c1a17;
+  --surface-2: #262421;
+  --border: #35322c;
+  --border-strong: #4d4a42;
+  --bg-accent: #3a2921;
+  --bg-success: #2b2c22;
+  --bg-warning: #362c1b;
+  --bg-danger: #35201c;
+  --page-bg: #100f0e;
+}
+.rc { --ca: #d97757; --cb: #6a9bcc; --cc: #788c5d; --cd: #b0aea5; }
+[data-theme="dark"] .rc { --ca: #de876b; --cb: #80aad4; --cc: #90a17a; --cd: #c0beb7; }

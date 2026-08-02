@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>learnable mark, final</title>
+<style>
+  :root{--paper:#F4F4F1;--ink:#1E211F;--teal:#0E6A62;--muted:#6E7472;--rule:#DEDED8;--accent:#C0782E}
+  body{background:var(--paper);color:var(--ink);font:13px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:28px}
+  .dark{--paper:#191B1A;--ink:#ECEEEC;--teal:#6FC9BB;--muted:#99A09D;--rule:#2B2E2C;--accent:#E5A860;
+        background:var(--paper);color:var(--ink);padding:20px;border-radius:14px}
+  h1{font-size:15px;font-weight:600;margin:0 0 4px}
+  p.sub{color:var(--muted);margin:0 0 22px;font-size:12px}
+  h2{font-size:12px;font-weight:600;margin:20px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .row{display:flex;align-items:flex-end;gap:22px;padding:10px 0;border-bottom:1px solid var(--rule)}
+  .row b{width:110px;font-weight:500;font-size:12px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start}
+  svg{display:block;color:var(--teal)}
+  .onink svg{color:var(--ink)}
+  .chip{display:inline-flex;align-items:center;gap:8px;margin:0 10px 10px 0;font-size:12px}
+  .sw{width:26px;height:26px;border-radius:7px;border:1px solid var(--rule)}
+  .tile{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--rule);border-radius:12px;width:max-content}
+  .tile .name{font-weight:600;font-size:14px;letter-spacing:-.01em}
+  .fa{font-family:Vazirmatn,system-ui;direction:rtl;font-size:13px;color:var(--muted);margin-top:8px}
+  code{font-size:11px;color:var(--muted)}
+</style>
+<div class="cols">
+  <div id="light"></div>
+  <div class="dark" id="dark"></div>
+</div>
+<script>
+const MARK24 = `<path d="M9.5 2.5H7A2 2 0 0 0 5 4.5v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-15a2 2 0 0 0-2-2h-2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M10 1h4v11l-2-2.4-2 2.4z" fill="currentColor"/>`;
+const MARK16 = `<path d="M6.2 2H5A1.5 1.5 0 0 0 3.5 3.5v9.5A1.5 1.5 0 0 0 5 14.5h6A1.5 1.5 0 0 0 12.5 13V3.5A1.5 1.5 0 0 0 11 2H9.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M6.4 0.6h3.2v7.6L8 6.4 6.4 8.2z" fill="currentColor"/>`;
+const MARK512 = `<path d="M9.5 2.5H7A2 2 0 0 0 5 4.5v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-15a2 2 0 0 0-2-2h-2.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M10 1h4v11.4l-2-2.6-2 2.6z" fill="currentColor"/>`;
+
+const sw = (label, val) => `<span class="chip"><span class="sw" style="background:${val}"></span>${label} <code>${val}</code></span>`;
+
+function build(host, mode){
+  const P = mode==='light'
+    ? {teal:'#0E6A62',ink:'#1E211F',paper:'#F4F4F1',muted:'#6E7472',rule:'#DEDED8',accent:'#C0782E'}
+    : {teal:'#6FC9BB',ink:'#ECEEEC',paper:'#191B1A',muted:'#99A09D',rule:'#2B2E2C',accent:'#E5A860'};
+  let h = `<h1>learnable</h1><p class="sub">${mode} mode. format A, tail from A6b.</p>`;
+
+  h += `<h2>icon.svg, the 24 grid</h2><div class="row"><b>teal</b>`;
+  for(const s of [16,18,20,24,32,48,96]) h += `<svg viewBox="0 0 24 24" style="width:${s}px;height:${s}px">${MARK24}</svg>`;
+  h += `</div><div class="row onink"><b>ink</b>`;
+  for(const s of [16,20,24,32,48]) h += `<svg viewBox="0 0 24 24" style="width:${s}px;height:${s}px">${MARK24}</svg>`;
+  h += `</div>`;
+
+  h += `<h2>icon-16.svg, drawn for small</h2><div class="row"><b>teal</b>`;
+  for(const s of [14,16,18,20,24,48]) h += `<svg viewBox="0 0 16 16" style="width:${s}px;height:${s}px">${MARK16}</svg>`;
+  h += `</div>`;
+
+  h += `<h2>icon-512.svg, lighter stroke</h2><div class="row"><b>teal</b>`;
+  for(const s of [64,96,128]) h += `<svg viewBox="0 0 24 24" style="width:${s}px;height:${s}px">${MARK512}</svg>`;
+  h += `</div>`;
+
+  h += `<h2>in place</h2><div class="tile"><svg viewBox="0 0 24 24" style="width:22px;height:22px">${MARK24}</svg><span class="name">learnable</span></div>`;
+  h += `<div class="fa">درس ۳ از ۵. یک سوال سخت، بعد جواب، بعد مکث.</div>`;
+
+  h += `<h2>palette</h2><div>`;
+  h += sw('teal', P.teal) + sw('ink', P.ink) + sw('paper', P.paper) + sw('muted', P.muted) + sw('rule', P.rule) + sw('accent', P.accent);
+  h += `</div>`;
+
+  host.innerHTML = h;
+}
+build(document.getElementById('light'),'light');
+build(document.getElementById('dark'),'dark');
+</script>

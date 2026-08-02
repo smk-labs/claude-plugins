@@ -1,0 +1,9 @@
+{
+  "name": "learnable",
+  "description": "Learn any subject properly, in courses you actually finish. Four commands: learn is the way in and the way back, new-course researches a whole domain with a fleet of agents and turns it into a taxonomy and a plan aimed at your real gaps, self-assess measures your true level with a scenario quiz that cannot be gamed, new-book writes the next book of chapters and lessons ready to teach. Every lesson opens with a hard question, waits for your answer, explains in plain language, traces where each term came from, and never moves on until you say so. The course lives on disk, so open a session in its folder and it picks up exactly where you left off.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Seyed M. Keramati",
+    "url": "https://github.com/SMKeramati"
+  }
+}

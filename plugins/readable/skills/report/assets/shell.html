@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}" dir="{{DIR}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+{{KIT}}
+</style>
+<style>
+:root{color-scheme:light;--page-bg:#f4f4f1;--text-primary:#1f1f1f;--text-secondary:#6f6f6a;--text-accent:#2f66c4;--surface-1:#fff;--surface-2:#f2f2ef;--border:#dcdcd6;--border-strong:#b8b8b0;--bg-success:#e6f4ec;--bg-accent:#e8effc;--bg-warning:#faf0d9;--bg-danger:#fbe9e7;--font-mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+:root[data-theme="dark"]{color-scheme:dark;--page-bg:#1b1b19;--text-primary:#ececea;--text-secondary:#9f9f98;--text-accent:#82abec;--surface-1:#262624;--surface-2:#302f2c;--border:#3e3e3a;--border-strong:#55554f;--bg-success:#143122;--bg-accent:#16283f;--bg-warning:#382c13;--bg-danger:#3a1d19}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--page-bg:#1b1b19;--text-primary:#ececea;--text-secondary:#9f9f98;--text-accent:#82abec;--surface-1:#262624;--surface-2:#302f2c;--border:#3e3e3a;--border-strong:#55554f;--bg-success:#143122;--bg-accent:#16283f;--bg-warning:#382c13;--bg-danger:#3a1d19}}
+html,body{margin:0;background:var(--page-bg)}
+.wrap{max-width:860px;margin:0 auto;padding:34px 16px 20px}
+.rc{font-size:13.5px;padding:2rem 2.4rem;border-radius:16px;margin:0}
+.meta{color:var(--text-secondary);font-family:inherit;font-size:11.5px;margin:10px 4px 0;text-align:end;font-family:Vazirmatn,Inter,Tahoma,sans-serif}
+.theme-toggle{position:fixed;top:16px;inset-inline-end:16px;width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:linear-gradient(90deg,var(--surface-1) 50%,var(--text-primary) 50%);cursor:pointer;padding:0}
+.theme-toggle:hover{border-color:var(--text-accent)}
+/* Copy + PDF: the two one-click actions, on the inline-START corner (opposite the theme toggle + menu on the end corner). PDF prints the rendered page — a standalone report is a real document, so the browser's Save as PDF is exact. */
+.rbar{position:fixed;top:16px;inset-inline-start:16px;display:flex;gap:6px;z-index:9}
+.rbar button{width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:var(--surface-1);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.rbar button:hover{border-color:var(--text-accent);color:var(--text-accent)}
+.rbar svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rbar button.ok{color:var(--text-accent);border-color:var(--text-accent)}
+/* The shared menu (assets/menu.js) installs itself on the card's own end corner at 8px; in a report it belongs beside the theme toggle, one toggle-width in (16+34+12). The toggle follows the ROOT dir, so the menu's side is read from <html dir> here, not from menu.js's #card sibling rule (#card is nested in .wrap, so that rule never matches in a report). Higher specificity than menu.js's #rcmenu rules, so it wins whichever <style> is appended last. */
+html[dir=ltr] #rcmenu{top:16px;right:62px}
+html[dir=rtl] #rcmenu{top:16px;left:62px;right:auto}
+html[dir=rtl] #rcmenu .items{left:0;right:auto}
+/* IMG_FIT: a screenshot must never be wider than the column, on screen or
+   on paper. Unconstrained, it widens the layout and clips the text. */
+.rc img{max-width:100%;height:auto;display:block;margin:14px auto;border-radius:8px}
+@page{margin:15mm 14mm}
+@media print{
+.theme-toggle,.rbar,#rcmenu,#rctoast,#rccp{display:none}
+html,body{background:#fff}
+.rc{border:none;padding:0}
+.wrap{max-width:none;padding:0}
+/* Browsers drop every background in print unless told otherwise, which is what
+   strips the palette, the callouts, the badges and the table stripes. */
+*{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+/* Keep a heading with what it introduces, and never split a self-contained
+   block across a page. */
+h2,h3{break-after:avoid;page-break-after:avoid}
+h2,h3,p,li{orphans:3;widows:3}
+.cal,.kpi,.kv>div,.bar,.spark,.donut,.tl>div,.flow,blockquote,pre,tr,img,svg{break-inside:avoid;page-break-inside:avoid}
+thead{display:table-header-group}
+tfoot{display:table-footer-group}
+/* A long table should still be allowed to flow onto the next page. */
+table,.grid,.bars,.scroll-table{break-inside:auto;page-break-inside:auto}
+a{text-decoration:none}
+/* On paper the sheet IS the surface. The screen card is a panel floating on a
+   page background; printed, that panel ends wherever the content ends and the
+   rest of the sheet stays raw white, so every page breaks into a coloured block
+   over a white strip. Drop the panel entirely and let the text sit on the paper.
+   Semantic fills (callouts, badges, table stripes) are untouched and still
+   print, because print-color-adjust above keeps them. */
+html,body{background:#fff !important}
+.rc img{max-width:100% !important;max-height:140mm;width:auto;height:auto;border-radius:0}
+.wrap,.rc,.brand,.meta{background:none !important;box-shadow:none !important;border:none !important;border-radius:0 !important}
+}
+</style>
+<style>
+{{EXTRA}}
+</style>
+<style>
+{{BRAND}}
+</style>
+</head>
+<body>
+<button class="theme-toggle" title="light / dark" onclick="(function(){var r=document.documentElement,d=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);r.setAttribute('data-theme',d?'light':'dark');try{localStorage.setItem('report-theme',r.getAttribute('data-theme'))}catch(e){}})()"></button>
+<div class="rbar">
+<button id="rbcopy" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+<button id="rbpdf" title="Print / Save as PDF"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v6H8z"/></svg></button>
+</div>
+<script>try{var t=localStorage.getItem('report-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script>/* Paper is white, so a report always prints in the light palette no matter
+   what the reader is viewing on screen. Without this, print-color-adjust:exact
+   faithfully reproduces the dark theme and the page comes out a black slab.
+   Restores the reader's own theme afterwards. */
+(function(){var r=document.documentElement,prev=null;
+function before(){prev=r.getAttribute('data-theme');r.setAttribute('data-theme','light')}
+function after(){if(prev===null)r.removeAttribute('data-theme');else r.setAttribute('data-theme',prev);prev=null}
+window.addEventListener('beforeprint',before);window.addEventListener('afterprint',after);
+if(window.matchMedia){var m=window.matchMedia('print');if(m.addEventListener)m.addEventListener('change',function(e){e.matches?before():after()})}})()</script>
+<div class="wrap">
+{{BRANDHEAD}}<div class="rc" id="card">
+{{CONTENT}}
+</div>
+<div class="meta">{{DATE}}</div>
+</div>
+<script>
+{{MENU}}
+</script>
+<script>
+/* Email adapter for the shared menu (assets/menu.js): a standalone report has
+   no MCP server, so email HTML is computed from the live DOM instead of the
+   server's render_email: every element gets its computed styles inlined
+   (resolved against the LIGHT palette), pseudo-element decorations become real
+   spans, interactive bits are dropped. Same walker the 4.3.0 template shipped. */
+window.__rcEmail = function (cb) {
+  var EMAIL_PROPS = ['color', 'background-color', 'font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'text-align', 'direction', 'unicode-bidi', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right', 'border-radius', 'border-top', 'border-bottom', 'border-left', 'border-right', 'vertical-align', 'white-space', 'letter-spacing', 'border-collapse'];
+  var root = document.documentElement, prev = root.getAttribute('data-theme');
+  root.setAttribute('data-theme', 'light');
+  try {
+    var card = document.getElementById('card');
+    var srcEls = [card].concat([].slice.call(card.querySelectorAll('*')));
+    var clone = card.cloneNode(true);
+    var dstEls = [clone].concat([].slice.call(clone.querySelectorAll('*')));
+    var rtl = (getComputedStyle(card).direction === 'rtl');
+    var accent = getComputedStyle(card).getPropertyValue('--text-accent').trim() || '#2f66c4';
+    var jobs = [];
+    for (var i = 0; i < srcEls.length; i++) {
+      var s = srcEls[i], d = dstEls[i], cs = getComputedStyle(s), st = '';
+      for (var q = 0; q < EMAIL_PROPS.length; q++) {
+        var v = cs.getPropertyValue(EMAIL_PROPS[q]);
+        if (v && v !== 'none' && v !== 'normal' && v !== 'auto' && v.indexOf('0px none') === -1) st += EMAIL_PROPS[q] + ':' + v + ';';
+      }
+      var disp = cs.getPropertyValue('display');
+      if (disp && disp !== 'inline' && disp !== 'block') st += 'display:' + ((disp.indexOf('flex') > -1 || disp.indexOf('grid') > -1) ? 'block' : disp) + ';';
+      if (s.style && s.style.width && s.style.width.indexOf('%') > -1) st += 'width:' + s.style.width + ';background:' + cs.getPropertyValue('background-color') + ';display:block;';
+      var cls = s.className || '';
+      var tag = s.tagName;
+      if (/(^| )t( |$)/.test(cls) && s.parentNode && /(^| )bar( |$)/.test(s.parentNode.className || '')) st += 'width:220px;display:inline-block;' + (/(^| )duo( |$)/.test(s.parentNode.className || '') ? '' : 'height:7px;');
+      if (s.style && s.style.width && s.style.width.indexOf('%') > -1) st += 'height:7px;';
+      d.setAttribute('style', st); d.removeAttribute('class'); d.removeAttribute('onclick'); d.removeAttribute('id');
+      var dr = cs.getPropertyValue('direction');
+      if (dr) d.setAttribute('dir', dr);
+      if (tag === 'H2') jobs.push(['h2', d]); else if (tag === 'H3') jobs.push(['h3', d]);
+      else if (tag === 'LI') { if (/(^| )ok( |$)/.test(cls)) jobs.push(['ok', d]); else if (/(^| )no( |$)/.test(cls)) jobs.push(['no', d]); else if (s.parentNode.tagName === 'UL') jobs.push(['dot', d]); }
+      else if (/(^| )trend( |$)/.test(cls)) jobs.push([/(^| )up( |$)/.test(cls) ? 'up' : 'dn', d]);
+      else if (/(^| )flow( |$)/.test(cls)) jobs.push(['flow', d]);
+      else if (/(^| )donut( |$)/.test(cls)) jobs.push(['kill', d]);
+      else if (/(^| )btns( |$)/.test(cls)) jobs.push(['kill', d]);
+      else if (tag === 'I' && /(^| )leg( |$)/.test(s.parentNode.parentNode ? s.parentNode.parentNode.className || '' : '')) jobs.push(['sw', d, cs.getPropertyValue('background-color')]);
+    }
+    function mk(html) { var t = document.createElement('span'); t.innerHTML = html; return t.firstChild; }
+    for (var j = 0; j < jobs.length; j++) {
+      var kind = jobs[j][0], el = jobs[j][1];
+      if (kind === 'kill') { if (el.parentNode) el.parentNode.removeChild(el); }
+      else if (kind === 'h2') { el.appendChild(mk('<div style="width:28px;height:3px;background:' + accent + ';border-radius:2px;margin-top:6px"></div>')); }
+      else if (kind === 'h3') { el.insertBefore(mk('<span style="display:inline-block;width:7px;height:7px;background:' + accent + ';border-radius:2px;margin-' + (rtl ? 'left' : 'right') + ':8px"></span>'), el.firstChild); }
+      else if (kind === 'ok') { el.insertBefore(mk('<span style="color:#0f9d58;font-weight:800">✓&nbsp;</span>'), el.firstChild); el.style.listStyle = 'none'; }
+      else if (kind === 'no') { el.insertBefore(mk('<span style="color:#e05555;font-weight:800">✕&nbsp;</span>'), el.firstChild); el.style.listStyle = 'none'; }
+      else if (kind === 'dot') { el.insertBefore(mk('<span style="color:' + accent + '">•&nbsp;</span>'), el.firstChild); el.style.listStyle = 'none'; }
+      else if (kind === 'up') { el.insertBefore(document.createTextNode('▲ '), el.firstChild); }
+      else if (kind === 'dn') { el.insertBefore(document.createTextNode('▼ '), el.firstChild); }
+      else if (kind === 'sw') { el.setAttribute('style', (el.getAttribute('style') || '') + 'display:inline-block;width:9px;height:9px;border-radius:3px;background:' + jobs[j][2]); }
+      else if (kind === 'flow') { var kids = [].slice.call(el.children); for (var k = 1; k < kids.length; k++) el.insertBefore(mk('<span style="color:' + accent + ';padding:0 6px">' + (rtl ? '←' : '→') + '</span>'), kids[k]); }
+    }
+    cb(clone.outerHTML, null);
+  } catch (e) {
+    cb(null, String(e && e.message));
+  } finally {
+    if (prev) root.setAttribute('data-theme', prev); else root.removeAttribute('data-theme');
+  }
+};
+/* Copy + PDF one-click buttons. Copy reuses the menu's clipText bridge
+   (window.__rcCopy) so the report's copy path is identical to the menu's;
+   PDF is just the browser print dialog on this real, standalone page. */
+(function () {
+  var card = document.getElementById('card');
+  var cp = document.getElementById('rbcopy'), pdf = document.getElementById('rbpdf');
+  if (cp) cp.addEventListener('click', function () {
+    (window.__rcCopy || function (t, cb) { navigator.clipboard.writeText(t).then(function () { cb(true) }, function () { cb(false) }) })(card.innerText, function (ok) {
+      if (!ok) return; cp.classList.add('ok'); setTimeout(function () { cp.classList.remove('ok') }, 1600);
+    });
+  });
+  if (pdf) pdf.addEventListener('click', function () { window.print() });
+})();
+/* PNG export inlines the font bytes (an SVG-as-image can't load an external
+   @import font, so it would otherwise rasterize in a system fallback). The
+   report has no MCP server, so it embeds client-side: fetch every @import
+   sheet, swap each gstatic url for a data: URI, mount as #rcfont. menu.js's
+   ensureFonts then finds #rcfont and keeps it in the export. Best-effort:
+   any failure just leaves the system-font fallback. */
+(function () {
+  var imports = [];
+  document.querySelectorAll('style').forEach(function (s) {
+    (s.textContent.match(/@import url\((?:['"]?)([^'")]+)(?:['"]?)\)/g) || []).forEach(function (m) {
+      var u = m.replace(/@import url\((?:['"]?)|(?:['"]?)\)$/g, '');
+      if (imports.indexOf(u) < 0) imports.push(u);
+    });
+  });
+  if (!imports.length) return;
+  var SUBSETS = ['arabic', 'latin', 'latin-ext'];
+  function toData(url) {
+    return fetch(url).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
+      if (!b) return null;
+      return new Promise(function (res) { var f = new FileReader(); f.onload = function () { res(f.result) }; f.onerror = function () { res(null) }; f.readAsDataURL(b); });
+    }).catch(function () { return null; });
+  }
+  Promise.all(imports.map(function (u) { return fetch(u).then(function (r) { return r.ok ? r.text() : '' }).catch(function () { return '' }); })).then(function (sheets) {
+    var faces = [];
+    sheets.join('\n').replace(/(?:\/\*\s*([\w-]+)\s*\*\/\s*)?@font-face\s*\{([^}]*)\}/g, function (_, subset, body) {
+      if (subset && SUBSETS.indexOf(subset) < 0) return _;
+      var um = body.match(/url\((https:\/\/[^)]+\.woff2)\)/);
+      if (um) faces.push({ body: body, url: um[1] });
+      return _;
+    });
+    return Promise.all(faces.map(function (f) { return toData(f.url).then(function (d) { return d ? '@font-face{' + f.body.replace(f.url, d) + '}' : '' }); }));
+  }).then(function (rules) {
+    var css = rules.filter(Boolean).join('');
+    if (!css || document.getElementById('rcfont')) return;
+    var s = document.createElement('style'); s.id = 'rcfont'; s.textContent = css; document.head.appendChild(s);
+  }).catch(function () {});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "learnable",
+  "wordmark": "learnable",
+  "kind": "a course you finish",
+  "logo": "logo.svg",
+  "tone": "calm, patient, plain",
+  "font": {
+    "family": "Inter",
+    "google": "Inter:wght@400;500;600"
+  }
+}

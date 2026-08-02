@@ -1,0 +1,47 @@
+/* learnable brand layer. Palette in brand/README.md. */
+
+:root{
+  --text-primary:#1E211F;
+  --text-secondary:#6E7472;
+  --text-accent:#0E6A62;
+  --surface-1:#F4F4F1;
+  --surface-2:#EAEAE5;
+  --border:#DEDED8;
+  --border-strong:#C7C7BE;
+  --bg-accent:#E3EFEC;
+  --bg-success:#E4F0E7;
+  --bg-warning:#F7EBD9;
+  --bg-danger:#F7E2DE;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --page-bg:#EFEFEB;
+}
+
+[data-theme="dark"]{
+  --text-primary:#ECEEEC;
+  --text-secondary:#99A09D;
+  --text-accent:#6FC9BB;
+  --surface-1:#191B1A;
+  --surface-2:#202322;
+  --border:#2B2E2C;
+  --border-strong:#3A3E3C;
+  --bg-accent:#14302C;
+  --bg-success:#16301F;
+  --bg-warning:#34291A;
+  --bg-danger:#35211E;
+  --page-bg:#111312;
+}
+
+/* teal carries the brand, amber carries progress, then two quiet neutrals */
+.rc{
+  --ca:#0E6A62;
+  --cb:#C0782E;
+  --cc:#4A6572;
+  --cd:#8A5214;
+}
+
+[data-theme="dark"] .rc{
+  --ca:#6FC9BB;
+  --cb:#E5A860;
+  --cc:#8AA4B2;
+  --cd:#C79A5E;
+}
