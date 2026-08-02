@@ -13,7 +13,7 @@
       "name": "cursor-delegate",
       "source": "./plugins/cursor-delegate",
       "description": "Run coding and writing tasks on your Cursor subscription's quota instead of Claude's. Claude plans and reviews, Cursor workers execute, one task at a time or as a parallel fleet. Long jobs run as short resumable legs, so a dropped connection costs one leg and never the work. Includes copy-writing-fa for Persian web copy, with fa-lint as the gate.",
-      "version": "1.9.0",
+      "version": "1.9.1",
       "category": "engineering"
     },
     {

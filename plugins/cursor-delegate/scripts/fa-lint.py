@@ -24,6 +24,15 @@ import re
 import sys
 import unicodedata
 
+# A Persian linter that cannot print Persian is useless. Windows consoles
+# still default to cp1252, so every finding that quotes the offending word
+# crashed the whole run with UnicodeEncodeError before a single line printed.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 ZWNJ = "‌"
 PERSIAN = r"؀-ۿ"
 P = f"[{PERSIAN}]"

@@ -1,6 +1,6 @@
 # SMK Claude Code Plugins
 
-Twelve plugins for Claude Code, in one marketplace. Most of them exist because I hit the same problem twice and got tired of solving it by hand.
+Everything I have built for Claude Code, in one marketplace. Most of it exists because I hit the same problem twice and got tired of solving it by hand.
 
 Persian and RTL are first-class here, not an afterthought.
 
