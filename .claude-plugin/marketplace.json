@@ -6,92 +6,64 @@
   },
   "metadata": {
     "description": "Everything I have built for Claude Code: skills, commands, agents, and packaged tools, in one place.",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "plugins": [
     {
-      "name": "fig",
-      "source": "./plugins/fig",
-      "description": "Single-file looping animated SVG explainers, plus a to-gif converter command.",
-      "version": "1.0.0",
-      "category": "visual"
-    },
-    {
-      "name": "web-animation-engine",
-      "source": "./plugins/web-animation-engine",
-      "description": "Animated scenes and explainers: a skill plus a React/SVG runtime.",
-      "version": "1.0.0",
-      "category": "visual"
-    },
-    {
-      "name": "principles-first",
-      "source": "./plugins/principles-first",
-      "description": "First-principles and design-thinking checks for product and architecture decisions.",
-      "version": "1.0.0",
-      "category": "thinking"
-    },
-    {
-      "name": "dev-agents",
-      "source": "./plugins/dev-agents",
-      "description": "A ten-agent dev squad (architect, frontend, backend, devops, tester, reviewer and more) plus a browser-test command.",
-      "version": "1.0.0",
-      "category": "engineering"
-    },
-    {
-      "name": "multirepo-git",
-      "source": "./plugins/multirepo-git",
-      "description": "Branch and merge across multiple sub-repos with two commands: isolate and merge.",
-      "version": "1.0.0",
+      "name": "cursor-delegate",
+      "source": "./plugins/cursor-delegate",
+      "description": "Run coding and writing tasks on your Cursor subscription's quota instead of Claude's. Claude plans and reviews, Cursor workers execute, one task at a time or as a parallel fleet. Long jobs run as short resumable legs, so a dropped connection costs one leg and never the work. Includes copy-writing-fa for Persian web copy, with fa-lint as the gate.",
+      "version": "1.9.0",
       "category": "engineering"
     },
     {
       "name": "spring-clean",
       "source": "./plugins/spring-clean",
-      "description": "Repo housekeeping as a disciplined workflow: measure, delete or gitignore what does not belong, relocate dev docs and notes to a <project>-workspace repo, split oversized files, draw package boundaries, and leave architecture tests so the mess never comes back.",
-      "version": "1.1.0",
+      "description": "Deep-clean a repo and leave guardrails so it stays clean: delete dead surfaces, move dev docs out of the code tree, split oversized files, draw package boundaries, and write architecture tests that hold the line.",
+      "version": "1.4.0",
       "category": "engineering"
     },
     {
       "name": "portal-skills",
       "source": "./plugins/portal-skills",
-      "description": "Platform engineering and security skills: GitLab CI/CD + Helm chart generation for Kubernetes, data-driven pod rightsizing from Prometheus, a proactive secure-coding baseline, and a deep OWASP reference (Top 10:2025, LLM Top 10, Agentic AI).",
+      "description": "Platform engineering and security: GitLab CI/CD and Helm charts for Kubernetes, pod rightsizing from real Prometheus data, a secure-coding baseline that applies while you write, and a deep OWASP reference (Top 10:2025, LLM Top 10, Agentic AI).",
       "version": "1.0.0",
       "category": "engineering"
-    },
-    {
-      "name": "tldr",
-      "source": "./plugins/tldr",
-      "description": "Bilingual English and Persian TL;DR summaries, written for product managers.",
-      "version": "1.0.0",
-      "category": "writing"
     },
     {
       "name": "readable",
       "source": "./plugins/readable",
-      "description": "Replies as styled cards (Persian/RTL always, English by default) via a bundled MCP Apps card server: content-only output, template-side styling. Cards can render straight from *-card.html files written by background workers (htmlFile mode). Per-project brand layer (.readable/) reskins cards and reports. Plus report export and a visualize skill.",
+      "description": "Replies as styled cards instead of raw chat text. Persian and RTL always render correctly, English by default. Export any card as a standalone HTML report, and give a project its own brand so every card and report matches it.",
       "version": "4.18.0",
       "category": "writing"
     },
     {
+      "name": "decode",
+      "source": "./plugins/decode",
+      "description": "A narrated tour of a codebase for people who do not read code: a two-minute story, a browsable file tree, one clean canvas per file, and pull requests translated into product language. Persian first.",
+      "version": "2.0.0",
+      "category": "writing"
+    },
+    {
+      "name": "learnable",
+      "source": "./plugins/learnable",
+      "description": "Turns any subject into a course you actually finish: a placement quiz that finds your real level, a researched taxonomy and plan aimed at your gaps, and lesson files that teach themselves one hard question at a time and wait for your questions before moving on.",
+      "version": "0.1.0",
+      "category": "learning"
+    },
+    {
+      "name": "fig",
+      "source": "./plugins/fig",
+      "description": "Single-file looping animated SVGs for ideas that move: flows, loops, retries, queues, fan-outs. One HTML file you can drop in an email or a slide, no player and no deck, plus a to-gif command.",
+      "version": "1.0.0",
+      "category": "visual"
+    },
+    {
       "name": "getpix",
       "source": "./plugins/getpix",
-      "description": "Find free licensed images from five sources (Pexels, Pixabay, Unsplash, Openverse, Wikimedia), show them right in the chat, or insert optimized WebP with alt text and attribution. Includes photo-pass: a whole-site art-direction pass.",
+      "description": "Find free licensed images from five sources with zero API keys, show them right in the chat, or drop optimized WebP into the project with alt text and attribution. Includes photo-pass, a whole-site art-direction pass.",
       "version": "1.1.3",
-      "category": "content"
-    },
-    {
-      "name": "cursor-delegate",
-      "source": "./plugins/cursor-delegate",
-      "description": "Delegate to the Cursor CLI (cursor-agent) from inside Claude Code, on the Cursor subscription's quota instead of Claude's. One task via the cursor-delegate skill, or a parallel fleet via cursor-orchestrate (Claude plans and reviews, Cursor executes). Workers run fully trusted (no approval prompts). Long tasks run legged: ~4-minute legs resumed on one session, immune to flaky-network/VPN stream kills, and the fleet runner auto-resumes unfinished tasks. Key-based deterministic auth, self-terminating runs, resume-first recovery so no work is lost. Workers can author their own report cards that render as chat widgets via the readable plugin (htmlFile mode) at near-zero context cost. Model routing follows Cursor's two quota pools: first-party models (auto, composer-*, cursor-*) for mechanical work, API pass-through models (claude-*, gpt-*) kept for prose and judgment, with a pre-flight probe before big fan-outs. Agent calling, not a model-backend swap.",
-      "version": "1.8.0",
-      "category": "engineering"
-    },
-    {
-      "name": "cursor-copy-writing-fa",
-      "source": "./plugins/cursor-copy-writing-fa",
-      "description": "Persian web copy (blog articles, product descriptions, landing pages, microcopy, SEO meta) written by Cursor workers on the Cursor subscription's quota, with Claude holding the brief and the acceptance gate. Model routing is measured, not guessed: a seven-model bake-off showed Opus 5 writes the best Persian prose, GPT-5.6 Sol is the sharpest proofreader, and free auto is fine for bulk drafts, so each stage goes to the model that won it. Ships fa-lint, a dependency-free Persian copy linter that enforces ZWNJ, Persian punctuation and digits, administrative words, ad clichés and voice as a real exit code. Also measures whether copy reads human: sentence-rhythm variation, repeated openers, repeated phrases and empty closing sentences, with thresholds calibrated against a real human-written corpus. Voice is treated as per-project, never universal: a --voice flag switches the address-form check between informal and formal, mixing the two is flagged either way, and the skill states that a project's own BRAND.md or voice-tone.md outranks the plugin's rulebook.",
-      "version": "1.2.2",
-      "category": "content"
+      "category": "visual"
     },
     {
       "name": "daily-tools",
@@ -101,11 +73,11 @@
       "category": "daily"
     },
     {
-      "name": "decode",
-      "source": "./plugins/decode",
-      "description": "A senior-style narrated tour of any codebase for PMs who don't read code: a two-minute story, a VS Code-like browsable file tree, clean per-file canvases weighted by importance, small software-engineering lessons, and diff/PR translation in product language. Persian-first.",
-      "version": "2.0.0",
-      "category": "writing"
+      "name": "principles-first",
+      "source": "./plugins/principles-first",
+      "description": "First-principles and design-thinking checks for product and architecture calls. Built to run before scope is added, not after.",
+      "version": "1.0.0",
+      "category": "thinking"
     },
     {
       "name": "backlog-md",
@@ -113,7 +85,7 @@
         "source": "github",
         "repo": "smk-labs/claude-backlog-md"
       },
-      "description": "Backlog.md task management as a plugin: MCP server, hooks, and a docs-migration skill.",
+      "description": "Backlog.md task management as a plugin: MCP server, hooks, and a skill that imports messy docs into a clean backlog.",
       "category": "tasks"
     },
     {
@@ -124,22 +96,6 @@
       },
       "description": "Garry Tan's gstack dev workflow (53+ skills) packaged for Claude Code. Not our work: all credit to Garry Tan.",
       "category": "third-party"
-    },
-    {
-      "name": "gstack-installer",
-      "source": {
-        "source": "github",
-        "repo": "smk-labs/gstack-installer"
-      },
-      "description": "Installs Garry Tan's gstack natively from upstream: clones the repo and runs its real ./setup build (browse binary, 60+ bin tools), always current. Alternative to the gstack snapshot plugin.",
-      "category": "third-party"
-    },
-    {
-      "name": "learnable",
-      "source": "./plugins/learnable",
-      "description": "Turns any subject into a course you actually finish: a placement quiz that finds your real level, a researched taxonomy and plan aimed at your gaps, and lesson files that teach themselves one hard question at a time and wait for your questions before moving on.",
-      "version": "0.1.0",
-      "category": "learning"
     }
   ]
 }

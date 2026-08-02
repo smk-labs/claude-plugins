@@ -1,5 +1,5 @@
 ---
-name: cursor-copy-writing-fa
+name: copy-writing-fa
 description: Write Persian web copy (blog articles, product descriptions, landing pages, category text, microcopy, meta titles and descriptions) using Cursor workers, so the writing runs on the Cursor subscription's quota instead of Claude's. Use when the user asks for Persian content for a site, says "متن فارسی بنویس", "مقاله بنویس", "توضیح محصول بنویس", "کپی‌رایتینگ فارسی", "محتوای سئو", "copy for the site in Persian", or wants blog/product/landing copy generated at volume. Also use to edit, proofread, or de-AI existing Persian copy. Claude writes the brief and accepts the result; Cursor writes and lints.
 ---
 
@@ -41,17 +41,17 @@ Claude مغز کار است: زاویه، بریف، کلمه هدف، ساخت�
 
 ## مرحله ۲ — نوشتن
 
-متن کوتاه (زیر ۴ دقیقه کار): ابزار `cursor_run` از افزونه cursor-delegate.
+متن کوتاه (زیر ۴ دقیقه کار): ابزار `cursor_run` از همین افزونه.
 مقاله کامل: اجراکننده لِگ‌دار، چون استریم بلند روی VPN می‌میرد.
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/../cursor-delegate/scripts/legged-run.sh" \
+"${CLAUDE_PLUGIN_ROOT}/scripts/legged-run.sh" \
   --cwd <repo> --model claude-opus-5-high "<بریف کامل>"
 ```
 
 در متن تسک همیشه این دو خط را بگذار:
 
-> قواعد نگارش در `<plugin>/skills/cursor-copy-writing-fa/rulebook.md` است. بخوان و
+> قواعد نگارش در `<plugin>/skills/copy-writing-fa/rulebook.md` است. بخوان و
 > رعایت کن. بعد از نوشتن، `python3 <plugin>/scripts/fa-lint.py <file>` را اجرا کن
 > و تا وقتی PASS نشده تحویل نده.
 
