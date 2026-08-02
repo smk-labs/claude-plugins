@@ -66,6 +66,13 @@
       "category": "visual"
     },
     {
+      "name": "open-design-guide",
+      "source": "./plugins/open-design-guide",
+      "description": "Teaches Claude to use the Open Design content library: 151 design systems with real tokens (Apple, Vercel, Linear, Stripe, brutalism, claymorphism), 71 design and frontend skills, and 114 rendering templates for decks, documents, video frames, and social cards. Installs the library as a sparse clone: no desktop app, no daemon, no od binary.",
+      "version": "1.0.0",
+      "category": "visual"
+    },
+    {
       "name": "daily-tools",
       "source": "./plugins/daily-tools",
       "description": "Everyday Persian-first helpers: four-phase swarm QA campaigns (swarm-qa), copy-ready prompt writing (mkprompt), light multi-agent research (mini-research), plain-language step-by-step guides (steps), and ultra-terse resume-and-continue (go).",

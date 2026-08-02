@@ -45,6 +45,7 @@ Then install any plugin by name:
 | --- | --- |
 | **fig** | Single-file looping animated SVGs for ideas that move: flows, loops, retries, queues, fan-outs. One HTML file you can drop in an email or a slide. Converts to GIF too. |
 | **getpix** | Finds free licensed images from five sources with zero API keys, shows them in the chat, or drops optimized WebP into the project with alt text and attribution. Includes a whole-site art-direction pass. |
+| **open-design-guide** | 151 real design systems with real tokens (Apple, Vercel, Linear, Stripe, plus styles like brutalism and claymorphism), 71 design and frontend skills, and 114 templates for decks, documents, video frames, and social cards. Installs the [Open Design](https://github.com/nexu-io/open-design) content library as a sparse clone, so there is no desktop app, no daemon, and no `od` binary. |
 
 ### Everyday
 
