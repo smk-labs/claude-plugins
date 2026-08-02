@@ -66,7 +66,7 @@ const LTR_CSS = [
 ].join('\n');
 
 /* The kit's @REPORT tail (components the chat rule does not offer:
- * zebra/dense tables, kpi footnote, duo bars, donut) is cut here to keep
+ * zebra/dense tables, kpi footnote, duo bars, donut, fold) is cut here to keep
  * the template under the host's 30KB resource ceiling. Relocating donut
  * there (4.8.0) paid for scroll-table in the chat tier. The report shell
  * and the hosted @import ship the full sheet. */

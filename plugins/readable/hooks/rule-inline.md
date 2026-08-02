@@ -100,6 +100,20 @@ TL — timeline <div class="tl"><div><b>title</b>text</div>...</div>:
 .rc .tl>div::before{content:'';position:absolute;inset-inline-start:-1.34em;top:.5em;width:8px;height:8px;border-radius:50%;background:var(--text-accent);outline:2.5px solid var(--surface-1)}
 .rc .tl b{display:block;font-weight:700}
 
+FOLD — collapsible block <details class="fold"><summary>label</summary>…blocks…</details>, closed by default, native and JS-free; for long content the reader wants on demand (a full run log, a raw payload, a long quote), never as a substitute for sections or tables. Content is normal blocks (<p>, <pre>, <ul>, <table>); one level of nesting is fine:
+.rc .fold{margin:.8em 0;border:.5px solid var(--border);border-radius:10px;overflow:hidden}
+.rc .fold>summary{display:flex;align-items:center;gap:9px;padding:6px 12px;background:var(--surface-2);color:var(--text-accent);font-weight:700;cursor:pointer;unicode-bidi:plaintext}
+.rc .fold>summary::-webkit-details-marker{display:none}
+.rc .fold>summary::before{content:'';flex:0 0 auto;width:6px;height:6px;border-top:1.5px solid currentColor;border-inline-end:1.5px solid currentColor;border-start-end-radius:1px;transform:rotate(45deg);transition:transform .15s}
+.rc .fold>summary:dir(rtl)::before{transform:rotate(-45deg)}
+.rc .fold[open]>summary{border-bottom:.5px solid var(--border)}
+.rc .fold[open]>summary::before{transform:rotate(135deg)}
+.rc .fold[open]>summary:dir(rtl)::before{transform:rotate(-135deg)}
+.rc .fold>:not(summary){margin-inline:12px}
+.rc .fold pre{white-space:pre-wrap;word-break:break-word;max-height:52vh;overflow:auto}
+.rc .fold .fold>summary{background:none;color:var(--text-secondary)}
+@media print{.rc .fold::details-content{content-visibility:visible;display:block}.rc .fold>summary::before{transform:rotate(135deg);transition:none}.rc .fold>summary:dir(rtl)::before{transform:rotate(-135deg)}.rc .fold pre{max-height:none;overflow:visible}}
+
 CTA — closing buttons, max two, only when a natural next step exists: <div class="btns"><button class="cta" onclick="sendPrompt('the exact prompt')">label</button><button class="cta ghost" onclick="sendPrompt('...')">label</button></div>:
 .rc .cta{display:inline-flex;align-items:center;gap:6px;background:var(--text-accent);color:var(--surface-1);border:none;border-radius:9px;padding:7px 15px;font-family:inherit;font-size:1em;font-weight:700;cursor:pointer;margin-top:.4em}.rc .cta::after{content:'←';font-weight:400}.rc .cta:hover{opacity:.88}
 .rc .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:.6em}.rc .cta.ghost{background:transparent;color:var(--text-accent);border:1px solid var(--border-strong)}

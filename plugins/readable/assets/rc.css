@@ -69,8 +69,7 @@
 /*@CTA*/
 .rc .cta{display:inline-flex;align-items:center;gap:6px;background:var(--text-accent);color:var(--surface-1);border:none;border-radius:9px;padding:7px 15px;font-family:inherit;font-size:1em;font-weight:700;cursor:pointer;margin-top:.4em}.rc .cta::after{content:'←';font-weight:400}.rc .cta:hover{opacity:.88}
 .rc .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:.6em}.rc .cta.ghost{background:transparent;color:var(--text-accent);border:1px solid var(--border-strong)}
-/*@REPORT - report tier from here down: components the chat rule does not offer (dense stat variants + donut) plus print rules (an MCP iframe never prints), for the report skill, hosted kit, and inline snippets. NOT in the chat card template (server/server.js cuts the sheet at this marker, 30KB host ceiling).*/
-@media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}.rc .scroll-table.wide table{width:100%;white-space:normal}}
+/*@REPORT - report tier from here down: components the chat rule does not offer (dense stat variants, donut, fold) plus print rules (an MCP iframe never prints), for the report skill, hosted kit, and inline snippets. NOT in the chat card template (server/server.js cuts the sheet at this marker, 30KB host ceiling).*/
 .rc table.zebra tbody tr:nth-child(2n) td{background:var(--surface-2)}
 .rc table.zebra tbody tr:hover td{background:var(--border)}
 .rc table.dense{font-size:.9em}.rc table.dense thead th,.rc table.dense tbody td{padding:4px 8px}
@@ -84,3 +83,17 @@
 .rc .leg>span{display:flex;align-items:center;gap:8px}
 .rc .leg i{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
 .rc .leg .a i{background:var(--ca)}.rc .leg .b i{background:var(--cb)}.rc .leg .c i{background:var(--cc)}.rc .leg .d i{background:var(--cd)}
+/*@FOLD - native <details>, zero JS. The chevron is one rotated corner built from border-top + border-inline-end: closed it points along the reading direction, open it points down. RTL is NOT free - the logical border moves the corner to the other side, so the rotation sign must flip with it (:dir(rtl)), otherwise a closed RTL fold points UP. overflow:hidden clips the summary fill to the frame radius: fully rounded when closed, joined to the body when open. Content is normal blocks; margin-inline gives them the padding the full-width summary must not have.*/
+.rc .fold{margin:.8em 0;border:.5px solid var(--border);border-radius:10px;overflow:hidden}
+.rc .fold>summary{display:flex;align-items:center;gap:9px;padding:6px 12px;background:var(--surface-2);color:var(--text-accent);font-weight:700;cursor:pointer;unicode-bidi:plaintext}
+.rc .fold>summary::-webkit-details-marker{display:none}
+.rc .fold>summary::before{content:'';flex:0 0 auto;width:6px;height:6px;border-top:1.5px solid currentColor;border-inline-end:1.5px solid currentColor;border-start-end-radius:1px;transform:rotate(45deg);transition:transform .15s}
+.rc .fold>summary:dir(rtl)::before{transform:rotate(-45deg)}
+.rc .fold[open]>summary{border-bottom:.5px solid var(--border)}
+.rc .fold[open]>summary::before{transform:rotate(135deg)}
+.rc .fold[open]>summary:dir(rtl)::before{transform:rotate(-135deg)}
+.rc .fold>:not(summary){margin-inline:12px}
+.rc .fold pre{white-space:pre-wrap;word-break:break-word;max-height:52vh;overflow:auto}
+.rc .fold .fold>summary{background:none;color:var(--text-secondary)}
+/* Print STAYS LAST in the sheet: these rules override component rules of equal specificity, so anything added below them silently wins over print (that is exactly how the fold's pre cap survived print until it was moved here). A closed fold must never hide content from a PDF: ::details-content is forced visible (author sheet beats the UA's content-visibility:hidden), the chevron shows the open angle, and the pre height cap is lifted. */
+@media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}.rc .scroll-table.wide table{width:100%;white-space:normal}.rc .fold::details-content{content-visibility:visible;display:block}.rc .fold>summary::before{transform:rotate(135deg);transition:none}.rc .fold>summary:dir(rtl)::before{transform:rotate(-135deg)}.rc .fold pre{max-height:none;overflow:visible}}

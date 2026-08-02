@@ -69,7 +69,9 @@ def brand_blocks(brand_dir: pathlib.Path, lang: str):
 
     font = meta.get("font") or {}
     if font.get("google"):
-        css = "@import url('https://fonts.googleapis.com/css2?family=%s&display=swap');\n%s" % (font["google"], css)
+        # PRINT-SAFE: no remote @import. The faces are inlined below, and a blocked
+        # font host makes the browser hang before it will print.
+        pass
     for weight, rel in (font.get("files") or {}).items():
         f = brand_dir / rel
         if not f.is_file():
@@ -113,6 +115,16 @@ EN_EXTRA = (
 )
 
 
+def kit_css(brand_css: str) -> str:
+    """KIT_REMOTE_IMPORT: a report is a standalone document that gets printed and
+    emailed, so it must not depend on a font host. When the brand layer inlines
+    real @font-face rules the kit's remote @import is redundant, and a blocked
+    font host makes the browser hang before it will print."""
+    css = KIT.read_text(encoding="utf-8")
+    if brand_css and "@font-face" in brand_css:
+        css = re.sub(r"@import\s+url\(['\"]?https://fonts\.googleapis\.com[^)]*\);?", "", css)
+    return css
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("content", help="path to the content HTML fragment (building blocks only, no <style>)")
@@ -148,7 +160,7 @@ def main():
         .replace("{{LANG}}", a.lang)
         .replace("{{DIR}}", "rtl" if a.lang == "fa" else "ltr")
         .replace("{{TITLE}}", title)
-        .replace("{{KIT}}", KIT.read_text(encoding="utf-8"))
+        .replace("{{KIT}}", kit_css(brand_css))
         .replace("{{MENU}}", menu_js())
         .replace("{{EXTRA}}", EN_EXTRA if a.lang == "en" else "")
         .replace("{{BRAND}}", brand_css)
