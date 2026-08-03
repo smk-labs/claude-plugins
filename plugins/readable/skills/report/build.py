@@ -19,9 +19,13 @@ shipping a broken image. data: and http(s): sources are left untouched.
 
 Project brand (4.13.0): when a committable .readable/ dir (brand.css +
 optional brand.json + logo.svg) exists above the content file, the report is
-reskinned with it automatically — palette overrides, an optional logo/wordmark
+reskinned with it automatically - palette overrides, an optional logo/wordmark
 header, and font files inlined as data URIs so the output stays one offline
 file. --no-brand keeps the stock look.
+
+Signature (5.2.0): one muted line, appended as the last child of .rc from the
+kit's own @sig marker (assets/rc.css). A project opts out with
+"signature": false in .readable/brand.json.
 """
 import argparse
 import base64
@@ -105,6 +109,35 @@ def brand_blocks(brand_dir: pathlib.Path, lang: str):
         head = '<div class="brand">%s%s%s</div>\n' % (logo_html, ("<b>%s</b>" % wordmark) if wordmark else "", kind)
         css += "\n" + BRAND_HEAD_CSS
     return css, head
+
+
+def signature() -> str:
+    """The readable signature line, read from the kit's @sig marker.
+
+    THE single source (assets/rc.css); nothing here is hand-written, so the report
+    and the chat card can never drift apart. Anchored on the '<' because the
+    comment surrounding the marker talks about @sig too."""
+    m = re.search(r"@sig[ \t]+(<[^\n\r]+)", KIT.read_text(encoding="utf-8"))
+    if not m:
+        sys.exit("assets/rc.css is missing its @sig signature line")
+    return m.group(1).strip()
+
+
+def sig_off(brand_dir) -> bool:
+    """A project opts out with "signature": false in .readable/brand.json.
+
+    One committable flag, the same key the card server reads, so a client-facing
+    project turns the toolmaker's mark off once for cards AND reports. Deliberately
+    independent of --no-brand: attribution is a project policy, not a look."""
+    if not brand_dir:
+        return False
+    f = brand_dir / "brand.json"
+    if not f.is_file():
+        return False
+    try:
+        return json.loads(f.read_text(encoding="utf-8")).get("signature") is False
+    except (ValueError, OSError):
+        return False
 
 
 def menu_js() -> str:
@@ -248,11 +281,17 @@ def main():
     # the title sniff so a src full of angle brackets cannot confuse it.
     content = inline_media(content, src.parent, a.max_image_kb)
 
+    brand_dir = find_brand(src.parent) or find_brand(pathlib.Path.cwd())
     brand_css, brand_head = "", ""
-    if not a.no_brand:
-        brand_dir = find_brand(src.parent) or find_brand(pathlib.Path.cwd())
-        if brand_dir:
-            brand_css, brand_head = brand_blocks(brand_dir, a.lang)
+    if brand_dir and not a.no_brand:
+        brand_css, brand_head = brand_blocks(brand_dir, a.lang)
+
+    # SIGNATURE: the last child of .rc, exactly where the card template mounts it,
+    # so the report's own menu exports (html / png / markdown / text / email all
+    # serialize #card) carry it too. The .meta footer below sits OUTSIDE #card and
+    # would have left every one of those exports unsigned.
+    if not sig_off(brand_dir) and 'class="sig"' not in content:
+        content = content + "\n" + signature()
 
     title = a.title
     if not title and "<h2>" in content:
