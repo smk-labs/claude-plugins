@@ -153,6 +153,22 @@ function check(name, cond) {
   const kProse = await kitOf('<p>the src and box and card and fold of it</p>');
   check('detection is token-exact: prose words never pull a component', kProse === '');
 
+  // @ICON (5.0.0): one sprite behind a mask, so the glyph takes currentColor and
+  // the font size. It only became affordable when the kit went lazy.
+  const kIcon = await kitOf('<h3><i class="ic zap"></i>t</h3><p><i class="ic check"></i>ok</p>');
+  const ICON_NAMES = ['check', 'x', 'alert', 'info', 'clock', 'user', 'file', 'folder', 'code', 'terminal', 'git', 'db', 'zap', 'shield', 'search', 'link'];
+  check('read_kit delivers the icon set when an icon is used', kIcon.includes('.rc .ic{') && kIcon.includes('data:image/svg+xml'));
+  check('all 16 icons have an offset rule', ICON_NAMES.every((n) => kIcon.includes('.rc .ic.' + n + '{--p:')));
+  // The sprite URI is ~2KB; spelling it twice for the -webkit- prefix would
+  // double the component, so it lives in --u and is referenced by both.
+  check('the sprite URI appears exactly once, behind --u', (kIcon.match(/data:image\/svg\+xml/g) || []).length === 1 && kIcon.includes('-webkit-mask:var(--u)') && kIcon.includes('mask:var(--u)'));
+  check('an icon in a heading replaces the section dot instead of doubling it', kIcon.includes('.rc h3:has(.ic):not(.numbered *)::before{display:none}'));
+  // Both the dot suppression and the section counter live on h3::before and tie on
+  // specificity, so an unscoped suppression ate the numbering. Guard the scope.
+  check('an icon never eats a section number: the suppression is scoped out of @NUMBERED', kIcon.includes(':not(.numbered *)::before'));
+  check('the glyph is painted with currentColor so it theme-flips and inherits size', kIcon.includes('background:currentColor') && kIcon.includes('width:1em;height:1em'));
+  check('no icon CSS for a card that uses none', !kKpi.includes('.rc .ic{'));
+
   // COMPLETENESS. A new @TAG with no detector would silently render unstyled.
   // This is the guard that makes adding a component fail loudly instead.
   const srvSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
