@@ -29,7 +29,6 @@ html[dir=rtl] #rcmenu{top:16px;left:62px;right:auto}
 html[dir=rtl] #rcmenu .items{left:0;right:auto}
 /* IMG_FIT: a screenshot must never be wider than the column, on screen or
    on paper. Unconstrained, it widens the layout and clips the text. */
-.rc img{max-width:100%;height:auto;display:block;margin:14px auto;border-radius:8px}
 @page{margin:15mm 14mm}
 @media print{
 .theme-toggle,.rbar,#rcmenu,#rctoast,#rccp{display:none}
@@ -43,7 +42,7 @@ html,body{background:#fff}
    block across a page. */
 h2,h3{break-after:avoid;page-break-after:avoid}
 h2,h3,p,li{orphans:3;widows:3}
-.cal,.kpi,.kv>div,.bar,.spark,.donut,.tl>div,.flow,blockquote,pre,tr,img,svg{break-inside:avoid;page-break-inside:avoid}
+.cal,.kpi,.kv>div,.bar,.spark,.donut,.tl>div,.flow,blockquote,pre,tr,img,svg,figure{break-inside:avoid;page-break-inside:avoid}
 thead{display:table-header-group}
 tfoot{display:table-footer-group}
 /* A long table should still be allowed to flow onto the next page. */
@@ -56,6 +55,8 @@ a{text-decoration:none}
    Semantic fills (callouts, badges, table stripes) are untouched and still
    print, because print-color-adjust above keeps them. */
 html,body{background:#fff !important}
+/* Report-only half of the figure rules: the kit's @FIG owns the screen look, this caps an
+   image to one page and squares the corners for paper. */
 .rc img{max-width:100% !important;max-height:140mm;width:auto;height:auto;border-radius:0}
 .wrap,.rc,.brand,.meta{background:none !important;box-shadow:none !important;border:none !important;border-radius:0 !important}
 }
