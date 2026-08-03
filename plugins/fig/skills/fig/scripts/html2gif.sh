@@ -1,9 +1,10 @@
 #!/bin/bash
 # html2gif: convert an animated HTML file (a fig) to a perfectly looping HQ GIF.
 #
-# Pipeline: Playwright opens the page with a virtual clock injected
-# (performance.now + requestAnimationFrame are stubbed), advances one
-# frame at a time, screenshots after each tick. ffmpeg assembles the
+# Pipeline: Playwright opens the page, pauses every clock it can reach and
+# seeks them to an exact time per frame (CSS/Web Animations playheads, the
+# SMIL timeline, and a stubbed performance.now + requestAnimationFrame for
+# older js-driven figs), screenshots each one. ffmpeg assembles the
 # frames into a GIF with palettegen+paletteuse and diff_mode=rectangle
 # so static regions don't get re-encoded; that's why static-bg +
 # moving-pulse animations end up tiny.
@@ -56,10 +57,19 @@ NODE_PATH="$NODE_PATH_PW" node -e "
 const { chromium } = require('playwright');
 (async () => {
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: $VP_W, height: $VP_H } });
+  // reducedMotion is pinned: a machine that prefers reduced motion would
+  // otherwise honour the fig's own @media block and record a still GIF.
+  const ctx = await browser.newContext({
+    viewport: { width: $VP_W, height: $VP_H },
+    reducedMotion: 'no-preference',
+  });
   const page = await ctx.newPage();
 
-  // Virtual clock: animation progress is driven by us, not wall time.
+  // Virtual clock: animation progress is driven by us, not wall time. A fig
+  // animates with css @keyframes or SMIL and never touches rAF, so stubbing
+  // rAF alone (what this did until 1.1.0) left every frame identical and the
+  // GIF frozen. Each clock is paused and SEEKED to an absolute time instead,
+  // which also drops the drift an incremental advance accumulated.
   await page.addInitScript(() => {
     let virtual = 0;
     Object.defineProperty(performance, 'now',
@@ -68,8 +78,19 @@ const { chromium } = require('playwright');
     const queue = new Map();
     window.requestAnimationFrame = (cb) => { const id = nextId++; queue.set(id, cb); return id; };
     window.cancelAnimationFrame  = (id) => queue.delete(id);
-    window.__advance = (ms) => {
-      virtual += ms;
+    window.__seek = (ms) => {
+      virtual = ms;
+      // css animations and transitions, via the Web Animations playhead.
+      if (document.getAnimations) {
+        document.getAnimations().forEach(a => {
+          try { a.pause(); a.currentTime = ms; } catch (e) {}
+        });
+      }
+      // SMIL keeps its own timeline, in seconds.
+      document.querySelectorAll('svg').forEach(s => {
+        try { s.pauseAnimations(); s.setCurrentTime(ms / 1000); } catch (e) {}
+      });
+      // ...and rAF, for a js-driven fig from before the css stack.
       const cbs = Array.from(queue.values());
       queue.clear();
       cbs.forEach(cb => { try { cb(virtual); } catch(e) {} });
@@ -80,25 +101,26 @@ const { chromium } = require('playwright');
   await page.goto('file://$ABSPATH', { waitUntil: 'load', timeout: 60000 });
   await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {});
 
-  // Wait until the page actually renders something. Babel Standalone compile
-  // plus React mount is wildly variable (1 to 30+ seconds on cold loads), so
-  // a fixed sleep is unreliable. Wait for both signals: the root has DOM
-  // children (proves the JSX rendered) AND a rAF is queued (proves a
-  // useTime-style hook is wired up and ready to receive ticks).
+  // Wait until something is actually animating. A css fig satisfies this on
+  // the first tick; the js branch is the slow one (Babel compile plus React
+  // mount ran 1 to 30+ seconds on a cold load), which is why this waits on a
+  // signal rather than sleeping.
   await page.waitForFunction(() => {
+    if (document.getAnimations && document.getAnimations().length > 0) return true;
+    if (document.querySelector('animate, animateTransform, animateMotion, set')) return true;
     const root = document.getElementById('root');
-    return root && root.children.length > 0 && window.__queueSize && window.__queueSize() > 0;
+    return !!(root && root.children.length > 0 && window.__queueSize && window.__queueSize() > 0);
   }, { timeout: 90000 })
-    .catch(() => { console.error('Warning: page did not mount within 90s. The page may not be React-based, may not use #root, or may not use requestAnimationFrame. Frames may be empty.'); });
-  await page.waitForTimeout(200);   // small buffer for React to flush initial state
+    .catch(() => { console.error('Warning: nothing was animating after 90s. The figure may be deliberately static, or its motion may be neither css @keyframes, SMIL, nor requestAnimationFrame. Frames may all be identical.'); });
+  await page.waitForTimeout(200);   // fonts settle, react flushes initial state
 
   const N  = $N_FRAMES;
   const dt = 1000 / $FPS;
   const pad = (n) => String(n).padStart(4, '0');
 
   for (let i = 0; i < N; i++) {
-    await page.evaluate((ms) => window.__advance(ms), dt);
-    await page.waitForTimeout(8);   // let React flush setState then DOM
+    await page.evaluate((ms) => window.__seek(ms), i * dt);
+    await page.waitForTimeout(8);   // let a js fig flush setState then DOM
     await page.screenshot({ path: '$FRAMES/f_' + pad(i) + '.png' });
   }
   await browser.close();

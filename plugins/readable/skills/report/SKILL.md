@@ -51,10 +51,16 @@ Do NOT add one for: a heading that felt bare, mood or texture, a stock photo, a 
 
 - **Reuse before you fetch.** If a screenshot or image already exists (one you just took, a `getpix` result already in the project), use that path.
 - **`/getpix:getpix`** — only when an image is genuinely load-bearing, none exists, and the skill is available. It costs a search and a download, so it is never the reflex. If the user asked for an image, that is reason enough.
-- Keep files small. `build.py` inlines each `<img src>` pointing at a local file as a `data:` URI so the report stays one offline file, and refuses above 2MB per image (`--max-image-kb` raises it). A 5MB screenshot is a cropping problem, not a cap problem.
+- Keep files small. `build.py` inlines each `<img src>` pointing at a local file as a `data:` URI so the report stays one offline file, and refuses above 2MB per image (`--max-image-kb` raises it). A 5MB screenshot is a cropping problem, not a cap problem. It refuses a malformed `/fig` figure on the same principle: a build that stops beats a report that ships a broken image.
 - `alt` is not optional: it is what a screen reader and a failed load both fall back to.
 
-**Motion** is `<figure><img src="thing.html" alt="..."></figure>` pointing at the `/fig` output; `build.py` lifts the `<svg>` out with its `<style>` folded in, so it animates and stays isolated from the report's CSS. Report path only, never a chat card. It prints as one frozen frame, so the animation must read at rest — if it only makes sense mid-motion, it is the wrong figure. At most one per report.
+**Motion** is `<figure><img src="thing.html" alt="..."></figure>` pointing at the `/fig` output; `build.py` lifts the `<svg>` out with every document `<style>` folded in, so it animates and stays isolated from the report's CSS. Report path only, never a chat card. It prints as one frozen frame, so the animation must read at rest — if it only makes sense mid-motion, it is the wrong figure. At most one per report.
+
+Inside an `<img>` that svg is its own document. Three consequences:
+
+- **The motion has to be CSS `@keyframes` or SMIL, written inside the svg.** No script runs in there, so a figure driven by React, a CDN, or `requestAnimationFrame` ships as a single still frame. `/fig` writes CSS since fig 1.1.0; an older figure needs rebuilding. The build warns and names the file.
+- **Direction is not inherited.** The report's `dir="rtl"` stops at the image boundary, so a Persian figure's `text-anchor="start"` labels jump to the wrong side of their anchor and overlap. `build.py` carries the fig document's own direction onto the `<svg>`, so declare it there (`style="direction:rtl"`) and nothing has to be guessed.
+- **It is parsed as strict XML.** One bare `<` or `&` (inside a CSS comment counts) stops the build with the file, line, and column, instead of shipping a report whose figure is a broken-image glyph.
 
 ## Project brand
 
