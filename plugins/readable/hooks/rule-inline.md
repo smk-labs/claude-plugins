@@ -31,6 +31,8 @@ CONTENT
 
 BASE already styles all text content, so these blocks need nothing extra: <h2> once as the title; <h3> per section; <p>; <p class="lead"> for a muted intro line; <ul>/<ol>; status items <li class="ok">/<li class="no">; callouts <div class="cal tip|note|warn|danger"><div>text</div></div>; <a>; <strong>; <hr> sparingly; and <code> wrapped around every path, command, URL, and code token (it renders LTR-isolated).
 
+The icon set is deliberately absent from this path: its snippet carries a 2KB inline SVG sprite, and transcribing that verbatim is a corruption risk no icon is worth. Icons are available on the card and report paths, where the CSS is injected rather than copied.
+
 Everything else is pay-per-use. Each component below has a CSS snippet: for EVERY component CONTENT uses, copy its snippet verbatim into the same <style>, right before </style>. Snippets are independent, order does not matter, never edit them. If unsure whether a component is used, include its snippet (missing CSS renders unstyled); never paste a snippet for a component CONTENT does not use.
 
 TABLE — comparison tables, plain <table><thead><tbody>; 10+ row stat tables get <table class="zebra dense"> (striped rows + tight padding, combinable); long tables (100+ rows) get wrapped as <div class="scroll-table"><table>...</table></div> (scrollbox with pinned header, expands fully in print); very wide tables get <div class="scroll-table wide"> (cells stay on one line, box scrolls sideways, wraps again in print):
