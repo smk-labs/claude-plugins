@@ -65,16 +65,110 @@ const LTR_CSS = [
   '.rc[dir=ltr] .flow .s:not(:last-child)::before{transform:translateY(-50%) rotate(225deg)}',
 ].join('\n');
 
-/* The kit's @REPORT tail (components the chat rule does not offer:
- * zebra/dense tables, kpi footnote, duo bars, donut, fold) is cut here to keep
- * the template under the host's 30KB resource ceiling. Relocating donut
- * there (4.8.0) paid for scroll-table in the chat tier. The report shell
- * and the hosted @import ship the full sheet. */
-const KIT_CHAT = KIT_CSS.split('/*@REPORT')[0];
+/* LAZY KIT (4.20.0). The template used to inline the whole pre-@REPORT sheet
+ * because a predeclared ui:// resource is served static, before any card content
+ * exists, so it could not be tailored per card. The sheet is no longer WHERE the
+ * tailoring happens: the template now carries BASE only, and the app asks the
+ * server for the component snippets a given card's HTML actually needs
+ * (read_kit, same app-only channel as read_brand). That is genuine pay-per-use,
+ * it keeps the card offline-safe (the CSS comes from this server, not a CDN),
+ * and it takes the 30KB ceiling off the critical path for good.
+ *
+ * htmlFile mode is why the CSS cannot simply ride along in the tool result: the
+ * server never sees that HTML (the app reads the file itself via read_card_file),
+ * so only the app can ask, and it asks once it holds the HTML either way.
+ *
+ * BASE is everything above the first @TAG. @REPORT is a tier divider with no CSS
+ * of its own, and @PRINT never ships to an iframe. */
+const KIT_BASE = KIT_CSS.split('/*@')[0];
+const KIT_TAG_RE = /\/\*@([A-Z]+)/;
+
+/* One entry per @TAG, in SHEET ORDER (order is preserved on delivery so every
+ * specificity-tie invariant in the sheet still holds, e.g. @CARD's chip restore
+ * following its own child inversion). */
+const KIT_SNIPPETS = (() => {
+  const out = [];
+  for (const part of KIT_CSS.split(/(?=\/\*@)/)) {
+    const m = part.match(KIT_TAG_RE);
+    if (!m) continue;
+    out.push({ tag: m[1], css: part });
+  }
+  return out;
+})();
+
+/* Detectors: a component ships when the card's HTML uses one of its class tokens
+ * or element names. Tokens are matched exactly (parsed out of class attributes),
+ * not by substring, so `class="cards c2"` cannot be missed and `.src` cannot be
+ * triggered by an unrelated word. Over-inclusion costs bytes; a MISS renders a
+ * component unstyled, so anything ambiguous is listed deliberately. */
+const KIT_DETECT = {
+  TABLE: { cls: ['scroll-table', 'wide'], tags: ['table', 'thead', 'tbody', 'th', 'td'] },
+  ZEBRA: { cls: ['zebra', 'dense'], tags: [] },
+  KV: { cls: ['kv'], tags: [] },
+  KPI: { cls: ['grid', 'kpi', 'trend'], tags: [] },
+  BARS: { cls: ['bars', 'bar', 'duo'], tags: [] },
+  SPARK: { cls: ['spark'], tags: ['polyline', 'polygon'] },
+  FLOW: { cls: ['flow'], tags: [] },
+  TL: { cls: ['tl'], tags: [] },
+  BADGE: { cls: ['badge'], tags: [] },
+  CTA: { cls: ['cta', 'btns'], tags: ['button'] },
+  CARD: { cls: ['cards', 'card', 'pick'], tags: [] },
+  BOX: { cls: ['box', 'lbl'], tags: [] },
+  COLS: { cls: ['cols'], tags: [] },
+  QUOTE: { cls: [], tags: ['blockquote', 'cite'] },
+  SRC: { cls: ['src'], tags: [] },
+  NUMBERED: { cls: ['numbered'], tags: [] },
+  DONUT: { cls: ['donut', 'donut-w', 'leg'], tags: [] },
+  FOLD: { cls: ['fold'], tags: ['details', 'summary'] },
+};
+/* A snippet may lean on BASE and on what it declares here, never on a sibling
+ * happening to be present: @BOX takes its panel + child inversion from @CARD,
+ * and @ZEBRA restyles rows @TABLE has to have drawn first. */
+const KIT_NEEDS = { BOX: ['CARD'], ZEBRA: ['TABLE'] };
+
+function kitTokens(html) {
+  const cls = new Set();
+  const tags = new Set();
+  const s = String(html);
+  let m;
+  const cre = /class\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+  while ((m = cre.exec(s))) {
+    for (const t of String(m[1] !== undefined ? m[1] : m[2]).split(/\s+/)) if (t) cls.add(t);
+  }
+  const tre = /<\s*([a-zA-Z][a-zA-Z0-9-]*)/g;
+  while ((m = tre.exec(s))) tags.add(m[1].toLowerCase());
+  return { cls, tags };
+}
+
+/* Sources stay heavily commented - they ARE the documentation - but comments and
+ * newlines have no business on the wire. Var names stay long here (unlike the
+ * template, which aliases them): the aliases are defined on .rc inside the
+ * template's own copy of BASE, and a delivered snippet should not depend on that
+ * assembly detail to resolve its colours. */
+function kitMin(css) {
+  return css.replace(/\/\*[^]*?\*\//g, '').replace(/\n+/g, '').trim();
+}
+
+/* The CSS for one card: BASE is already in the template, so only snippets ship. */
+function kitFor(html) {
+  const { cls, tags } = kitTokens(html);
+  const want = new Set();
+  const add = (tag) => {
+    if (want.has(tag)) return;
+    want.add(tag);
+    for (const dep of KIT_NEEDS[tag] || []) add(dep);
+  };
+  for (const { tag } of KIT_SNIPPETS) {
+    const d = KIT_DETECT[tag];
+    if (!d) continue;
+    if (d.cls.some((c) => cls.has(c)) || d.tags.some((t) => tags.has(t))) add(tag);
+  }
+  return kitMin(KIT_SNIPPETS.filter((s) => want.has(s.tag)).map((s) => s.css).join(''));
+}
 /* @import is only valid before all other rules; the kit's Vazirmatn import
  * would die mid-sheet after PALETTE, so imports are hoisted to the top of the
  * template <style> (and Inter added for LTR cards). */
-const KIT_BODY = KIT_CHAT.replace(/\/\*[^]*?\*\//g, '');
+const KIT_BODY = KIT_BASE.replace(/\/\*[^]*?\*\//g, '');
 /* Line-anchored: the Google Fonts URL itself contains semicolons (wght@400;500;...),
  * so matching up to the first ';' truncates mid-url and the leftover garbage
  * eats the kit's first rule via CSS error recovery. Imports sit one per line. */
@@ -124,7 +218,13 @@ const BRIDGE_JS = [
   "window.__rcFit=fit;",
   "/* Card direction follows the content's majority script (the kit is Persian-first, ties go RTL); .rc[dir=ltr] overrides in the template CSS mirror the sided rules. code/pre spans are stripped BEFORE counting: paths and commands are direction-neutral, and one long /Users/... path outvoting the Persian prose flipped whole cards to LTR (field bug, 4.6.1). */",
   "function dirOf(h){var t=String(h).replace(/<(code|pre)[^>]*>[^]*?<\\/\\1>/gi,' ').replace(/<[^>]*>/g,' ');var r=(t.match(/[\\u0591-\\u07FF\\uFB1D-\\uFDFD\\uFE70-\\uFEFC]/g)||[]).length;var l=(t.match(/[A-Za-z]/g)||[]).length;return r>=l?'rtl':'ltr'}",
-  "function paint(html){if(!html)return;var c=document.getElementById('card');c.setAttribute('dir',dirOf(html));c.innerHTML=html;fit();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)}",
+  "/* Lazy kit (4.20.0): the template carries BASE only, so the component CSS for THIS card is fetched by posting its html to the app-only read_kit tool (same channel as read_brand) and mounted BEFORE the first paint — mounting after would flash unstyled tables and kpis. The <style> node is created at load, not on first use, so the brand style always lands after it and keeps winning. Two failure modes are covered: an error or empty reply paints on BASE alone (readable, and RTL still correct), and a host that never answers is capped by the deadline below, after which a late reply still mounts and restyles in place. */",
+  "var kitCss='',kitEl=(function(){var s=document.createElement('style');s.id='rckit';document.head.appendChild(s);return s})();",
+  "function kMount(t){if(t===kitCss)return;kitCss=t;kitEl.textContent=t}",
+  "function kApply(html,cb){var done=false;function go(){if(done)return;done=true;cb()}setTimeout(go,1500);",
+  "rpc('tools/call',{name:'read_kit',arguments:{html:html}},function(res,err){var c=!err&&res&&!res.isError&&res.content,t=c&&c[0]&&c[0].text;if(typeof t==='string')kMount(t);go()})}",
+  "function draw(html){var c=document.getElementById('card');c.setAttribute('dir',dirOf(html));c.innerHTML=html;fit();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)}",
+  "function paint(html){if(!html)return;kApply(html,function(){draw(html)})}",
   "function render(html,isFinal){if(isFinal){finalGot=true;if(partialTimer){clearTimeout(partialTimer);partialTimer=null}paint(html);return}",
   "if(finalGot)return;if(partialTimer)clearTimeout(partialTimer);partialTimer=setTimeout(function(){if(!finalGot)paint(html)},700)}",
   "/* htmlFile mode: the call carries only a path, so the bridge pulls the content itself through the app-only read_card_file tool (host tools/call, same channel as render_email) — the HTML never crosses the model's context. tool-input and tool-result both announce the path; a double fetch is idempotent (render(t,true) repaints the same content), so no dedupe guard is spent on it. */",
@@ -202,7 +302,7 @@ const TEMPLATE_HTML =
 const TOOL = {
   name: 'card',
   description:
-    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language (plain RTL chat text scrambles; this renders it as a correct styled card), and PREFER it for English conversational, explanatory, or structured answers too. Skip it only for replies dominated by code blocks, diffs, or logs. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no reply text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody> (long tables, 100+ rows: wrap as <div class="scroll-table"><table>…</table></div> for a scrollbox with pinned header; add class "wide" to the wrapper when columns are many/wide: cells stay on one line and the box scrolls sideways), <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, trend sparkline <div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,26 25,19 50,22 75,10 100,4"/></svg><div class="x"><span>old</span><span>new</span></div></div> (time series: x evenly spaced 0..100 oldest→newest, y inverted 2≈max 28≈min, computed from the data; optional area: prepend <polygon points="0,30 …same points… 100,30"/>; optional second series: append <polyline class="s2" points="…"/>), flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, <code> around every inline path/URL/code token, <pre><code>…</code></pre> for multiline code (renders LTR), optional CTA buttons <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">label</button></div>. NO <style>, NO <script>, NO wrapper div: the template styles everything, light and dark. Short answers are fine as plain <p> paragraphs inside the card. Open with the substance: NO cover-page preamble (no owner/subject/prepared-by/audience/date/status kv block at the top) — the first line is the answer itself, the <h2> already titles it. ' +
+    'ALWAYS use this tool to deliver ANY reply written in Persian or another RTL language (plain RTL chat text scrambles; this renders it as a correct styled card), and PREFER it for English conversational, explanatory, or structured answers too. Skip it only for replies dominated by code blocks, diffs, or logs. Call it exactly once per reply, with the ENTIRE reply as the html argument; the call IS the reply, so output no reply text before or after it. Build the html from these blocks only: <h2> once as title, <p class="lead"> intro, <h3> sections, <p>, <ul>/<ol>, <li class="ok|no">, callouts <div class="cal tip|note|warn|danger"><div>…</div></div>, <table><thead><tbody> (long tables, 100+ rows: wrap as <div class="scroll-table"><table>…</table></div> for a scrollbox with pinned header; add class "wide" to the wrapper when columns are many/wide: cells stay on one line and the box scrolls sideways), <span class="badge ok|warn|info">, key-values <div class="kv"><div><b>k</b><span>v</span></div>…</div>, KPI cards <div class="grid c3|c2"><div class="kpi"><div class="l">label</div><div class="n">1.2M<span class="trend up">18%</span></div></div></div>, bars <div class="bars"><div class="bar"><span class="l">l</span><span class="t"><i style="width:72%"></i></span><span class="v">72%</span></div></div>, trend sparkline <div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,26 25,19 50,22 75,10 100,4"/></svg><div class="x"><span>old</span><span>new</span></div></div> (time series: x evenly spaced 0..100 oldest→newest, y inverted 2≈max 28≈min, computed from the data; optional area: prepend <polygon points="0,30 …same points… 100,30"/>; optional second series: append <polyline class="s2" points="…"/>), flow <div class="flow"><span class="s">step</span>…</div>, timeline <div class="tl"><div><b>t</b>text</div>…</div>, cards <div class="cards"><div class="card"><h4>title<span class="badge ok">chip</span></h4><p>…</p></div>…</div> for repeatable units that each hold a small story (add c2 for exactly two per row, and <div class="card pick"> for a recommended option), one full-width standout block <div class="box"> with an optional <div class="lbl">eyebrow</div>, side-by-side blocks <div class="cols"><div>…</div><div>…</div></div> for pros vs cons, quotations <blockquote><p>text</p><cite>source</cite></blockquote>, a caption under a table or chart <div class="src">source: …</div>, <code> around every inline path/URL/code token, <pre><code>…</code></pre> for multiline code (renders LTR), optional CTA buttons <div class="btns"><button class="cta" onclick="sendPrompt(\'…\')">label</button></div>. NO <style>, NO <script>, NO wrapper div: the template styles everything, light and dark. Short answers are fine as plain <p> paragraphs inside the card. Table or cards: a TABLE wins when many attributes are compared across few options and column alignment matters; CARDS win when each option has a narrative that must read as a unit; a strong comparison often uses both. Open with the substance: NO cover-page preamble (no owner/subject/prepared-by/audience/date/status kv block at the top) — the first line is the answer itself, the <h2> already titles it. ' +
     'FILE MODE: when a background worker/delegate has ALREADY written its report as card-block HTML to a file ' +
     'ending in -card.html, pass htmlFile (the absolute path) INSTEAD of html — the card renders straight from ' +
     'the file and its HTML never passes through your context. Do not read the file or copy its content into ' +
@@ -303,6 +403,19 @@ const FONTS_TOOL = {
   description:
     'Internal: returns base64-embedded @font-face CSS (the kit web fonts) so the card UI can inline real font bytes into PNG exports. Called by the embedded card interface, never by the assistant.',
   inputSchema: { type: 'object', properties: {} },
+};
+
+/* read_kit (4.20.0): the component half of the kit, selected for one card.
+ * The template carries BASE; the app posts the card HTML here and gets back only
+ * the snippets that HTML uses. Not for the model - it never sees or sends CSS. */
+const KIT_TOOL = {
+  name: 'read_kit',
+  description:
+    'Internal: returns the kit component CSS a specific card needs, selected from its HTML. Called by the embedded card interface, never by the assistant.',
+  inputSchema: {
+    type: 'object',
+    properties: { html: { type: 'string', description: 'The card content HTML to select component CSS for.' } },
+  },
 };
 
 const FONT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
@@ -892,7 +1005,7 @@ function handle(msg) {
       return;
     }
     case 'tools/list':
-      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL, READ_TOOL, COPY_TOOL, BRAND_TOOL, FONTS_TOOL] });
+      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL, READ_TOOL, COPY_TOOL, BRAND_TOOL, FONTS_TOOL, KIT_TOOL] });
       return;
     case 'tools/call': {
       if (params && params.name === 'copy_text') {
@@ -931,6 +1044,16 @@ function handle(msg) {
         if (typeof a.html !== 'string' || !a.html.trim()) return fail(-32602, 'html (string) is required');
         if (/<\s*(style|script)\b/i.test(a.html)) return fail(-32602, 'html must not contain <style> or <script>');
         respond({ content: [{ type: 'text', text: renderEmail(a.html, a.theme) }] });
+        return;
+      }
+      if (params && params.name === 'read_kit') {
+        const a = params.arguments || {};
+        if (typeof a.html !== 'string') return fail(-32602, 'html (string) is required');
+        try {
+          respond({ content: [{ type: 'text', text: kitFor(a.html) }] });
+        } catch (e) {
+          respond({ isError: true, content: [{ type: 'text', text: 'kit select failed: ' + String(e && e.message) }] });
+        }
         return;
       }
       if (params && params.name === 'read_fonts') {
