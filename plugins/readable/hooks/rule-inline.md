@@ -21,10 +21,10 @@ Persian/RTL replies scramble as plain chat text. In this client, deliver every P
 .rc ol{list-style:decimal}.rc ol>li::marker{color:var(--text-accent);font-weight:700}
 .rc li.ok::before,.rc li.no::before{content:'✓';background:none;width:auto;height:auto;top:0;inset-inline-start:-1.35em;font-weight:800;font-size:1em;line-height:inherit;color:var(--ca)}
 .rc li.no::before{content:'✕';color:#e05555}
-.rc .cal{display:flex;gap:9px;padding:9px 12px;border-radius:10px;margin:.8em 0;border-inline-start:3px solid var(--border-strong)}.rc .cal>div{min-width:0}.rc .cal p{margin:.15em 0}
+.rc .cal{display:flex;gap:9px;padding:9px 12px;border-radius:11px;margin:.8em 0;border-inline-start:3px solid var(--border-strong)}.rc .cal>div{min-width:0}.rc .cal p{margin:.15em 0}
 .rc .cal.tip{background:var(--bg-success);border-color:var(--ca)}.rc .cal.note{background:var(--bg-accent);border-color:var(--cb)}.rc .cal.warn{background:var(--bg-warning);border-color:#c98a1a}.rc .cal.danger{background:var(--bg-danger);border-color:#d64545}
 .rc hr{border:none;border-top:.5px solid var(--border);margin:1.3em 0}
-.rc pre{direction:ltr;text-align:left;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;background:var(--surface-2);border:.5px solid var(--border);border-radius:8px;padding:10px 12px;overflow-x:auto;line-height:1.6;margin:.8em 0}.rc pre code{display:block;border:none;background:none;padding:0}
+.rc pre{direction:ltr;text-align:left;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;background:var(--surface-2);border:.5px solid var(--border);border-radius:9px;padding:10px 12px;overflow-x:auto;line-height:1.6;margin:.8em 0}.rc pre code{display:block;border:none;background:none;padding:0}
 </style>
 CONTENT
 </div>
@@ -38,7 +38,7 @@ TABLE — comparison tables, plain <table><thead><tbody>; 10+ row stat tables ge
 .rc thead th{color:var(--text-secondary);font-weight:700;font-size:.88em;border-bottom:1.5px solid var(--border-strong);padding:5px 10px;text-align:right}
 .rc tbody td{padding:7px 10px;border-bottom:.5px solid var(--border);text-align:right}
 .rc tbody tr:last-child td{border-bottom:none}.rc tbody tr:hover td{background:var(--surface-2)}
-.rc .scroll-table{max-height:82vh;overflow:auto;border:1px solid var(--border);border-radius:10px;margin:.8em 0}.rc .scroll-table table{margin:0}
+.rc .scroll-table{max-height:82vh;overflow:auto;border:1px solid var(--border);border-radius:11px;margin:.8em 0}.rc .scroll-table table{margin:0}
 .rc .scroll-table thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);box-shadow:0 1px 0 var(--border)}
 .rc .scroll-table.wide table{width:max-content;min-width:100%;white-space:nowrap}
 @media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}.rc .scroll-table.wide table{width:100%;white-space:normal}}
@@ -58,7 +58,7 @@ KPI — stat cards <div class="grid c3"> (or c2, or plain grid) of <div class="k
 .rc .kpi{background:var(--surface-2);border:.5px solid var(--border);border-radius:11px;padding:11px 13px}
 .rc .kpi .l{font-size:.82em;color:var(--text-secondary);margin-bottom:3px}
 .rc .kpi .n{font-size:1.8em;font-weight:800;line-height:1.2;color:var(--text-primary)}
-.rc .trend{display:inline-block;font-size:.55em;font-weight:700;padding:1px 8px;border-radius:12px;vertical-align:2px;margin-inline-start:7px}
+.rc .trend{display:inline-block;font-size:.55em;font-weight:700;padding:1px 8px;border-radius:20px;vertical-align:2px;margin-inline-start:7px}
 .rc .trend.up{background:var(--bg-success);color:var(--ca)}.rc .trend.up::before{content:'▲ '}
 .rc .trend.dn{background:var(--bg-danger);color:var(--cd)}.rc .trend.dn::before{content:'▼ '}
 .rc .kpi .f{font-size:.74em;color:var(--text-secondary);line-height:1.7;margin-top:3px}
@@ -101,7 +101,7 @@ TL — timeline <div class="tl"><div><b>title</b>text</div>...</div>:
 .rc .tl b{display:block;font-weight:700}
 
 FOLD — collapsible block <details class="fold"><summary>label</summary>…blocks…</details>, closed by default, native and JS-free; for long content the reader wants on demand (a full run log, a raw payload, a long quote), never as a substitute for sections or tables. Content is normal blocks (<p>, <pre>, <ul>, <table>); one level of nesting is fine:
-.rc .fold{margin:.8em 0;border:.5px solid var(--border);border-radius:10px;overflow:hidden}
+.rc .fold{margin:.8em 0;border:.5px solid var(--border);border-radius:11px;overflow:hidden}
 .rc .fold>summary{display:flex;align-items:center;gap:9px;padding:6px 12px;background:var(--surface-2);color:var(--text-accent);font-weight:700;cursor:pointer;unicode-bidi:plaintext}
 .rc .fold>summary::-webkit-details-marker{display:none}
 .rc .fold>summary::before{content:'';flex:0 0 auto;width:6px;height:6px;border-top:1.5px solid currentColor;border-inline-end:1.5px solid currentColor;border-start-end-radius:1px;transform:rotate(45deg);transition:transform .15s}
@@ -117,6 +117,43 @@ FOLD — collapsible block <details class="fold"><summary>label</summary>…bloc
 CTA — closing buttons, max two, only when a natural next step exists: <div class="btns"><button class="cta" onclick="sendPrompt('the exact prompt')">label</button><button class="cta ghost" onclick="sendPrompt('...')">label</button></div>:
 .rc .cta{display:inline-flex;align-items:center;gap:6px;background:var(--text-accent);color:var(--surface-1);border:none;border-radius:9px;padding:7px 15px;font-family:inherit;font-size:1em;font-weight:700;cursor:pointer;margin-top:.4em}.rc .cta::after{content:'←';font-weight:400}.rc .cta:hover{opacity:.88}
 .rc .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:.6em}.rc .cta.ghost{background:transparent;color:var(--text-accent);border:1px solid var(--border-strong)}
+
+CARD — a repeatable unit of content with a free-form body (prose, a list, a kv, a badge), in a grid that reflows to one column on a narrow screen and gives every card the same height: <div class="cards"><div class="card"><h4>title<span class="badge ok">chip</span></h4><p>…</p></div>…</div>; add c2 to the wrapper for exactly two per row, which is what a four-option comparison wants (2x2, no orphan card), and mark a recommended or chosen option <div class="card pick">. BOX is the same panel full-width, for one standout block such as an executive summary, with an optional <div class="lbl">eyebrow</div> above its heading. Use a TABLE instead when you compare many attributes across few options and column alignment matters; use cards when each option has a narrative and must read as a unit; a strong comparison often uses cards for the summary and verdict plus a table below for the detail matrix. Never render a four-option comparison as a sideways-scrolling table. Include the badge lines below only if a card contains a badge:
+.rc .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));grid-auto-rows:1fr;gap:10px;margin:.9em 0}
+.rc .cards.c2{grid-template-columns:repeat(auto-fit,minmax(max(45%,180px),1fr))}
+.rc .card,.rc .box{background:var(--surface-2);border:.5px solid var(--border);border-radius:11px;padding:11px 13px}
+.rc :is(.card,.box)>:first-child{margin-top:0}.rc :is(.card,.box)>:last-child{margin-bottom:0}
+.rc .card h4{margin:0 0 .4em;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rc .card.pick{border-color:var(--text-accent);box-shadow:inset 0 0 0 1px var(--text-accent)}
+.rc .box{border-color:var(--border-strong);border-radius:14px;padding:15px 17px;margin:.9em 0}
+.rc .lbl{display:inline-block;font-size:.78em;font-weight:700;letter-spacing:.04em;color:var(--text-secondary);background:var(--surface-2);border:.5px solid var(--border);border-radius:20px;padding:1px 11px;margin-bottom:.5em}
+.rc :is(.card,.box) :is(.kpi,pre,code,.badge,.lbl,.flow .s,.bar .t,.scroll-table,.scroll-table thead th){background:var(--surface-1)}
+.rc :is(.card,.box) tbody tr:hover td{background:var(--surface-1)}
+.rc :is(.card,.box) .tl>div::before{outline-color:var(--surface-2)}
+.rc :is(.card,.box) .badge.ok{background:var(--bg-success)}
+.rc :is(.card,.box) .badge.warn{background:var(--bg-warning)}
+.rc :is(.card,.box) .badge.info{background:var(--bg-accent)}
+@media print{.rc :is(.card,.box){background:none;border-color:var(--border)}.rc :is(.card,.box) :is(.kpi,.flow .s,.scroll-table thead th,.lbl){background:none}.rc .card,.rc .cols>div{break-inside:avoid}}
+
+COLS — 2-3 blocks side by side that stack when there is no room, for pros vs cons, before vs after, option vs option: <div class="cols"><div><h4>pros</h4><ul>…</ul></div><div><h4>cons</h4><ul>…</ul></div></div>. Never fake this with a two-row table:
+.rc .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:.9em 0}
+.rc .cols>div>:first-child{margin-top:0}.rc .cols>div>:last-child{margin-bottom:0}
+
+QUOTE — a real citation, with an optional source line: <blockquote><p>quoted text</p><cite>source</cite></blockquote>. Use this for quotations instead of a `cal note` callout, which means "callout", not "quote". Stays upright on purpose: italic Persian renders badly:
+.rc blockquote{margin:.9em 0;padding-inline-start:12px;border-inline-start:2.5px solid var(--border-strong);color:var(--text-secondary);font-style:normal}
+.rc blockquote cite{display:block;margin-top:.3em;font-size:.85em;font-style:normal}
+
+SRC — a small caption directly under a table or chart ("source: …", "not measured"), hugging the element above it: <div class="src">source: …</div>:
+.rc .src{font-size:.8em;color:var(--text-secondary);margin:-.4em 0 .9em}
+
+NUMBERED — for a long document: wrap everything after the <h2> title and the summary box in <div class="numbered">…</div>. Then h3 takes a section number in place of its square dot and h4 takes an N.M sub-number that resets per section. Only headings that are DIRECT children of the wrapper are numbered, so a card or column <h4> keeps its own title. The numbers come from CSS counters, so NEVER hand-write them; numerals follow the reply's direction (Persian digits in RTL, Latin in LTR):
+.rc .numbered{counter-reset:sec}
+.rc .numbered>h3{counter-increment:sec;counter-reset:sub}
+.rc .numbered>h3::before{content:counter(sec,persian) '.';width:auto;height:auto;border-radius:0;background:none;color:var(--text-accent);font-weight:800;font-size:1.05em;flex:0 0 auto}
+.rc .numbered>h4{counter-increment:sub}
+.rc .numbered>h4::before{content:counter(sec,persian) '.' counter(sub,persian);color:var(--text-accent);font-weight:800;margin-inline-end:7px}
+.rc:dir(ltr) .numbered>h3::before{content:counter(sec) '.'}
+.rc:dir(ltr) .numbered>h4::before{content:counter(sec) '.' counter(sub)}
 
 Pick the lightest structure that fits the content: a short conversational answer is plain paragraphs with zero components, and no component is ever used just because the kit has it. When content genuinely benefits, numbers get kpi/bars/spark/donut, sequences get flow/tl, comparisons get a table, list-shaped content gets ul/ol/kv, and one callout may hold the single most important takeaway. A long structured answer reads best opened with <h2> plus one <p class="lead"> and an <h3> per section. One bidi caveat: an RTL line that must START with a Latin token needs &rlm; prefixed (or lead with an RTL word) to stay right-to-left.
 

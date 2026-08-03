@@ -1,11 +1,25 @@
 /* readable kit - single source of truth.
-   BASE = always in every card; sections marked @TAG are pay-per-use component snippets.
+   BASE = always in every card; sections marked @TAG are component snippets.
+   @TAG is pay-per-use in ONE path only: hooks/rule-inline.md, where the model copies the
+   snippets a reply actually uses. The MCP card template does NOT read the markers - the
+   ui:// resource is predeclared and served static, before any card content exists, so it
+   must carry every chat-tier component and ships the whole pre-@REPORT sheet every time.
+   Treat everything above @REPORT as always-shipped when budgeting bytes.
    The @REPORT tail is report tier (report skill, hosted kit, inline snippets): server/server.js
    cuts the sheet at that marker so the chat card template stays under the host's 30KB
-   resource ceiling, and the chat rule does not offer those variants. */
+   resource ceiling, and the chat rule does not offer those variants.
+   Radii follow four tokens: 5px inline, 9px small panel, 11px panel, 20px pill (plus the
+   14px outer frame). Hairlines under 5px on 4-9px decorations are not on the scale. */
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
 .rc{--ca:#0f9d58;--cb:#3f8ac9;--cc:#e0a52e;--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);border:.5px solid var(--border);border-radius:14px;padding:1.2rem 1.4rem;text-align:right;margin:.5rem 0}
 .rc>:first-child{margin-top:0}.rc>:last-child{margin-bottom:0}
+/* PANEL RECIPE, shared. Every panel in the kit is surface-2 on a hairline border plus its
+   own radius/padding, so the shared half is declared once here and each component below
+   carries only its delta. Only the components that are ALWAYS shipped are listed (card/box
+   share their own copy of this in @CARD, report tier, so the chat sheet does not pay for
+   selectors it can never use). Order note: .rc pre code resets this at higher specificity,
+   so it still wins. */
+.rc code,.rc pre,.rc .kpi,.rc .flow .s{background:var(--surface-2);border:.5px solid var(--border)}
 .rc h2{font-weight:800;font-size:1.35em;margin:0 0 .15em}
 .rc h2::after{content:'';display:block;width:28px;height:2.5px;border-radius:2px;background:var(--text-accent);margin-top:.45em}
 .rc h3{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.1em;margin:1.4em 0 .45em}
@@ -14,33 +28,33 @@
 .rc p{margin:.6em 0}.rc .lead{color:var(--text-secondary);font-size:1.05em}
 .rc p,.rc li,.rc h2,.rc h4,.rc td,.rc th,.rc .kpi,.rc .tl div{unicode-bidi:plaintext}
 .rc strong{font-weight:700}
-.rc code{display:inline-block;direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;color:var(--text-accent);background:var(--surface-2);border:.5px solid var(--border);border-radius:5px;padding:1px 5px}
+.rc code{display:inline-block;direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;color:var(--text-accent);border-radius:5px;padding:1px 5px}
 .rc a{color:var(--text-accent);text-decoration:none}.rc a:hover{border-bottom:1px solid currentColor}
 .rc ul,.rc ol{padding-inline-start:1.5em;margin:.5em 0}.rc li{margin:.35em 0;position:relative}
 .rc ul{list-style:none}.rc ul>li::before{content:'';position:absolute;inset-inline-start:-1.1em;top:.68em;width:4px;height:4px;border-radius:50%;background:var(--text-accent)}
 .rc ol{list-style:decimal}.rc ol>li::marker{color:var(--text-accent);font-weight:700}
 .rc li.ok::before,.rc li.no::before{content:'✓';background:none;width:auto;height:auto;top:0;inset-inline-start:-1.35em;font-weight:800;font-size:1em;line-height:inherit;color:var(--ca)}
 .rc li.no::before{content:'✕';color:#e05555}
-.rc .cal{display:flex;gap:9px;padding:9px 12px;border-radius:10px;margin:.8em 0;border-inline-start:3px solid var(--border-strong)}.rc .cal>div{min-width:0}.rc .cal p{margin:.15em 0}
+.rc .cal{display:flex;gap:9px;padding:9px 12px;border-radius:11px;margin:.8em 0;border-inline-start:3px solid var(--border-strong)}.rc .cal>div{min-width:0}.rc .cal p{margin:.15em 0}
 .rc .cal.tip{background:var(--bg-success);border-color:var(--ca)}.rc .cal.note{background:var(--bg-accent);border-color:var(--cb)}.rc .cal.warn{background:var(--bg-warning);border-color:#c98a1a}.rc .cal.danger{background:var(--bg-danger);border-color:#d64545}
 .rc hr{border:none;border-top:.5px solid var(--border);margin:1.3em 0}
-.rc pre{direction:ltr;text-align:left;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;background:var(--surface-2);border:.5px solid var(--border);border-radius:8px;padding:10px 12px;overflow-x:auto;line-height:1.6;margin:.8em 0}.rc pre code{display:block;border:none;background:none;padding:0}
+.rc pre{direction:ltr;text-align:left;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;border-radius:9px;padding:10px 12px;overflow-x:auto;line-height:1.6;margin:.8em 0}.rc pre code{display:block;border:none;background:none;padding:0}
 /*@TABLE*/
 .rc table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:.96em}
 .rc thead th{color:var(--text-secondary);font-weight:700;font-size:.88em;border-bottom:1.5px solid var(--border-strong);padding:5px 10px;text-align:right}
 .rc tbody td{padding:7px 10px;border-bottom:.5px solid var(--border);text-align:right}
 .rc tbody tr:last-child td{border-bottom:none}.rc tbody tr:hover td{background:var(--surface-2)}
-.rc .scroll-table{max-height:82vh;overflow:auto;border:1px solid var(--border);border-radius:10px;margin:.8em 0}.rc .scroll-table table{margin:0}
+.rc .scroll-table{max-height:82vh;overflow:auto;border:1px solid var(--border);border-radius:11px;margin:.8em 0}.rc .scroll-table table{margin:0}
 .rc .scroll-table thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);box-shadow:0 1px 0 var(--border)}
 .rc .scroll-table.wide table{width:max-content;min-width:100%;white-space:nowrap}
 /*@KV*/
 .rc .kv{margin:.8em 0}.rc .kv>div{display:flex;justify-content:space-between;gap:14px;padding:6px 2px;border-bottom:.5px solid var(--border)}.rc .kv>div:last-child{border:none}.rc .kv b{color:var(--text-secondary);font-weight:400}.rc .kv span{font-weight:500}
 /*@KPI*/
 .rc .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px;margin:.8em 0}.rc .grid.c2{grid-template-columns:1fr 1fr}.rc .grid.c3{grid-template-columns:1fr 1fr 1fr}
-.rc .kpi{background:var(--surface-2);border:.5px solid var(--border);border-radius:11px;padding:11px 13px}
+.rc .kpi{border-radius:11px;padding:11px 13px}
 .rc .kpi .l{font-size:.82em;color:var(--text-secondary);margin-bottom:3px}
 .rc .kpi .n{font-size:1.8em;font-weight:800;line-height:1.2;color:var(--text-primary)}
-.rc .trend{display:inline-block;font-size:.55em;font-weight:700;padding:1px 8px;border-radius:12px;vertical-align:2px;margin-inline-start:7px}
+.rc .trend{display:inline-block;font-size:.55em;font-weight:700;padding:1px 8px;border-radius:20px;vertical-align:2px;margin-inline-start:7px}
 .rc .trend.up{background:var(--bg-success);color:var(--ca)}.rc .trend.up::before{content:'▲ '}
 .rc .trend.dn{background:var(--bg-danger);color:var(--cd)}.rc .trend.dn::before{content:'▼ '}
 /*@BARS*/
@@ -54,7 +68,7 @@
 .rc .spark .x{display:flex;justify-content:space-between;direction:ltr;color:var(--text-secondary);font-size:.82em}
 /*@FLOW*/
 .rc .flow{display:flex;flex-wrap:wrap;align-items:center;gap:34px;margin:.9em .2em}
-.rc .flow .s{position:relative;background:var(--surface-2);border:.5px solid var(--border);border-radius:9px;padding:5px 13px;font-weight:500}
+.rc .flow .s{position:relative;border-radius:9px;padding:5px 13px;font-weight:500}
 .rc .flow .s:not(:last-child)::after{content:'';position:absolute;inset-inline-end:-28px;top:50%;width:22px;height:1.5px;border-radius:1px;background:var(--text-accent);transform:translateY(-50%)}
 .rc .flow .s:not(:last-child)::before{content:'';position:absolute;inset-inline-end:-30px;top:50%;width:6px;height:6px;border-left:1.5px solid var(--text-accent);border-bottom:1.5px solid var(--text-accent);transform:translateY(-50%) rotate(45deg)}
 /*@TL*/
@@ -76,6 +90,76 @@
 .rc .kpi .f{font-size:.74em;color:var(--text-secondary);line-height:1.7;margin-top:3px}
 .rc .bar.duo .t{position:relative}.rc .bar.duo .t i{background:var(--ca)}.rc .bar.duo .t i+i{position:absolute;inset-inline-start:0;top:0;background:var(--cb)}
 .rc .bars .leg{display:flex;flex-flow:row wrap;gap:4px 16px;margin:.2em 0 .5em;font-size:.9em}
+/*@CARD - the missing primitive: a repeatable unit with a free-form body (prose, lists, kv,
+   badge), in a grid that REFLOWS to one column instead of scrolling sideways. `box` is the
+   same panel run full-width with more room, so the two share one rule here and box adds only
+   its delta in @BOX.
+   Report tier, not chat: the block costs ~655B emitted and the chat tier had 339B of
+   headroom, so it does not fit until the delivery question in the PR is settled. Nothing
+   here is report-specific - promoting it later is a cut-and-paste above @BADGE.
+   A panel is surface-2, so any child that is ALSO surface-2 (kpi, code, badge, a sticky
+   table header) sinks into it: one :is() rule flips those children to surface-1 instead of
+   one override per component. Sitting BELOW @BADGE, that rule ties with `.rc .badge.ok`
+   (0,3,0) and wins on order, so the three semantic chip colours are re-asserted after it.*/
+/* grid-auto-rows:1fr = every card the same height as the TALLEST, across rows too. Grid
+   stretches items within a row but sizes each row to its own content, so a 2x2 comparison
+   came out with two rows of different heights, which reads as broken rather than as a set.
+   Under an indefinite container height, equal fr rows all resolve to the largest row's
+   content, so this needs no fixed height and no JS. */
+.rc .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));grid-auto-rows:1fr;gap:10px;margin:.9em 0}
+/* c2 = exactly two per row, so a FOUR-option comparison reads as 2x2 with no orphan.
+   auto-fit cannot do this: it packs by available width, so four options land 3+1 and the
+   lone card sizes to its own row instead of matching the three above it. The min is a
+   PERCENTAGE, not px: at 45% only two columns can ever fit (3x45%=135%>100%), and the 180px
+   floor takes over on a narrow screen so it still collapses to one column. No media query,
+   and it stays correct at any container width. */
+.rc .cards.c2{grid-template-columns:repeat(auto-fit,minmax(max(45%,180px),1fr))}
+.rc .card,.rc .box{background:var(--surface-2);border:.5px solid var(--border);border-radius:11px;padding:11px 13px}
+.rc :is(.card,.box)>:first-child{margin-top:0}.rc :is(.card,.box)>:last-child{margin-bottom:0}
+.rc .card h4{margin:0 0 .4em;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rc .card.pick{border-color:var(--text-accent);box-shadow:inset 0 0 0 1px var(--text-accent)}
+.rc :is(.card,.box) :is(.kpi,pre,code,.badge,.lbl,.flow .s,.bar .t,.scroll-table,.scroll-table thead th){background:var(--surface-1)}
+.rc :is(.card,.box) tbody tr:hover td{background:var(--surface-1)}
+.rc :is(.card,.box) .tl>div::before{outline-color:var(--surface-2)}
+.rc :is(.card,.box) .badge.ok{background:var(--bg-success)}
+.rc :is(.card,.box) .badge.warn{background:var(--bg-warning)}
+.rc :is(.card,.box) .badge.info{background:var(--bg-accent)}
+/*@BOX - one full-width card: an executive summary, a verdict, a standout block. The panel
+   and the child inversion come from @CARD above, so this is only the delta - more room, a
+   stronger edge. .lbl is its eyebrow label (the @CARD inversion flips it to surface-1).*/
+.rc .box{border-color:var(--border-strong);border-radius:14px;padding:15px 17px;margin:.9em 0}
+.rc .lbl{display:inline-block;font-size:.78em;font-weight:700;letter-spacing:.04em;color:var(--text-secondary);background:var(--surface-2);border:.5px solid var(--border);border-radius:20px;padding:1px 11px;margin-bottom:.5em}
+/*@COLS - 2-3 blocks side by side that stack when there is no room. Pros vs cons, before vs
+   after, option vs option: the two-row table authors used to fake this with.*/
+.rc .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:.9em 0}
+.rc .cols>div>:first-child{margin-top:0}.rc .cols>div>:last-child{margin-bottom:0}
+/*@QUOTE - a real citation style, so `.cal note` can go back to meaning "callout".
+   font-style stays normal on purpose: italic Persian renders badly. Report tier only for
+   budget reasons, and it degrades gracefully: an unstyled <blockquote> in a chat card still
+   gets the browser's own indent, so it reads plain rather than broken.*/
+.rc blockquote{margin:.9em 0;padding-inline-start:12px;border-inline-start:2.5px solid var(--border-strong);color:var(--text-secondary);font-style:normal}
+.rc blockquote cite{display:block;margin-top:.3em;font-size:.85em;font-style:normal}
+/*@SRC - caption under a table or chart ("source: ...", "not measured"). The negative top
+   margin hugs the element above it; .kpi .f does this job only inside a kpi.*/
+.rc .src{font-size:.8em;color:var(--text-secondary);margin:-.4em 0 .9em}
+/*@NUMBERED - wrap a long document's body and h3 takes a section number in place of its
+   square dot, h4 an N.M sub-number that resets per section. Authors NEVER type the numbers:
+   they come from counters, so inserting a section renumbers the rest for free.
+   DIRECT CHILDREN ONLY (`>`), which is not a nicety: h4 is also the kit's card title and its
+   column heading, so a descendant selector numbers every card in a `.cards` row and pushes
+   the real section h4 down the sequence. Sections are children of the wrapper; component
+   headings are not.
+   Numerals follow the document's DIRECTION, not a hardcoded script: persian by default,
+   decimal under :dir(ltr). That is the one signal both paths already set - a --lang en
+   report stamps <html dir=ltr> (skills/report/assets/shell.html) and a chat card stamps dir
+   on .rc itself - so no new attribute is invented. counter() with no style is decimal.*/
+.rc .numbered{counter-reset:sec}
+.rc .numbered>h3{counter-increment:sec;counter-reset:sub}
+.rc .numbered>h3::before{content:counter(sec,persian) '.';width:auto;height:auto;border-radius:0;background:none;color:var(--text-accent);font-weight:800;font-size:1.05em;flex:0 0 auto}
+.rc .numbered>h4{counter-increment:sub}
+.rc .numbered>h4::before{content:counter(sec,persian) '.' counter(sub,persian);color:var(--text-accent);font-weight:800;margin-inline-end:7px}
+.rc:dir(ltr) .numbered>h3::before{content:counter(sec) '.'}
+.rc:dir(ltr) .numbered>h4::before{content:counter(sec) '.' counter(sub)}
 /*@DONUT*/
 .rc .donut-w{display:flex;align-items:center;gap:20px;margin:.9em 0;flex-wrap:wrap}
 .rc .donut{width:92px;height:92px;border-radius:50%;flex:0 0 auto;background:conic-gradient(var(--ca) 0 calc(var(--a)*1%),var(--cb) 0 calc((var(--a) + var(--b))*1%),var(--cc) 0 100%);-webkit-mask:radial-gradient(circle,transparent 56%,#000 57%);mask:radial-gradient(circle,transparent 56%,#000 57%)}
@@ -84,7 +168,7 @@
 .rc .leg i{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
 .rc .leg .a i{background:var(--ca)}.rc .leg .b i{background:var(--cb)}.rc .leg .c i{background:var(--cc)}.rc .leg .d i{background:var(--cd)}
 /*@FOLD - native <details>, zero JS. The chevron is one rotated corner built from border-top + border-inline-end: closed it points along the reading direction, open it points down. RTL is NOT free - the logical border moves the corner to the other side, so the rotation sign must flip with it (:dir(rtl)), otherwise a closed RTL fold points UP. overflow:hidden clips the summary fill to the frame radius: fully rounded when closed, joined to the body when open. Content is normal blocks; margin-inline gives them the padding the full-width summary must not have.*/
-.rc .fold{margin:.8em 0;border:.5px solid var(--border);border-radius:10px;overflow:hidden}
+.rc .fold{margin:.8em 0;border:.5px solid var(--border);border-radius:11px;overflow:hidden}
 .rc .fold>summary{display:flex;align-items:center;gap:9px;padding:6px 12px;background:var(--surface-2);color:var(--text-accent);font-weight:700;cursor:pointer;unicode-bidi:plaintext}
 .rc .fold>summary::-webkit-details-marker{display:none}
 .rc .fold>summary::before{content:'';flex:0 0 auto;width:6px;height:6px;border-top:1.5px solid currentColor;border-inline-end:1.5px solid currentColor;border-start-end-radius:1px;transform:rotate(45deg);transition:transform .15s}
@@ -96,4 +180,4 @@
 .rc .fold pre{white-space:pre-wrap;word-break:break-word;max-height:52vh;overflow:auto}
 .rc .fold .fold>summary{background:none;color:var(--text-secondary)}
 /* Print STAYS LAST in the sheet: these rules override component rules of equal specificity, so anything added below them silently wins over print (that is exactly how the fold's pre cap survived print until it was moved here). A closed fold must never hide content from a PDF: ::details-content is forced visible (author sheet beats the UA's content-visibility:hidden), the chevron shows the open angle, and the pre height cap is lifted. */
-@media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}.rc .scroll-table.wide table{width:100%;white-space:normal}.rc .fold::details-content{content-visibility:visible;display:block}.rc .fold>summary::before{transform:rotate(135deg);transition:none}.rc .fold>summary:dir(rtl)::before{transform:rotate(-135deg)}.rc .fold pre{max-height:none;overflow:visible}}
+@media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}.rc .scroll-table.wide table{width:100%;white-space:normal}.rc .fold::details-content{content-visibility:visible;display:block}.rc .fold>summary::before{transform:rotate(135deg);transition:none}.rc .fold>summary:dir(rtl)::before{transform:rotate(-135deg)}.rc .fold pre{max-height:none;overflow:visible}.rc :is(.card,.box){background:none;border-color:var(--border)}.rc :is(.card,.box) :is(.kpi,.flow .s,.scroll-table thead th,.lbl){background:none}.rc .card,.rc .cols>div{break-inside:avoid}}

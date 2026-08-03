@@ -96,6 +96,48 @@ function check(name, cond) {
   check('template carries kit css', html.includes('.rc{') && html.includes('.rc .kpi') && html.includes('unicode-bidi:plaintext'));
   check('template carries dark palette', html.includes('data-theme="dark"'));
   check('chat template carries spark; donut stays report-tier (4.10.0)', html.includes('.rc .spark') && !html.includes('.donut'));
+  // 4.19.0: the six new components are report-tier. The chat tier had 339B of
+  // headroom and the cheapest useful pair costs 245B, so none of them fit until
+  // the delivery question (hosted kit vs inlined) is settled. This asserts the
+  // TIER, not the taste: promoting one later is a deliberate edit here too.
+  // Anchored on the `.rc ` selector prefix, not the bare class: menu.js sets
+  // img.src, which a substring test for '.src' reads as a leaked component.
+  check('card/box/cols/quote/src/numbered stay report-tier (chat tier is full, 4.19.0)', ['.rc .card', '.rc .cards', '.rc .box', '.rc .cols', '.rc blockquote', '.rc .src', '.rc .numbered', '.rc .lbl', ':is(.card,.box)'].every((s) => !html.includes(s)));
+  // Step 3 dedup: the panel half (surface-2 on a hairline) is declared once for
+  // the always-shipped panels; card/box keep their own copy in @CARD so the chat
+  // sheet never pays for selectors it cannot use.
+  check('panel recipe is shared by the always-shipped panels, not repeated per component (4.19.0)', html.includes('.rc code,.rc pre,.rc .kpi,.rc .flow .s{background:var(--s2);border:var(--bd)}') && html.includes('.rc .kpi{border-radius:11px') && !/\.rc \.kpi\{background/.test(html));
+
+  // 3b. kit source invariants that the chat template cannot see (report tier).
+  const kit = fs.readFileSync(path.join(__dirname, '..', 'assets', 'rc.css'), 'utf8').replace(/\r\n/g, '\n');
+  // Judged on the kit source, not the template: menu.js carries its own chrome
+  // radii (7/8/12px) which are not on the kit's scale and never should be.
+  // Hairlines under 5px on 4-9px decorations (dots, tracks, rules) are off-scale
+  // by design, so the filter starts at 5.
+  check('radius scale is four tokens: 5 inline / 9 small panel / 11 panel / 20 pill (+14 frame)', (() => {
+    const radii = [...new Set((kit.match(/border-radius:(\d+)px/g) || []).map((m) => +m.match(/\d+/)[0]))].filter((n) => n >= 5);
+    return radii.length > 0 && radii.every((n) => [5, 9, 11, 14, 20].includes(n));
+  })());
+  const tail = kit.split('/*@REPORT')[1];
+  // The child inversion ties with `.rc .badge.ok` on specificity (0,3,0). @CARD
+  // sits BELOW @BADGE, so the inversion wins on order and the three semantic
+  // chip colours must be re-asserted after it, or every chip inside a card and
+  // box greys out. Order, not specificity, is what keeps them: assert it.
+  check('semantic chips survive inside a panel: the badge restore follows the child inversion (4.19.0)', (() => {
+    const inv = tail.indexOf(':is(.kpi,pre,code,.badge');
+    const ok = tail.indexOf(':is(.card,.box) .badge.ok');
+    return inv > -1 && ok > inv && ['ok{background:var(--bg-success)', 'warn{background:var(--bg-warning)', 'info{background:var(--bg-accent)'].every((s) => tail.includes(s));
+  })());
+  // Numerals follow the document's DIRECTION, the one signal both paths already
+  // set (a --lang en report stamps <html dir=ltr>; a chat card stamps dir on .rc).
+  // A hardcoded `persian` would print Persian digits in an English report.
+  check('numbered counters are direction-keyed, never hardcoded to one script (4.19.0)', tail.includes("content:counter(sec,persian) '.'") && tail.includes(".rc:dir(ltr) .numbered>h3::before{content:counter(sec) '.'}") && tail.includes(".rc:dir(ltr) .numbered>h4::before{content:counter(sec) '.' counter(sub)}"));
+  check('authors never hand-write section numbers: they come from counters', tail.includes('.rc .numbered{counter-reset:sec}') && tail.includes('counter-increment:sec;counter-reset:sub') && tail.includes('.rc .numbered>h4{counter-increment:sub}'));
+  // Print STAYS LAST (the sheet's own rule): anything added after it silently
+  // wins over print at equal specificity.
+  check('print block is still the last rule in the sheet, and now un-inks panels', kit.trimEnd().endsWith('}') && kit.lastIndexOf('@media print') > kit.lastIndexOf('.rc .numbered') && /@media print\{[^]*:is\(\.card,\.box\)\{background:none/.test(kit) && /break-inside:avoid/.test(kit));
+  check('cards reflow instead of scrolling: auto-fit grid, no max-content width', /\.rc \.cards\{display:grid;grid-template-columns:repeat\(auto-fit,minmax\(190px,1fr\)\)/.test(tail) && /\.rc \.cols\{display:grid;grid-template-columns:repeat\(auto-fit,minmax\(220px,1fr\)\)/.test(tail));
+  check('box is a card variant sharing one panel rule, not a second panel component', tail.includes('.rc .card,.rc .box{background:var(--surface-2);border:.5px solid var(--border);border-radius:11px;padding:11px 13px}') && /\.rc \.box\{border-color:var\(--border-strong\)/.test(tail));
   check('page paints itself with surface-1 + theme color-scheme (host canvas is opaque light; a transparent page renders white-on-white in dark mode)', html.includes('background:var(--surface-1);overflow:hidden') && html.includes('color-scheme:light') && html.includes('color-scheme:dark'));
   check('template hoists @imports above all rules (mid-sheet imports are dead)', html.indexOf('@import') < html.indexOf(':root{') && html.includes('family=Inter'));
   check('hoisted Vazirmatn import survives intact (its url contains semicolons)', html.includes("family=Vazirmatn:wght@400;500;700;800&display=swap')") && html.includes(';--ca:'));
