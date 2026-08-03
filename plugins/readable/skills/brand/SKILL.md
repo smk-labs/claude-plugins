@@ -35,6 +35,8 @@ Rules of taste: derive the full ramp from the 1-2 given colors — tinted, not g
 
 `wordmark`/`kind`/`logo` feed the letterhead: the report header, and since 4.14.0 a matching `.brand` row mounted above chat cards too (logo + wordmark + kind, fetched by the bridge through `read_brand_head`). `font.files` are inlined into reports; `font.google` is the only font path that also reaches chat cards.
 
+`"signature": false` (5.2.0) drops readable's own one-line credit from this project's cards and reports. It is ON by default everywhere, including branded projects. Offer it when the project's reports go to CLIENTS: a branded report is the client's document, and a toolmaker's mark under someone else's letterhead reads as a subcontractor watermark. Internal or public-facing projects should keep it. One flag covers both paths (the card server and `build.py` read the same key), and it is committable, so the whole team gets the same answer.
+
 **`logo.svg`** — copy the project mark VERBATIM (no redesign), ≤ 8KB, `currentColor` preferred.
 
 ## 3. Prove it, then hand over

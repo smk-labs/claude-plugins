@@ -4,12 +4,12 @@ Persian/RTL replies scramble as plain chat text. In this client, deliver every P
 <div class="rc" dir="rtl">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
-.rc{--ca:#0f9d58;--cb:#3f8ac9;--cc:#e0a52e;--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);border:.5px solid var(--border);border-radius:14px;padding:1.2rem 1.4rem;text-align:right;margin:.5rem 0}
+.rc{--ca:var(--text-accent);--cb:color-mix(in srgb,var(--text-accent) 55%,var(--surface-1));--cc:color-mix(in srgb,var(--text-accent) 28%,var(--surface-1));--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);border:.5px solid var(--border);border-radius:14px;padding:1.2rem 1.4rem;text-align:start;margin:.5rem 0}
 .rc>:first-child{margin-top:0}.rc>:last-child{margin-bottom:0}
 .rc h2{font-weight:800;font-size:1.35em;margin:0 0 .15em}
 .rc h2::after{content:'';display:block;width:28px;height:2.5px;border-radius:2px;background:var(--text-accent);margin-top:.45em}
 .rc h3{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.1em;margin:1.4em 0 .45em}
-.rc h3::before{content:'';width:7px;height:7px;border-radius:2px;background:var(--text-accent);flex:0 0 auto}
+.rc h3::before{content:'';width:7px;height:7px;margin-inline-end:calc(1em - 7px);border-radius:2px;background:var(--text-accent);flex:0 0 auto}
 .rc h4{font-weight:700;font-size:1em;margin:1em 0 .3em}
 .rc p{margin:.6em 0}.rc .lead{color:var(--text-secondary);font-size:1.05em}
 .rc p,.rc li,.rc h2,.rc h4,.rc td,.rc th,.rc .kpi,.rc .tl div{unicode-bidi:plaintext}
@@ -20,14 +20,19 @@ Persian/RTL replies scramble as plain chat text. In this client, deliver every P
 .rc ul{list-style:none}.rc ul>li::before{content:'';position:absolute;inset-inline-start:-1.1em;top:.68em;width:4px;height:4px;border-radius:50%;background:var(--text-accent)}
 .rc ol{list-style:decimal}.rc ol>li::marker{color:var(--text-accent);font-weight:700}
 .rc li.ok::before,.rc li.no::before{content:'✓';background:none;width:auto;height:auto;top:0;inset-inline-start:-1.35em;font-weight:800;font-size:1em;line-height:inherit;color:var(--ca)}
-.rc li.no::before{content:'✕';color:#e05555}
+.rc li.no::before{content:'✕';color:var(--cd)}
 .rc .cal{display:flex;gap:9px;padding:9px 12px;border-radius:11px;margin:.8em 0;border-inline-start:3px solid var(--border-strong)}.rc .cal>div{min-width:0}.rc .cal p{margin:.15em 0}
-.rc .cal.tip{background:var(--bg-success);border-color:var(--ca)}.rc .cal.note{background:var(--bg-accent);border-color:var(--cb)}.rc .cal.warn{background:var(--bg-warning);border-color:#c98a1a}.rc .cal.danger{background:var(--bg-danger);border-color:#d64545}
+.rc .cal.tip,.rc .cal.note{background:var(--bg-accent);border-color:var(--ca)}.rc .cal.warn,.rc .cal.danger{background:var(--bg-danger);border-color:var(--cd)}
 .rc hr{border:none;border-top:.5px solid var(--border);margin:1.3em 0}
 .rc pre{direction:ltr;text-align:left;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;background:var(--surface-2);border:.5px solid var(--border);border-radius:9px;padding:10px 12px;overflow-x:auto;line-height:1.6;margin:.8em 0}.rc pre code{display:block;border:none;background:none;padding:0}
+.rc .sig{margin-top:1.6em;padding-top:.7em;border-top:.5px solid var(--border);font-size:.8em;color:var(--text-secondary);text-align:end}
+.rc .sig a{color:inherit}
 </style>
 CONTENT
 </div>
+
+CONTENT always ENDS with this exact line, last thing inside the card, copied verbatim and never edited or translated (it is the readable signature; every other path injects it automatically, and this is the one path where you type it):
+<div class="sig">created by readable · <a href="https://github.com/smk-labs" target="_blank" rel="noopener">github.com/smk-labs</a></div>
 
 BASE already styles all text content, so these blocks need nothing extra: <h2> once as the title; <h3> per section; <p>; <p class="lead"> for a muted intro line; <ul>/<ol>; status items <li class="ok">/<li class="no">; callouts <div class="cal tip|note|warn|danger"><div>text</div></div>; <a>; <strong>; <hr> sparingly; and <code> wrapped around every path, command, URL, and code token (it renders LTR-isolated).
 
@@ -37,8 +42,8 @@ Everything else is pay-per-use. Each component below has a CSS snippet: for EVER
 
 TABLE — comparison tables, plain <table><thead><tbody>; 10+ row stat tables get <table class="zebra dense"> (striped rows + tight padding, combinable); long tables (100+ rows) get wrapped as <div class="scroll-table"><table>...</table></div> (scrollbox with pinned header, expands fully in print); very wide tables get <div class="scroll-table wide"> (cells stay on one line, box scrolls sideways, wraps again in print):
 .rc table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:.96em}
-.rc thead th{color:var(--text-secondary);font-weight:700;font-size:.88em;border-bottom:1.5px solid var(--border-strong);padding:5px 10px;text-align:right}
-.rc tbody td{padding:7px 10px;border-bottom:.5px solid var(--border);text-align:right}
+.rc thead th{color:var(--text-secondary);font-weight:700;font-size:.88em;border-bottom:1.5px solid var(--border-strong);padding:5px 10px;text-align:start}
+.rc tbody td{padding:7px 10px;border-bottom:.5px solid var(--border);text-align:start}
 .rc tbody tr:last-child td{border-bottom:none}.rc tbody tr:hover td{background:var(--surface-2)}
 .rc .scroll-table{max-height:82vh;overflow:auto;border:1px solid var(--border);border-radius:11px;margin:.8em 0}.rc .scroll-table table{margin:0}
 .rc .scroll-table thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);box-shadow:0 1px 0 var(--border)}
@@ -50,7 +55,7 @@ TABLE — comparison tables, plain <table><thead><tbody>; 10+ row stat tables ge
 
 BADGE — status chips <span class="badge ok|warn|info">, mostly inside table cells:
 .rc .badge{display:inline-block;font-size:.78em;font-weight:700;padding:1px 9px;border-radius:20px;background:var(--surface-2);color:var(--text-secondary)}
-.rc .badge.ok{background:var(--bg-success);color:var(--ca)}.rc .badge.warn{background:var(--bg-warning);color:#c98a1a}.rc .badge.info{background:var(--bg-accent);color:var(--cb)}
+.rc .badge.ok,.rc .badge.info{background:var(--bg-accent);color:var(--ca)}.rc .badge.warn{background:var(--bg-danger);color:var(--cd)}
 
 KV — key-value rows <div class="kv"><div><b>label</b><span>value</span></div>...</div>:
 .rc .kv{margin:.8em 0}.rc .kv>div{display:flex;justify-content:space-between;gap:14px;padding:6px 2px;border-bottom:.5px solid var(--border)}.rc .kv>div:last-child{border:none}.rc .kv b{color:var(--text-secondary);font-weight:400}.rc .kv span{font-weight:500}
@@ -61,7 +66,7 @@ KPI — stat cards <div class="grid c3"> (or c2, or plain grid) of <div class="k
 .rc .kpi .l{font-size:.82em;color:var(--text-secondary);margin-bottom:3px}
 .rc .kpi .n{font-size:1.8em;font-weight:800;line-height:1.2;color:var(--text-primary)}
 .rc .trend{display:inline-block;font-size:.55em;font-weight:700;padding:1px 8px;border-radius:20px;vertical-align:2px;margin-inline-start:7px}
-.rc .trend.up{background:var(--bg-success);color:var(--ca)}.rc .trend.up::before{content:'▲ '}
+.rc .trend.up{background:var(--bg-accent);color:var(--ca)}.rc .trend.up::before{content:'▲ '}
 .rc .trend.dn{background:var(--bg-danger);color:var(--cd)}.rc .trend.dn::before{content:'▼ '}
 .rc .kpi .f{font-size:.74em;color:var(--text-secondary);line-height:1.7;margin-top:3px}
 
@@ -132,9 +137,8 @@ CARD — a repeatable unit of content with a free-form body (prose, a list, a kv
 .rc :is(.card,.box) :is(.kpi,pre,code,.badge,.lbl,.flow .s,.bar .t,.scroll-table,.scroll-table thead th){background:var(--surface-1)}
 .rc :is(.card,.box) tbody tr:hover td{background:var(--surface-1)}
 .rc :is(.card,.box) .tl>div::before{outline-color:var(--surface-2)}
-.rc :is(.card,.box) .badge.ok{background:var(--bg-success)}
-.rc :is(.card,.box) .badge.warn{background:var(--bg-warning)}
-.rc :is(.card,.box) .badge.info{background:var(--bg-accent)}
+.rc :is(.card,.box) .badge.ok,.rc :is(.card,.box) .badge.info{background:var(--bg-accent)}
+.rc :is(.card,.box) .badge.warn{background:var(--bg-danger)}
 @media print{.rc :is(.card,.box){background:none;border-color:var(--border)}.rc :is(.card,.box) :is(.kpi,.flow .s,.scroll-table thead th,.lbl){background:none}.rc .card,.rc .cols>div{break-inside:avoid}}
 
 COLS — 2-3 blocks side by side that stack when there is no room, for pros vs cons, before vs after, option vs option: <div class="cols"><div><h4>pros</h4><ul>…</ul></div><div><h4>cons</h4><ul>…</ul></div></div>. Never fake this with a two-row table:
@@ -151,7 +155,7 @@ SRC — a small caption directly under a table or chart ("source: …", "not mea
 NUMBERED — for a long document: wrap everything after the <h2> title and the summary box in <div class="numbered">…</div>. Then h3 takes a section number in place of its square dot and h4 takes an N.M sub-number that resets per section. Only headings that are DIRECT children of the wrapper are numbered, so a card or column <h4> keeps its own title. The numbers come from CSS counters, so NEVER hand-write them; numerals follow the reply's direction (Persian digits in RTL, Latin in LTR):
 .rc .numbered{counter-reset:sec}
 .rc .numbered>h3{counter-increment:sec;counter-reset:sub}
-.rc .numbered>h3::before{content:counter(sec,persian) '.';width:auto;height:auto;border-radius:0;background:none;color:var(--text-accent);font-weight:800;font-size:1.05em;flex:0 0 auto}
+.rc .numbered>h3::before{content:counter(sec,persian) '.';width:auto;height:auto;margin-inline-end:0;border-radius:0;background:none;color:var(--text-accent);font-weight:800;font-size:1.05em;flex:0 0 auto}
 .rc .numbered>h4{counter-increment:sub}
 .rc .numbered>h4::before{content:counter(sec,persian) '.' counter(sub,persian);color:var(--text-accent);font-weight:800;margin-inline-end:7px}
 .rc:dir(ltr) .numbered>h3::before{content:counter(sec) '.'}
