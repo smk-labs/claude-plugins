@@ -22,7 +22,7 @@ Persian/RTL replies scramble as plain chat text. In this client, deliver every P
 .rc ol{list-style:decimal}.rc ol>li::marker{color:var(--text-accent);font-weight:700}
 .rc li.ok::before,.rc li.no::before{content:'✓';background:none;width:auto;height:auto;top:0;inset-inline-start:-1.35em;font-weight:800;font-size:1em;line-height:inherit;color:var(--ca)}
 .rc li.no::before{content:'✕';color:#e05555}
-.rc .cal{display:flex;gap:9px;padding:9px 12px;border-radius:10px;margin:.8em 0;border-inline-start:3px solid var(--border-strong)}.rc .cal>div{min-width:0}.rc .cal p{margin:.15em 0}
+.rc .cal{display:flex;gap:9px;padding:9px 12px;border-radius:11px;margin:.8em 0;border-inline-start:3px solid var(--border-strong)}.rc .cal>div{min-width:0}.rc .cal p{margin:.15em 0}
 .rc .cal.tip{background:var(--bg-success);border-color:var(--ca)}.rc .cal.note{background:var(--bg-accent);border-color:var(--cb)}.rc .cal.warn{background:var(--bg-warning);border-color:#c98a1a}.rc .cal.danger{background:var(--bg-danger);border-color:#d64545}
 .rc hr{border:none;border-top:.5px solid var(--border);margin:1.3em 0}
 </style>
