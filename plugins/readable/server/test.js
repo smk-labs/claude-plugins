@@ -166,7 +166,9 @@ function check(name, cond) {
   // Both the dot suppression and the section counter live on h3::before and tie on
   // specificity, so an unscoped suppression ate the numbering. Guard the scope.
   check('an icon never eats a section number: the suppression is scoped out of @NUMBERED', kIcon.includes(':not(.numbered *)::before'));
-  check('the glyph is painted with currentColor so it theme-flips and inherits size', kIcon.includes('background:currentColor') && kIcon.includes('width:1em;height:1em'));
+  // 5.2.0: the set paints in ONE colour, the accent. currentColor made an icon read as a
+  // letter and, in a heading, erased the only accent mark the heading had.
+  check('the glyph paints in the one brand accent and still sizes with the font', kIcon.includes('background:var(--text-accent)') && kIcon.includes('width:1em;height:1em'));
   check('no icon CSS for a card that uses none', !kKpi.includes('.rc .ic{'));
 
   // @FIG (5.1.0): images and /fig motion are one component, because both are just
@@ -193,19 +195,30 @@ function check(name, cond) {
   // radii (7/8/12px) which are not on the kit's scale and never should be.
   // Hairlines under 5px on 4-9px decorations (dots, tracks, rules) are off-scale
   // by design, so the filter starts at 5.
+  // A dot heading is a 7px square plus the slot remainder; an icon heading is a 1em glyph.
+  // One 1em slot for both, so sections keep one left edge whichever marker they carry, and
+  // @NUMBERED cancels the remainder because its number brings its own width.
+  check('the h3 marker sits in a 1em slot, so dot and icon headings start their text alike', kit.includes('margin-inline-end:calc(1em - 7px)') && kit.includes('.rc .numbered>h3::before{content:counter(sec,persian) \'.\';width:auto;height:auto;margin-inline-end:0'));
+  // 5.2.0 palette: --ca..--cc are one accent ramp and --cd is the only literal hue, so a
+  // brand that sets --text-accent recolours every state, chip, callout and chart series.
+  check('the kit speaks two hues: an accent ramp plus one negative red', /--ca:var\(--text-accent\);--cb:color-mix\(in srgb,var\(--text-accent\) \d+%/.test(kit) && (kit.match(/#[0-9a-f]{6}/gi) || []).filter((h) => !['#000', '#fff'].includes(h.toLowerCase())).length === 1);
+  check('no status hue is hard-coded past the token block: green/amber tints are gone', !kit.includes('--bg-success') && !kit.includes('--bg-warning'));
+  // An LTR card used to inherit text-align:right from the RTL default.
+  check('alignment is logical, so an LTR card hangs its text on the left', !/text-align:right/.test(kit));
   check('radius scale is four tokens: 5 inline / 9 small panel / 11 panel / 20 pill (+14 frame)', (() => {
     const radii = [...new Set((kit.match(/border-radius:(\d+)px/g) || []).map((m) => +m.match(/\d+/)[0]))].filter((n) => n >= 5);
     return radii.length > 0 && radii.every((n) => [5, 9, 11, 14, 20].includes(n));
   })());
   const tail = kit.split('/*@REPORT')[1];
   // The child inversion ties with `.rc .badge.ok` on specificity (0,3,0). @CARD
-  // sits BELOW @BADGE, so the inversion wins on order and the three semantic
-  // chip colours must be re-asserted after it, or every chip inside a card and
-  // box greys out. Order, not specificity, is what keeps them: assert it.
+  // sits BELOW @BADGE, so the inversion wins on order and the semantic chip
+  // colours must be re-asserted after it, or every chip inside a card and box
+  // greys out. Order, not specificity, is what keeps them: assert it. Two tints
+  // now, not three (5.2.0): accent for ok/info, red for warn.
   check('semantic chips survive inside a panel: the badge restore follows the child inversion (4.19.0)', (() => {
     const inv = tail.indexOf(':is(.kpi,pre,code,.badge');
     const ok = tail.indexOf(':is(.card,.box) .badge.ok');
-    return inv > -1 && ok > inv && ['ok{background:var(--bg-success)', 'warn{background:var(--bg-warning)', 'info{background:var(--bg-accent)'].every((s) => tail.includes(s));
+    return inv > -1 && ok > inv && ['.badge.info{background:var(--bg-accent)', '.badge.warn{background:var(--bg-danger)'].every((s) => tail.includes(s));
   })());
   // Numerals follow the document's DIRECTION, the one signal both paths already
   // set (a --lang en report stamps <html dir=ltr>; a chat card stamps dir on .rc).
@@ -519,6 +532,82 @@ function check(name, cond) {
   check('report seats the menu beside the theme toggle, on whichever side the ROOT dir puts it (4.17.0)', shell.includes('html[dir=ltr] #rcmenu{top:16px;right:62px}') && shell.includes('html[dir=rtl] #rcmenu{top:16px;left:62px;right:auto}') && shell.includes('html[dir=rtl] #rcmenu .items{left:0;right:auto}'));
   check('report no longer pins the menu inline with a logical inset (a direction:ltr element cannot see the page dir)', !shell.includes('inset-inline-end:62px') && !shell.includes('m.style.cssText'));
   check('report keeps the theme toggle and the Copy/PDF bar on opposite logical corners', shell.includes('.theme-toggle{position:fixed;top:16px;inset-inline-end:16px') && shell.includes('.rbar{position:fixed;top:16px;inset-inline-start:16px'));
+
+  // 8e. SIGNATURE (5.2.0): one muted line under every artifact readable produces.
+  // The whole design rests on TWO invariants, and these assert both: there is
+  // exactly ONE literal (rc.css's @sig line, which every build/assembly path
+  // reads), and it mounts as the LAST CHILD OF .rc, which is what makes the five
+  // menu exports carry it with no per-format code.
+  const sigLine = (kit.match(/@sig[ \t]+(<[^\n]+)/) || [])[1];
+  check('rc.css carries exactly one @sig marker and it is the markup itself', Boolean(sigLine) && (kit.match(/@sig[ \t]+</g) || []).length === 1 && sigLine.indexOf('<div class="sig">') === 0 && /<\/div>$/.test(sigLine));
+  // The link TEXT is the bare domain, which is the whole degrade-gracefully trick:
+  // png rasterizes it and innerText copies it, so both carry a usable address
+  // without any markup or a second plain-text definition.
+  check('the signature links to smk-labs and its link TEXT is the bare domain, so png and plain text degrade to readable text', sigLine.includes('href="https://github.com/smk-labs"') && sigLine.includes('>github.com/smk-labs</a>'));
+  check('signature is text only: no emoji, and no dependency on the @ICON sprite', !sigLine.includes('class="ic') && !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u.test(sigLine));
+
+  // BASE, not a @TAG: it ships unconditionally, so a component snippet would be
+  // selected on 100% of cards, and read_kit's 1500ms deadline would leave it
+  // unstyled - a full-size accent link competing with the content.
+  const kitBase = kit.split('/*@')[0];
+  check('signature css lives in BASE, so it never waits on a read_kit round trip', kitBase.includes('.rc .sig{') && kitBase.includes('.rc .sig a{color:inherit}') && !kit.includes('/*@SIG'));
+  check('signature is muted, small, seated under the line ends, and its link refuses the accent colour', /\.rc \.sig\{[^}]*font-size:\.8em/.test(kit) && /\.rc \.sig\{[^}]*color:var\(--text-secondary\)/.test(kit) && /\.rc \.sig\{[^}]*text-align:end/.test(kit) && /\.rc \.sig\{[^}]*border-top:\.5px solid var\(--border\)/.test(kit));
+  // text-align:end + inherited direction is what mirrors it correctly; plaintext
+  // would re-resolve `end` against the line's own LTR run and flip Persian to the
+  // wrong corner.
+  check('signature is NOT in the unicode-bidi:plaintext list (that would flip its corner in RTL)', !/plaintext[^\n]*\.sig|\.sig[^\n]*plaintext/.test(kit));
+  const kSig = await kitOf(sigLine);
+  check('read_kit ships nothing for the signature: it is BASE, already in the template', kSig === '');
+
+  // The template holds the ONE literal, byte for byte, frozen at assembly time.
+  check('template mounts the signature as the last child of #card, from the rc.css literal verbatim', html.includes(".rc .sig{") && html.includes("var SIG='" + sigLine + "'") && html.includes("c.innerHTML=html+(noSig?'':SIG)"));
+  check('the signature costs the model nothing: absent from the tool description and from every reply the model gets back', !card.description.includes('smk-labs') && !JSON.stringify(ok).includes('smk-labs') && !JSON.stringify(cardBr).includes('smk-labs'));
+  // The report signs the CARD, not the page: .meta sits OUTSIDE #card, so a
+  // signature there would leave every export from a report page unsigned.
+  check('report .meta still holds only the date; the shell holds no copy of the literal', shell.includes('<div class="meta">{{DATE}}</div>') && !shell.includes('smk-labs'));
+
+  // Opt-out: "signature": false in .readable/brand.json. One committable flag for
+  // both paths. It reaches the card through read_kit because that call already
+  // gates the first paint - tool-input arguments are the model's, and
+  // structuredContent lands after the first paint (a visible flash).
+  const sigOffDir = mkbrand('sigoff', { wordmark: 'Acme', signature: false });
+  const sigOnDir = mkbrand('sigon', { wordmark: 'Acme' });
+  const kOff = (await rpc('tools/call', { name: 'read_kit', arguments: { html: '<p>x</p>', brand: sigOffDir } })).content[0].text;
+  const kOn = (await rpc('tools/call', { name: 'read_kit', arguments: { html: '<p>x</p>', brand: sigOnDir } })).content[0].text;
+  check('opt-out: "signature": false flags read_kit with a leading !, a brand without the key does not', kOff === '!' && kOn === '');
+  const kOffTbl = (await rpc('tools/call', { name: 'read_kit', arguments: { html: '<table><tbody><tr><td>a</td></tr></tbody></table>', brand: sigOffDir } })).content[0].text;
+  check('the flag rides in FRONT of the component css, so opting out never costs a card its styling', kOffTbl.charAt(0) === '!' && kOffTbl.includes('.rc table{'));
+  check('bridge reads the flag before the first paint and strips the marker before mounting', html.includes("noSig=t.charAt(0)==='!'") && html.includes('kMount(noSig?t.slice(1):t)') && html.includes("brand:bLoaded||''"));
+  check('read_kit advertises the brand param that carries the flag', kitt.inputSchema.properties.brand.type === 'string');
+  const kBogus = (await rpc('tools/call', { name: 'read_kit', arguments: { html: '<p>x</p>', brand: '/nonexistent/.readable' } })).content[0].text;
+  check('an unresolvable brand keeps the signature (the safe default), never an error', kBogus === '');
+
+  // Email: the signature arrives inside the card html, so the server only styles
+  // it - muted, on its own hairline, with the real href kept.
+  const emSig = (await rpc('tools/call', { name: 'render_email', arguments: { html: '<h2>گزارش</h2><p>متن</p>' + sigLine } })).content[0].text;
+  check('email carries the signature as a real link, muted instead of accent, on its own hairline', emSig.includes('href="https://github.com/smk-labs"') && emSig.includes('>github.com/smk-labs<') && emSig.includes('color:#6f6f6a;text-decoration:none') && /border-top:\.5px solid #dcdcd6;font-size:9\.2px;color:#6f6f6a/.test(emSig) && !emSig.includes('class='));
+
+  // Report path (build.py). Source-level, because `node test.js` must not need a
+  // python toolchain; the real end-to-end build is part of the release check.
+  const build = fs.readFileSync(path.join(__dirname, '..', 'skills', 'report', 'build.py'), 'utf8');
+  check('the report holds no copy of the literal: it reads the same @sig marker out of rc.css', !build.includes('smk-labs') && build.includes('@sig[ \\t]+(<[^\\n\\r]+)') && build.includes('content = content + "\\n" + signature()'));
+  check('report opt-out reads the same brand.json key, and stays independent of --no-brand', build.includes('.get("signature") is False') && build.includes('if not sig_off(brand_dir)') && build.includes('if brand_dir and not a.no_brand'));
+  check('report never double-signs a fragment that already carries a signature', build.includes('\'class="sig"\' not in content'));
+
+  // The model-side fallbacks are the ONLY other copy, because on those paths the
+  // model IS the assembler and there is no build step to read rc.css. Byte
+  // identity is asserted so the copy cannot drift.
+  for (const f of ['rule-inline.md', 'rule-hosted.md']) {
+    const r = fs.readFileSync(path.join(__dirname, '..', 'hooks', f), 'utf8').replace(/\r\n/g, '\n');
+    check(f + ' carries the signature byte-identical to rc.css @sig, and nowhere twice', r.includes(sigLine) && !r.split(sigLine).join('').includes('github.com/smk-labs'));
+    check(f + ' carries the .sig css in its verbatim BASE block', r.includes('.rc .sig{') && r.includes('.rc .sig a{color:inherit}'));
+  }
+  const ruleMd = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'rule.md'), 'utf8');
+  check('the ACTIVE card rule never mentions the signature: the model must not spend a token retyping it', !ruleMd.includes('smk-labs') && !ruleMd.includes('class="sig"'));
+  // The real no-duplication guard: which files hold the markup literal at all.
+  const carriers = ['server/server.js', 'assets/menu.js', 'assets/rc.css', 'skills/report/build.py', 'skills/report/assets/shell.html', 'hooks/rule.md', 'hooks/rule-inline.md', 'hooks/rule-hosted.md']
+    .filter((f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8').includes(sigLine));
+  check('exactly three files hold the literal: rc.css (the source) plus the two model-side fallbacks', carriers.join() === 'assets/rc.css,hooks/rule-inline.md,hooks/rule-hosted.md');
 
   // 7. fallback path: a second server WITHOUT ui capability gets the fallback note
   const srv2 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'] });

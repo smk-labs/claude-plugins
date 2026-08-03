@@ -34,6 +34,22 @@ const KIT_CANDIDATES = [
  * one stray byte per line into the template and eat the 30KB budget. */
 const KIT_CSS = fs.readFileSync(KIT_CANDIDATES.find((p) => fs.existsSync(p)), 'utf8').replace(/\r\n/g, '\n');
 
+/* SIGNATURE (5.2.0): the one literal lives on rc.css's @sig line - see the comment
+ * there for why it is BASE and why it mounts as the last child of .rc. Read at
+ * ASSEMBLY time and frozen into the template as a JS constant, so it never enters
+ * the model's context and costs nothing per session. Single-quote ban: it ships
+ * inside a single-quoted JS string literal in the template. */
+const SIG_HTML = (() => {
+  /* Anchored on the '<': prose ABOUT the marker mentions @sig too, and an
+   * unanchored match happily froze a sentence fragment into the template. */
+  const m = KIT_CSS.match(/@sig[ \t]+(<[^\n]+)/);
+  if (!m) throw new Error('rc.css is missing its @sig signature line');
+  const s = m[1].trim();
+  if (s.indexOf("'") !== -1) throw new Error('@sig must not contain a single quote');
+  if (s.slice(0, 16) !== '<div class="sig"') throw new Error('@sig must be a single <div class="sig"> line');
+  return s;
+})();
+
 /* Host CSS variables do not exist inside the sandboxed MCP Apps iframe,
  * so the template ships its own palette and switches on hostContext.theme.
  * The page paints itself with --surface-1 edge to edge: a transparent page
@@ -201,6 +217,8 @@ const KIT_RULES = KIT_ALIASES.reduce((css, [long, short]) => css.split(long).joi
 const BRIDGE_JS = [
   "(function(){",
   "var nextId=1,pending={},LOG=[];window.__rcLog=LOG;",
+  "/* Signature: an assembly-time constant lifted from rc.css's @sig line, mounted as the last child of #card so every #card exporter (png / html / markdown / text / email) carries it with no per-format code. noSig is the project opt-out, delivered on the read_kit reply below. */",
+  "var SIG='" + SIG_HTML + "',noSig=false;",
   "function tap(d,m){try{LOG.push(Date.now()%1000000+d+(m.method||('#'+m.id))+(m&&m.error?'!'+String(m.error.code||''):''));if(LOG.length>80)LOG.shift()}catch(e){}}",
   "function send(m){tap('>',m);window.parent.postMessage(m,'*')}",
   "function rpc(method,params,cb){var id=nextId++;if(cb)pending[id]=cb;send({jsonrpc:'2.0',id:id,method:method,params:params||{}})}",
@@ -224,8 +242,9 @@ const BRIDGE_JS = [
   "var kitCss='',kitEl=(function(){var s=document.createElement('style');s.id='rckit';document.head.appendChild(s);return s})();",
   "function kMount(t){if(t===kitCss)return;kitCss=t;kitEl.textContent=t}",
   "function kApply(html,cb){var done=false;function go(){if(done)return;done=true;cb()}setTimeout(go,1500);",
-  "rpc('tools/call',{name:'read_kit',arguments:{html:html}},function(res,err){var c=!err&&res&&!res.isError&&res.content,t=c&&c[0]&&c[0].text;if(typeof t==='string')kMount(t);go()})}",
-  "function draw(html){var c=document.getElementById('card');c.setAttribute('dir',dirOf(html));c.innerHTML=html;fit();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)}",
+  "/* The same reply carries the project's signature opt-out (.readable/brand.json \"signature\":false) as a leading '!'. It rides THIS call because the first paint already blocks on it, so the flag is known before draw: no flash, no race. The tool-input arguments cannot carry it (they are the model's, and the model must never spend tokens on this), and structuredContent on tool-result lands AFTER the first paint. A host that never answers keeps the default, which is the safe direction. */",
+  "rpc('tools/call',{name:'read_kit',arguments:{html:html,brand:bLoaded||''}},function(res,err){var c=!err&&res&&!res.isError&&res.content,t=c&&c[0]&&c[0].text;if(typeof t==='string'){noSig=t.charAt(0)==='!';kMount(noSig?t.slice(1):t)}go()})}",
+  "function draw(html){var c=document.getElementById('card');c.setAttribute('dir',dirOf(html));c.innerHTML=html+(noSig?'':SIG);fit();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)}",
   "function paint(html){if(!html)return;kApply(html,function(){draw(html)})}",
   "function render(html,isFinal){if(isFinal){finalGot=true;if(partialTimer){clearTimeout(partialTimer);partialTimer=null}paint(html);return}",
   "if(finalGot)return;if(partialTimer)clearTimeout(partialTimer);partialTimer=setTimeout(function(){if(!finalGot)paint(html)},700)}",
@@ -409,14 +428,19 @@ const FONTS_TOOL = {
 
 /* read_kit (4.20.0): the component half of the kit, selected for one card.
  * The template carries BASE; the app posts the card HTML here and gets back only
- * the snippets that HTML uses. Not for the model - it never sees or sends CSS. */
+ * the snippets that HTML uses. Not for the model - it never sees or sends CSS.
+ * Since 5.2.0 the reply also carries the project's signature opt-out as a
+ * leading '!', because this is the one app-only call the first paint waits on. */
 const KIT_TOOL = {
   name: 'read_kit',
   description:
     'Internal: returns the kit component CSS a specific card needs, selected from its HTML. Called by the embedded card interface, never by the assistant.',
   inputSchema: {
     type: 'object',
-    properties: { html: { type: 'string', description: 'The card content HTML to select component CSS for.' } },
+    properties: {
+      html: { type: 'string', description: 'The card content HTML to select component CSS for.' },
+      brand: { type: 'string', description: 'The card call\'s .readable brand dir, if any; carries the signature opt-out.' },
+    },
   },
 };
 
@@ -656,6 +680,22 @@ function brandParts(dir) {
  * mounts it as a late <style>; the model never sees it. */
 function readBrand(dir) { return brandParts(dir).css; }
 
+/* SIGNATURE OPT-OUT (5.2.0): "signature": false in the project's
+ * .readable/brand.json. One mechanism for both paths (build.py reads the same
+ * key), committable, and it sits with the identity that raises the question in
+ * the first place - a brand layer is what turns a report into someone else's
+ * client-facing document. Resolution reuses brandDirFor, so an explicit dir
+ * wins and an empty one still gets the unambiguous lone-root/cwd guess; a
+ * missing or malformed brand.json means opted IN, never a hard failure. */
+function sigOff(dir) {
+  const d = brandDirFor(dir);
+  if (!d) return false;
+  try {
+    const f = path.join(d, 'brand.json');
+    return fs.existsSync(f) && JSON.parse(fs.readFileSync(f, 'utf8')).signature === false;
+  } catch (e) { return false; }
+}
+
 const EMAIL_PAL = {
   light: { tx: '#1f1f1f', sub: '#6f6f6a', ac: '#2f66c4', s1: '#ffffff', s2: '#f2f2ef', bd: '#dcdcd6', bs: '#b8b8b0', gok: '#e6f4ec', gac: '#e8effc', gwa: '#faf0d9', gda: '#fbe9e7' },
   dark: { tx: '#ececea', sub: '#9f9f98', ac: '#82abec', s1: '#262624', s2: '#302f2c', bd: '#3e3e3a', bs: '#55554f', gok: '#143122', gac: '#16283f', gwa: '#382c13', gda: '#3a1d19' },
@@ -774,7 +814,7 @@ function renderEmail(html, theme) {
       dir = 'ltr';
       st = 'display:inline-block;direction:ltr;font-family:' + EMAIL_MONO + ';font-size:9.8px;color:' + P.ac + ';background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:5px;padding:1px 5px';
     } else if (tag === 'a') {
-      st = 'color:' + P.ac + ';text-decoration:none';
+      st = 'color:' + (ctx.sig ? P.sub : P.ac) + ';text-decoration:none';
     } else if (tag === 'ul') {
       st = 'list-style:none;padding:0 ' + (R ? '17px 0 0' : '0 0 17px') + ';margin:6px 0';
     } else if (tag === 'ol') {
@@ -791,6 +831,13 @@ function renderEmail(html, theme) {
       next = Object.assign({}, ctx, { cal: true });
     } else if (tag === 'hr') {
       st = 'border:none;border-top:.5px solid ' + P.bd + ';margin:15px 0';
+    } else if (has(n, 'sig')) {
+      /* The signature arrives inside the card html (the bridge mounts it as the
+       * last child of #card), so nothing is injected here - it only needs the
+       * inline equivalent of the kit rule, and its link muted instead of accent. */
+      st = 'display:block;margin:22px 0 0;padding-top:10px;border-top:.5px solid ' + P.bd +
+        ';font-size:9.2px;color:' + P.sub + ';text-align:' + E;
+      next = Object.assign({}, ctx, { sig: true });
     } else if (tag === 'pre') {
       dir = 'ltr';
       st = 'direction:ltr;text-align:left;font-family:' + EMAIL_MONO + ';font-size:9.8px;background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:8px;padding:10px 12px;line-height:1.6;margin:8px 0;white-space:pre-wrap';
@@ -1052,7 +1099,10 @@ function handle(msg) {
         const a = params.arguments || {};
         if (typeof a.html !== 'string') return fail(-32602, 'html (string) is required');
         try {
-          respond({ content: [{ type: 'text', text: kitFor(a.html) }] });
+          // A leading '!' tells the bridge this project opted out of the
+          // signature. It rides THIS reply because the first paint already
+          // blocks on it, so the flag lands before draw with no flash.
+          respond({ content: [{ type: 'text', text: (sigOff(a.brand) ? '!' : '') + kitFor(a.html) }] });
         } catch (e) {
           respond({ isError: true, content: [{ type: 'text', text: 'kit select failed: ' + String(e && e.message) }] });
         }
