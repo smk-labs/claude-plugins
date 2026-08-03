@@ -34,7 +34,7 @@
       "name": "readable",
       "source": "./plugins/readable",
       "description": "Replies as styled cards instead of raw chat text. Persian and RTL always render correctly, English by default. Export any card as a standalone HTML report, and give a project its own brand so every card and report matches it.",
-      "version": "5.2.0",
+      "version": "5.2.1",
       "category": "writing"
     },
     {
@@ -54,8 +54,8 @@
     {
       "name": "fig",
       "source": "./plugins/fig",
-      "description": "Single-file looping animated SVGs for ideas that move: flows, loops, retries, queues, fan-outs. One HTML file you can drop in an email or a slide, no player and no deck, plus a to-gif command.",
-      "version": "1.0.0",
+      "description": "Single-file looping animated SVGs for ideas that move: flows, loops, retries, queues, fan-outs. One HTML file you can drop in an email, a slide, or a report, animated with css so the motion survives being embedded. No player, no deck, plus a to-gif command.",
+      "version": "1.1.0",
       "category": "visual"
     },
     {
