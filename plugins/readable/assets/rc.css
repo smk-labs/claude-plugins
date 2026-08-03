@@ -1,6 +1,7 @@
 /* readable kit - single source of truth.
-   BASE = the block above the first @TAG: card frame, headings, text, lists, callouts, code.
-   Always shipped, on every path.
+   BASE = the block above the first @TAG: card frame, headings, text, lists, callouts, code,
+   signature. Always shipped, on every path. The signature's markup lives on the @sig line
+   at the end of BASE and is the single source every path reads.
    Everything below is a @TAG component snippet, and @TAG is now load-bearing on ALL paths:
      - hooks/rule-inline.md   the model copies the snippets a reply uses
      - the MCP card template  ships BASE only; server/server.js parses these markers into a
@@ -19,7 +20,15 @@
    Radii follow four tokens: 5px inline, 9px small panel, 11px panel, 20px pill (plus the
    14px outer frame). Hairlines under 5px on 4-9px decorations are not on the scale. */
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
-.rc{--ca:#0f9d58;--cb:#3f8ac9;--cc:#e0a52e;--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);border:.5px solid var(--border);border-radius:14px;padding:1.2rem 1.4rem;text-align:right;margin:.5rem 0}
+/* PALETTE, two hues (5.2.0). --ca..--cc are ONE ramp of the brand accent and --cd is the
+   single negative red. Before this, --ca/--cb/--cc were an independent green/blue/amber
+   trio, so a card that used a chip, a status list and a callout showed four unrelated hues
+   plus the accent: a rainbow the brand never chose. Now positive/neutral states all speak
+   the accent, failure states speak red, and a chart's series read as one family because the
+   ramp fades the SAME hue into the card surface. A brand only sets --text-accent and the
+   whole kit follows. text-align is `start`, not `right`: an LTR card used to inherit the
+   RTL alignment and hang its text on the wrong edge. */
+.rc{--ca:var(--text-accent);--cb:color-mix(in srgb,var(--text-accent) 55%,var(--surface-1));--cc:color-mix(in srgb,var(--text-accent) 28%,var(--surface-1));--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);border:.5px solid var(--border);border-radius:14px;padding:1.2rem 1.4rem;text-align:start;margin:.5rem 0}
 .rc>:first-child{margin-top:0}.rc>:last-child{margin-bottom:0}
 /* PANEL RECIPE, shared. Every panel in the kit is surface-2 on a hairline border plus its
    own radius/padding, so the shared half is declared once here and each component below
@@ -30,7 +39,11 @@
 .rc h2{font-weight:800;font-size:1.35em;margin:0 0 .15em}
 .rc h2::after{content:'';display:block;width:28px;height:2.5px;border-radius:2px;background:var(--text-accent);margin-top:.45em}
 .rc h3{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.1em;margin:1.4em 0 .45em}
-.rc h3::before{content:'';width:7px;height:7px;border-radius:2px;background:var(--text-accent);flex:0 0 auto}
+/* The heading marker sits in a 1em slot, not on its own 7px width: an icon heading (@ICON
+   swaps the dot for a 1em glyph) then starts its text on the SAME x as a dot heading, so
+   sections keep one left edge whichever marker they carry. The margin is the slot's
+   remainder, so only the dot pays for it. */
+.rc h3::before{content:'';width:7px;height:7px;margin-inline-end:calc(1em - 7px);border-radius:2px;background:var(--text-accent);flex:0 0 auto}
 .rc h4{font-weight:700;font-size:1em;margin:1em 0 .3em}
 .rc p{margin:.6em 0}.rc .lead{color:var(--text-secondary);font-size:1.05em}
 .rc p,.rc li,.rc h2,.rc h4,.rc td,.rc th,.rc .kpi,.rc .tl div{unicode-bidi:plaintext}
@@ -41,15 +54,45 @@
 .rc ul{list-style:none}.rc ul>li::before{content:'';position:absolute;inset-inline-start:-1.1em;top:.68em;width:4px;height:4px;border-radius:50%;background:var(--text-accent)}
 .rc ol{list-style:decimal}.rc ol>li::marker{color:var(--text-accent);font-weight:700}
 .rc li.ok::before,.rc li.no::before{content:'✓';background:none;width:auto;height:auto;top:0;inset-inline-start:-1.35em;font-weight:800;font-size:1em;line-height:inherit;color:var(--ca)}
-.rc li.no::before{content:'✕';color:#e05555}
+.rc li.no::before{content:'✕';color:var(--cd)}
 .rc .cal{display:flex;gap:9px;padding:9px 12px;border-radius:11px;margin:.8em 0;border-inline-start:3px solid var(--border-strong)}.rc .cal>div{min-width:0}.rc .cal p{margin:.15em 0}
-.rc .cal.tip{background:var(--bg-success);border-color:var(--ca)}.rc .cal.note{background:var(--bg-accent);border-color:var(--cb)}.rc .cal.warn{background:var(--bg-warning);border-color:#c98a1a}.rc .cal.danger{background:var(--bg-danger);border-color:#d64545}
+/* Two looks, four names: tip/note carry the accent, warn/danger carry the red. The words
+   already say which is which, so a third and fourth hue only diluted the one signal that
+   matters - is this a remark or a problem. */
+.rc .cal.tip,.rc .cal.note{background:var(--bg-accent);border-color:var(--ca)}.rc .cal.warn,.rc .cal.danger{background:var(--bg-danger);border-color:var(--cd)}
 .rc hr{border:none;border-top:.5px solid var(--border);margin:1.3em 0}
 .rc pre{direction:ltr;text-align:left;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;border-radius:9px;padding:10px 12px;overflow-x:auto;line-height:1.6;margin:.8em 0}.rc pre code{display:block;border:none;background:none;padding:0}
+/* SIGNATURE. One muted line, mounted as the LAST CHILD OF .rc, which is what makes it
+   free everywhere: every exporter in assets/menu.js serializes #card, so the html, png,
+   markdown, plain-text and email exports all carry it with no per-format code. Putting
+   it in the page chrome instead (the report's .meta footer) would sign the PAGE and
+   leave every export from that page unsigned.
+   It is BASE, not a @TAG component, because it ships unconditionally: a snippet would be
+   selected on 100% of cards (pay-per-use with no payoff), and read_kit's 1500ms deadline
+   would leave it unstyled on a slow host - a full-size accent-coloured link competing
+   with the content, the one thing it must never do.
+   No icon on purpose: @ICON carries a ~2KB sprite, and pulling that into every card for
+   one decorative glyph is exactly what the icon rule forbids.
+   Pure Latin, so it renders LTR inside an RTL card with no bidi help (the middle dot is
+   a neutral between two Latin runs). text-align:end seats it under the line ENDS, the
+   same corner the report's own .meta date takes. unicode-bidi:plaintext is deliberately
+   NOT set: it would re-resolve text-align:end against the line's own LTR direction and
+   flip the block to the wrong corner in Persian.
+   The @sig line below is THE literal, and the only one. server/server.js freezes it into
+   the card template at assembly time; skills/report/build.py appends it to a report;
+   decode's build.py fills its own footer slot from it. hooks/rule-inline.md and
+   hooks/rule-hosted.md hold the only copy, because on those paths the MODEL is the
+   assembler and there is no build step to read this file - server/test.js asserts that
+   copy stays byte-identical, so it cannot drift. The comment terminator sits on its own
+   line below, so the marker line IS the markup, byte for byte, with nothing to trim.
+   @sig <div class="sig">created by readable · <a href="https://github.com/smk-labs" target="_blank" rel="noopener">github.com/smk-labs</a></div>
+*/
+.rc .sig{margin-top:1.6em;padding-top:.7em;border-top:.5px solid var(--border);font-size:.8em;color:var(--text-secondary);text-align:end}
+.rc .sig a{color:inherit}
 /*@TABLE*/
 .rc table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:.96em}
-.rc thead th{color:var(--text-secondary);font-weight:700;font-size:.88em;border-bottom:1.5px solid var(--border-strong);padding:5px 10px;text-align:right}
-.rc tbody td{padding:7px 10px;border-bottom:.5px solid var(--border);text-align:right}
+.rc thead th{color:var(--text-secondary);font-weight:700;font-size:.88em;border-bottom:1.5px solid var(--border-strong);padding:5px 10px;text-align:start}
+.rc tbody td{padding:7px 10px;border-bottom:.5px solid var(--border);text-align:start}
 .rc tbody tr:last-child td{border-bottom:none}.rc tbody tr:hover td{background:var(--surface-2)}
 .rc .scroll-table{max-height:82vh;overflow:auto;border:1px solid var(--border);border-radius:11px;margin:.8em 0}.rc .scroll-table table{margin:0}
 .rc .scroll-table thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);box-shadow:0 1px 0 var(--border)}
@@ -63,7 +106,7 @@
 .rc .kpi .n{font-size:1.8em;font-weight:800;line-height:1.2;color:var(--text-primary)}
 .rc .kpi .f{font-size:.74em;color:var(--text-secondary);line-height:1.7;margin-top:3px}
 .rc .trend{display:inline-block;font-size:.55em;font-weight:700;padding:1px 8px;border-radius:20px;vertical-align:2px;margin-inline-start:7px}
-.rc .trend.up{background:var(--bg-success);color:var(--ca)}.rc .trend.up::before{content:'▲ '}
+.rc .trend.up{background:var(--bg-accent);color:var(--ca)}.rc .trend.up::before{content:'▲ '}
 .rc .trend.dn{background:var(--bg-danger);color:var(--cd)}.rc .trend.dn::before{content:'▼ '}
 /*@BARS*/
 .rc .bars{margin:.8em 0}.rc .bar{display:flex;align-items:center;gap:10px;margin:.45em 0}.rc .bar .l{flex:0 0 auto;min-width:4.5em;color:var(--text-secondary)}.rc .bar .t{flex:1;height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden}.rc .bar .t i{display:block;height:100%;background:var(--text-accent);border-radius:4px}.rc .bar .v{flex:0 0 auto;font-weight:700;font-size:.9em}
@@ -73,7 +116,7 @@
 .rc .spark{margin:.8em 0}
 .rc .spark svg{display:block;width:100%;height:54px}
 .rc .spark polyline{fill:none;stroke:var(--text-accent);stroke-width:2;vector-effect:non-scaling-stroke}
-.rc .spark polyline.s2{stroke:var(--cc)}
+.rc .spark polyline.s2{stroke:var(--cb)}
 .rc .spark polygon{fill:var(--text-accent);opacity:.09}
 .rc .spark .x{display:flex;justify-content:space-between;direction:ltr;color:var(--text-secondary);font-size:.82em}
 /*@FLOW*/
@@ -89,7 +132,7 @@
 .rc .tl b{display:block;font-weight:700}
 /*@BADGE*/
 .rc .badge{display:inline-block;font-size:.78em;font-weight:700;padding:1px 9px;border-radius:20px;background:var(--surface-2);color:var(--text-secondary)}
-.rc .badge.ok{background:var(--bg-success);color:var(--ca)}.rc .badge.warn{background:var(--bg-warning);color:#c98a1a}.rc .badge.info{background:var(--bg-accent);color:var(--cb)}
+.rc .badge.ok,.rc .badge.info{background:var(--bg-accent);color:var(--ca)}.rc .badge.warn{background:var(--bg-danger);color:var(--cd)}
 /*@CTA*/
 .rc .cta{display:inline-flex;align-items:center;gap:6px;background:var(--text-accent);color:var(--surface-1);border:none;border-radius:9px;padding:7px 15px;font-family:inherit;font-size:1em;font-weight:700;cursor:pointer;margin-top:.4em}.rc .cta::after{content:'←';font-weight:400}.rc .cta:hover{opacity:.88}
 .rc .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:.6em}.rc .cta.ghost{background:transparent;color:var(--text-accent);border:1px solid var(--border-strong)}
@@ -128,9 +171,8 @@
 .rc :is(.card,.box) :is(.kpi,pre,code,.badge,.lbl,.flow .s,.bar .t,.scroll-table,.scroll-table thead th){background:var(--surface-1)}
 .rc :is(.card,.box) tbody tr:hover td{background:var(--surface-1)}
 .rc :is(.card,.box) .tl>div::before{outline-color:var(--surface-2)}
-.rc :is(.card,.box) .badge.ok{background:var(--bg-success)}
-.rc :is(.card,.box) .badge.warn{background:var(--bg-warning)}
-.rc :is(.card,.box) .badge.info{background:var(--bg-accent)}
+.rc :is(.card,.box) .badge.ok,.rc :is(.card,.box) .badge.info{background:var(--bg-accent)}
+.rc :is(.card,.box) .badge.warn{background:var(--bg-danger)}
 /*@BOX - one full-width card: an executive summary, a verdict, a standout block. The panel
    and the child inversion come from @CARD above, so this is only the delta - more room, a
    stronger edge. .lbl is its eyebrow label (the @CARD inversion flips it to surface-1).*/
@@ -174,7 +216,7 @@
    on .rc itself - so no new attribute is invented. counter() with no style is decimal.*/
 .rc .numbered{counter-reset:sec}
 .rc .numbered>h3{counter-increment:sec;counter-reset:sub}
-.rc .numbered>h3::before{content:counter(sec,persian) '.';width:auto;height:auto;border-radius:0;background:none;color:var(--text-accent);font-weight:800;font-size:1.05em;flex:0 0 auto}
+.rc .numbered>h3::before{content:counter(sec,persian) '.';width:auto;height:auto;margin-inline-end:0;border-radius:0;background:none;color:var(--text-accent);font-weight:800;font-size:1.05em;flex:0 0 auto}
 .rc .numbered>h4{counter-increment:sub}
 .rc .numbered>h4::before{content:counter(sec,persian) '.' counter(sub,persian);color:var(--text-accent);font-weight:800;margin-inline-end:7px}
 .rc:dir(ltr) .numbered>h3::before{content:counter(sec) '.'}
@@ -199,9 +241,16 @@
 .rc .fold pre{white-space:pre-wrap;word-break:break-word;max-height:52vh;overflow:auto}
 .rc .fold .fold>summary{background:none;color:var(--text-secondary)}
 /*@ICON - one minimal Lucide-style set, as a MASK not an image: the glyph is painted with
-   currentColor, so it inherits the text colour, flips with the theme, and sizes with the
-   font (1em) wherever it sits - prose, a heading, a card title, a kv key, a flow step, a
-   badge. No JS, no font file, no request.
+   ONE colour, the brand accent, and sizes with the font (1em) wherever it sits - prose, a
+   heading, a card title, a kv key, a flow step, a badge. No JS, no font file, no request.
+   Why not currentColor (4.20.0 - 5.1.0): an icon that inherits body text reads as a letter,
+   not a marker. In a heading it also erased the one accent-coloured mark that gave the
+   heading its rank, so a card with icon headings went flat while its bullets and status
+   ticks stayed coloured: three marker colours, no hierarchy. Accent by default fixes the
+   rank and keeps the card to one or two colours.
+   ONE PLACE ONLY: a heading. At .78em a chip's glyph is a 9px smudge and a kv key or a
+   flow step turns into confetti - the icon rule in hooks/rule.md allows h3/h4 and nothing
+   else, which is also why no semantic-colour opt-out is needed here.
    It is ONE sprite, not 16 data URIs: the <svg> preamble is ~160 chars and repeating it
    per icon would cost more than the artwork. Each icon is a 1em window onto a 16em-wide
    mask, so an icon rule is just its offset. The URI is held in --u and referenced once,
@@ -213,7 +262,7 @@
    ::before and ties on specificity, so an unscoped rule silently ate the numbering (caught in
    a report render, not in a unit test). Inside a numbered document the number wins and the
    icon simply sits beside it.*/
-.rc .ic{--u:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='384' height='24' viewBox='0 0 384 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg transform='translate(0)'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/g%3E%3Cg transform='translate(24)'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 12 12'/%3E%3C/g%3E%3Cg transform='translate(48)'%3E%3Cpath d='M12 3 2 20h20z'/%3E%3Cpath d='M12 9v5'/%3E%3Cpath d='M12 17h.01'/%3E%3C/g%3E%3Cg transform='translate(72)'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/g%3E%3Cg transform='translate(96)'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 6v6l4 2'/%3E%3C/g%3E%3Cg transform='translate(120)'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M20 21a8 8 0 0 0-16 0'/%3E%3C/g%3E%3Cg transform='translate(144)'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6'/%3E%3C/g%3E%3Cg transform='translate(168)'%3E%3Cpath d='M4 20a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2z'/%3E%3C/g%3E%3Cg transform='translate(192)'%3E%3Cpath d='m16 18 6-6-6-6'/%3E%3Cpath d='m8 6-6 6 6 6'/%3E%3C/g%3E%3Cg transform='translate(216)'%3E%3Cpath d='m4 17 6-6-6-6'/%3E%3Cpath d='M12 19h8'/%3E%3C/g%3E%3Cg transform='translate(240)'%3E%3Ccircle cx='18' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M6 15V3'/%3E%3Cpath d='M18 9a9 9 0 0 1-9 9'/%3E%3C/g%3E%3Cg transform='translate(264)'%3E%3Cellipse cx='12' cy='5' rx='9' ry='3'/%3E%3Cpath d='M3 5v14a9 3 0 0 0 18 0V5'/%3E%3Cpath d='M3 12a9 3 0 0 0 18 0'/%3E%3C/g%3E%3Cg transform='translate(288)'%3E%3Cpath d='M13 2 3 14h9l-1 8 10-12h-9z'/%3E%3C/g%3E%3Cg transform='translate(312)'%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/%3E%3C/g%3E%3Cg transform='translate(336)'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/g%3E%3Cg transform='translate(360)'%3E%3Cpath d='M15 3h6v6'/%3E%3Cpath d='M10 14 21 3'/%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3C/g%3E%3C/svg%3E");display:inline-block;width:1em;height:1em;vertical-align:-.15em;flex:none;background:currentColor;-webkit-mask:var(--u) var(--p,0) 0/16em 1em no-repeat;mask:var(--u) var(--p,0) 0/16em 1em no-repeat}
+.rc .ic{--u:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='384' height='24' viewBox='0 0 384 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg transform='translate(0)'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/g%3E%3Cg transform='translate(24)'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 12 12'/%3E%3C/g%3E%3Cg transform='translate(48)'%3E%3Cpath d='M12 3 2 20h20z'/%3E%3Cpath d='M12 9v5'/%3E%3Cpath d='M12 17h.01'/%3E%3C/g%3E%3Cg transform='translate(72)'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/g%3E%3Cg transform='translate(96)'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 6v6l4 2'/%3E%3C/g%3E%3Cg transform='translate(120)'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M20 21a8 8 0 0 0-16 0'/%3E%3C/g%3E%3Cg transform='translate(144)'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6'/%3E%3C/g%3E%3Cg transform='translate(168)'%3E%3Cpath d='M4 20a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2z'/%3E%3C/g%3E%3Cg transform='translate(192)'%3E%3Cpath d='m16 18 6-6-6-6'/%3E%3Cpath d='m8 6-6 6 6 6'/%3E%3C/g%3E%3Cg transform='translate(216)'%3E%3Cpath d='m4 17 6-6-6-6'/%3E%3Cpath d='M12 19h8'/%3E%3C/g%3E%3Cg transform='translate(240)'%3E%3Ccircle cx='18' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M6 15V3'/%3E%3Cpath d='M18 9a9 9 0 0 1-9 9'/%3E%3C/g%3E%3Cg transform='translate(264)'%3E%3Cellipse cx='12' cy='5' rx='9' ry='3'/%3E%3Cpath d='M3 5v14a9 3 0 0 0 18 0V5'/%3E%3Cpath d='M3 12a9 3 0 0 0 18 0'/%3E%3C/g%3E%3Cg transform='translate(288)'%3E%3Cpath d='M13 2 3 14h9l-1 8 10-12h-9z'/%3E%3C/g%3E%3Cg transform='translate(312)'%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/%3E%3C/g%3E%3Cg transform='translate(336)'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/g%3E%3Cg transform='translate(360)'%3E%3Cpath d='M15 3h6v6'/%3E%3Cpath d='M10 14 21 3'/%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3C/g%3E%3C/svg%3E");display:inline-block;width:1em;height:1em;vertical-align:-.15em;flex:none;background:var(--text-accent);-webkit-mask:var(--u) var(--p,0) 0/16em 1em no-repeat;mask:var(--u) var(--p,0) 0/16em 1em no-repeat}
 .rc h3:has(.ic):not(.numbered *)::before{display:none}
 .rc .ic.check{--p:0}.rc .ic.x{--p:-1em}.rc .ic.alert{--p:-2em}.rc .ic.info{--p:-3em}.rc .ic.clock{--p:-4em}.rc .ic.user{--p:-5em}.rc .ic.file{--p:-6em}.rc .ic.folder{--p:-7em}.rc .ic.code{--p:-8em}.rc .ic.terminal{--p:-9em}.rc .ic.git{--p:-10em}.rc .ic.db{--p:-11em}.rc .ic.zap{--p:-12em}.rc .ic.shield{--p:-13em}.rc .ic.search{--p:-14em}.rc .ic.link{--p:-15em}
 /*@PRINT*/

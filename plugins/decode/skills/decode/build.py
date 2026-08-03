@@ -3,10 +3,32 @@
 import argparse
 import datetime
 import pathlib
+import re
+import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 SHELL = HERE / "assets" / "atlas.html"
 TREE_MARKER = "<!--TREE-->"
+# The atlas is readable-styled output (it carries the kit's palette), so it also
+# carries readable's signature - read from readable's own single source, never
+# copied. Sibling plugin dir: plugins/<this>/skills/decode -> plugins/readable.
+READABLE_KIT = HERE.parents[2] / "readable" / "assets" / "rc.css"
+
+
+def signature() -> str:
+    """readable's signature line, lifted from its @sig marker in rc.css.
+
+    Not a copy: the same literal every readable path uses, so the two can never
+    drift. If readable is not installed beside this plugin the line is dropped and
+    the tour still builds - a missing credit must never fail a build."""
+    try:
+        m = re.search(r"@sig[ \t]+(<[^\n\r]+)", READABLE_KIT.read_text(encoding="utf-8"))
+    except OSError:
+        m = None
+    if not m:
+        print("readable not found beside decode; atlas built unsigned", file=sys.stderr)
+        return ""
+    return m.group(1).strip()
 
 
 def main():
@@ -27,6 +49,7 @@ def main():
         shell.replace("{{TITLE}}", a.title)
         .replace("{{SUBTITLE}}", a.subtitle)
         .replace("{{DATE}}", datetime.date.today().isoformat())
+        .replace("{{SIG}}", signature())
         .replace("{{BODY}}", body)
         .replace("{{TREE}}", tree)
     )
