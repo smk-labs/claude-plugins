@@ -169,6 +169,13 @@ function check(name, cond) {
   check('the glyph is painted with currentColor so it theme-flips and inherits size', kIcon.includes('background:currentColor') && kIcon.includes('width:1em;height:1em'));
   check('no icon CSS for a card that uses none', !kKpi.includes('.rc .ic{'));
 
+  // @FIG (5.1.0): images and /fig motion are one component, because both are just
+  // <img src> and build.py turns the reference into a data: URI.
+  const kFig = await kitOf('<figure><img src="a.png" alt="x"><figcaption>c</figcaption></figure>');
+  check('read_kit delivers the figure component for an image or a /fig animation', kFig.includes('.rc figure{') && kFig.includes('.rc figcaption{') && kFig.includes('max-width:100%'));
+  check('a bare img is styled too, not only one inside a figure', kFig.includes('.rc img,'));
+  check('no figure CSS for a card without one', !kKpi.includes('.rc figure{'));
+
   // COMPLETENESS. A new @TAG with no detector would silently render unstyled.
   // This is the guard that makes adding a component fail loudly instead.
   const srvSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
