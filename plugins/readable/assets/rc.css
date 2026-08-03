@@ -1,13 +1,21 @@
 /* readable kit - single source of truth.
-   BASE = always in every card; sections marked @TAG are component snippets.
-   @TAG is pay-per-use in ONE path only: hooks/rule-inline.md, where the model copies the
-   snippets a reply actually uses. The MCP card template does NOT read the markers - the
-   ui:// resource is predeclared and served static, before any card content exists, so it
-   must carry every chat-tier component and ships the whole pre-@REPORT sheet every time.
-   Treat everything above @REPORT as always-shipped when budgeting bytes.
-   The @REPORT tail is report tier (report skill, hosted kit, inline snippets): server/server.js
-   cuts the sheet at that marker so the chat card template stays under the host's 30KB
-   resource ceiling, and the chat rule does not offer those variants.
+   BASE = the block above the first @TAG: card frame, headings, text, lists, callouts, code.
+   Always shipped, on every path.
+   Everything below is a @TAG component snippet, and @TAG is now load-bearing on ALL paths:
+     - hooks/rule-inline.md   the model copies the snippets a reply uses
+     - the MCP card template  ships BASE only; server/server.js parses these markers into a
+                              tag map and the read_kit tool returns just the snippets a
+                              given card's HTML actually needs (4.20.0)
+     - report / hosted kit    the whole file, no selection
+   SNIPPETS MUST STAY INDEPENDENT. A snippet is delivered on its own, so it may rely on BASE
+   and on its declared dependencies, never on a sibling component happening to be present.
+   @BOX needs @CARD (shared panel rule) and @ZEBRA needs @TABLE; both are declared in
+   server.js's KIT_NEEDS. Adding a component means adding its detector there too, and
+   server/test.js fails if any @TAG has no detector.
+   @REPORT is a tier divider, not a component: it marks what the CHAT RULE does not offer.
+   It no longer cuts CSS - the tag map replaced that cut, so a report-tier component can now
+   reach a chat card when the content genuinely uses it.
+   @PRINT is excluded from card delivery on purpose: an MCP iframe never prints.
    Radii follow four tokens: 5px inline, 9px small panel, 11px panel, 20px pill (plus the
    14px outer frame). Hairlines under 5px on 4-9px decorations are not on the scale. */
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
@@ -15,10 +23,9 @@
 .rc>:first-child{margin-top:0}.rc>:last-child{margin-bottom:0}
 /* PANEL RECIPE, shared. Every panel in the kit is surface-2 on a hairline border plus its
    own radius/padding, so the shared half is declared once here and each component below
-   carries only its delta. Only the components that are ALWAYS shipped are listed (card/box
-   share their own copy of this in @CARD, report tier, so the chat sheet does not pay for
-   selectors it can never use). Order note: .rc pre code resets this at higher specificity,
-   so it still wins. */
+   carries only its delta. Only ALWAYS-shipped panels are listed: card/box carry their own
+   copy in @CARD because a snippet has to stand alone when it is delivered by itself.
+   Order note: .rc pre code resets this at higher specificity, so it still wins. */
 .rc code,.rc pre,.rc .kpi,.rc .flow .s{background:var(--surface-2);border:.5px solid var(--border)}
 .rc h2{font-weight:800;font-size:1.35em;margin:0 0 .15em}
 .rc h2::after{content:'';display:block;width:28px;height:2.5px;border-radius:2px;background:var(--text-accent);margin-top:.45em}
@@ -54,11 +61,14 @@
 .rc .kpi{border-radius:11px;padding:11px 13px}
 .rc .kpi .l{font-size:.82em;color:var(--text-secondary);margin-bottom:3px}
 .rc .kpi .n{font-size:1.8em;font-weight:800;line-height:1.2;color:var(--text-primary)}
+.rc .kpi .f{font-size:.74em;color:var(--text-secondary);line-height:1.7;margin-top:3px}
 .rc .trend{display:inline-block;font-size:.55em;font-weight:700;padding:1px 8px;border-radius:20px;vertical-align:2px;margin-inline-start:7px}
 .rc .trend.up{background:var(--bg-success);color:var(--ca)}.rc .trend.up::before{content:'▲ '}
 .rc .trend.dn{background:var(--bg-danger);color:var(--cd)}.rc .trend.dn::before{content:'▼ '}
 /*@BARS*/
 .rc .bars{margin:.8em 0}.rc .bar{display:flex;align-items:center;gap:10px;margin:.45em 0}.rc .bar .l{flex:0 0 auto;min-width:4.5em;color:var(--text-secondary)}.rc .bar .t{flex:1;height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden}.rc .bar .t i{display:block;height:100%;background:var(--text-accent);border-radius:4px}.rc .bar .v{flex:0 0 auto;font-weight:700;font-size:.9em}
+.rc .bar.duo .t{position:relative}.rc .bar.duo .t i{background:var(--ca)}.rc .bar.duo .t i+i{position:absolute;inset-inline-start:0;top:0;background:var(--cb)}
+.rc .bars .leg{display:flex;flex-flow:row wrap;gap:4px 16px;margin:.2em 0 .5em;font-size:.9em}
 /*@SPARK*/
 .rc .spark{margin:.8em 0}
 .rc .spark svg{display:block;width:100%;height:54px}
@@ -83,20 +93,17 @@
 /*@CTA*/
 .rc .cta{display:inline-flex;align-items:center;gap:6px;background:var(--text-accent);color:var(--surface-1);border:none;border-radius:9px;padding:7px 15px;font-family:inherit;font-size:1em;font-weight:700;cursor:pointer;margin-top:.4em}.rc .cta::after{content:'←';font-weight:400}.rc .cta:hover{opacity:.88}
 .rc .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:.6em}.rc .cta.ghost{background:transparent;color:var(--text-accent);border:1px solid var(--border-strong)}
-/*@REPORT - report tier from here down: components the chat rule does not offer (dense stat variants, donut, fold) plus print rules (an MCP iframe never prints), for the report skill, hosted kit, and inline snippets. NOT in the chat card template (server/server.js cuts the sheet at this marker, 30KB host ceiling).*/
+/*@REPORT - TIER DIVIDER, not a component: from here down are components the CHAT RULE does not advertise (dense stat variants, donut, fold, long-document numbering). Since 4.20.0 the server no longer cuts the sheet here - read_kit delivers per card by tag - so these DO reach a chat card if its HTML uses them. The divider now only tells the rule authors what not to offer by default.*/
+/*@ZEBRA - table variants: striped rows, tight padding. Combinable, and they need @TABLE.*/
 .rc table.zebra tbody tr:nth-child(2n) td{background:var(--surface-2)}
 .rc table.zebra tbody tr:hover td{background:var(--border)}
 .rc table.dense{font-size:.9em}.rc table.dense thead th,.rc table.dense tbody td{padding:4px 8px}
-.rc .kpi .f{font-size:.74em;color:var(--text-secondary);line-height:1.7;margin-top:3px}
-.rc .bar.duo .t{position:relative}.rc .bar.duo .t i{background:var(--ca)}.rc .bar.duo .t i+i{position:absolute;inset-inline-start:0;top:0;background:var(--cb)}
-.rc .bars .leg{display:flex;flex-flow:row wrap;gap:4px 16px;margin:.2em 0 .5em;font-size:.9em}
 /*@CARD - the missing primitive: a repeatable unit with a free-form body (prose, lists, kv,
    badge), in a grid that REFLOWS to one column instead of scrolling sideways. `box` is the
    same panel run full-width with more room, so the two share one rule here and box adds only
    its delta in @BOX.
-   Report tier, not chat: the block costs ~655B emitted and the chat tier had 339B of
-   headroom, so it does not fit until the delivery question in the PR is settled. Nothing
-   here is report-specific - promoting it later is a cut-and-paste above @BADGE.
+   Delivered on demand since 4.20.0, so it is available to chat cards too; it sat in the
+   report tier only while the whole sheet had to fit a 30KB template.
    A panel is surface-2, so any child that is ALSO surface-2 (kpi, code, badge, a sticky
    table header) sinks into it: one :is() rule flips those children to surface-1 instead of
    one override per component. Sitting BELOW @BADGE, that rule ties with `.rc .badge.ok`
@@ -134,9 +141,7 @@
 .rc .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:.9em 0}
 .rc .cols>div>:first-child{margin-top:0}.rc .cols>div>:last-child{margin-bottom:0}
 /*@QUOTE - a real citation style, so `.cal note` can go back to meaning "callout".
-   font-style stays normal on purpose: italic Persian renders badly. Report tier only for
-   budget reasons, and it degrades gracefully: an unstyled <blockquote> in a chat card still
-   gets the browser's own indent, so it reads plain rather than broken.*/
+   font-style stays normal on purpose: italic Persian renders badly.*/
 .rc blockquote{margin:.9em 0;padding-inline-start:12px;border-inline-start:2.5px solid var(--border-strong);color:var(--text-secondary);font-style:normal}
 .rc blockquote cite{display:block;margin-top:.3em;font-size:.85em;font-style:normal}
 /*@SRC - caption under a table or chart ("source: ...", "not measured"). The negative top
@@ -179,5 +184,6 @@
 .rc .fold>:not(summary){margin-inline:12px}
 .rc .fold pre{white-space:pre-wrap;word-break:break-word;max-height:52vh;overflow:auto}
 .rc .fold .fold>summary{background:none;color:var(--text-secondary)}
+/*@PRINT*/
 /* Print STAYS LAST in the sheet: these rules override component rules of equal specificity, so anything added below them silently wins over print (that is exactly how the fold's pre cap survived print until it was moved here). A closed fold must never hide content from a PDF: ::details-content is forced visible (author sheet beats the UA's content-visibility:hidden), the chevron shows the open angle, and the pre height cap is lifted. */
 @media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}.rc .scroll-table.wide table{width:100%;white-space:normal}.rc .fold::details-content{content-visibility:visible;display:block}.rc .fold>summary::before{transform:rotate(135deg);transition:none}.rc .fold>summary:dir(rtl)::before{transform:rotate(-135deg)}.rc .fold pre{max-height:none;overflow:visible}.rc :is(.card,.box){background:none;border-color:var(--border)}.rc :is(.card,.box) :is(.kpi,.flow .s,.scroll-table thead th,.lbl){background:none}.rc .card,.rc .cols>div{break-inside:avoid}}

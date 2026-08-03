@@ -76,7 +76,9 @@ function check(name, cond) {
   const copyt = tools.tools[4];
   const brandt = tools.tools[5];
   const fontt = tools.tools[6];
-  check('seven tools: card + save_card + render_email + read_card_file + copy_text + read_brand + read_fonts', tools.tools.length === 7 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email' && readf.name === 'read_card_file' && copyt.name === 'copy_text' && brandt.name === 'read_brand' && fontt.name === 'read_fonts');
+  const kitt = tools.tools[7];
+  check('eight tools: card + save_card + render_email + read_card_file + copy_text + read_brand + read_fonts + read_kit', tools.tools.length === 8 && card.name === 'card' && save.name === 'save_card' && email.name === 'render_email' && readf.name === 'read_card_file' && copyt.name === 'copy_text' && brandt.name === 'read_brand' && fontt.name === 'read_fonts' && kitt.name === 'read_kit');
+  check('read_kit carries no ui meta (app-only, never the model)', kitt._meta === undefined && kitt.inputSchema.properties.html.type === 'string');
   check('read_brand carries no ui meta', brandt._meta === undefined);
   check('read_fonts carries no ui meta and takes no args', fontt._meta === undefined && Object.keys(fontt.inputSchema.properties).length === 0);
   check('card schema advertises the brand dir param', card.inputSchema.properties.brand && card.inputSchema.properties.brand.type === 'string');
@@ -93,20 +95,74 @@ function check(name, cond) {
   const read = await rpc('resources/read', { uri: 'ui://readable/card.html' });
   const html = read.contents[0].text;
   check('template mime exact', read.contents[0].mimeType === MIME);
-  check('template carries kit css', html.includes('.rc{') && html.includes('.rc .kpi') && html.includes('unicode-bidi:plaintext'));
+  check('template carries kit css', html.includes('.rc{') && html.includes('unicode-bidi:plaintext'));
   check('template carries dark palette', html.includes('data-theme="dark"'));
-  check('chat template carries spark; donut stays report-tier (4.10.0)', html.includes('.rc .spark') && !html.includes('.donut'));
-  // 4.19.0: the six new components are report-tier. The chat tier had 339B of
-  // headroom and the cheapest useful pair costs 245B, so none of them fit until
-  // the delivery question (hosted kit vs inlined) is settled. This asserts the
-  // TIER, not the taste: promoting one later is a deliberate edit here too.
-  // Anchored on the `.rc ` selector prefix, not the bare class: menu.js sets
-  // img.src, which a substring test for '.src' reads as a leaked component.
-  check('card/box/cols/quote/src/numbered stay report-tier (chat tier is full, 4.19.0)', ['.rc .card', '.rc .cards', '.rc .box', '.rc .cols', '.rc blockquote', '.rc .src', '.rc .numbered', '.rc .lbl', ':is(.card,.box)'].every((s) => !html.includes(s)));
+  // 4.20.0: the template carries BASE only. Every component, chat-tier or
+  // report-tier, is delivered per card by read_kit, so the old "which tier fits
+  // in 30KB" question is gone and this asserts the new shape instead.
+  check('template is BASE only: no component CSS inlined at all (4.20.0)', ['.rc .spark', '.rc .kpi{', '.rc table{', '.rc .badge', '.rc .cta', '.rc .kv{', '.rc .bars', '.rc .flow{', '.rc .tl{', '.rc .card', '.rc .box', '.rc .cols', '.rc blockquote', '.rc .numbered', '.donut', '.rc .fold'].every((sel) => !html.includes(sel)));
+  check('template still carries all of BASE (frame, text, lists, callouts, code, bidi)', html.includes('.rc{') && html.includes('unicode-bidi:plaintext') && html.includes('.rc .cal') && html.includes('.rc code{') && html.includes('.rc ul>li::before'));
+  check('print rules never ship to an iframe', !html.includes('@media print'));
+  check('bridge mounts the lazy kit before first paint, with a deadline so a silent host still paints (4.20.0)', html.includes("name:'read_kit'") && html.includes("id='rckit'") && html.includes('kApply(html,') && html.includes('setTimeout(go,1500)'));
+  // The #rckit node is created at load, not on first use, so the brand style is
+  // appended after it and keeps winning. Assert the ORDER of the two mounts.
+  check('the kit style node precedes the brand style node', html.indexOf("id='rckit'") < html.indexOf("id='rcbrand'"));
   // Step 3 dedup: the panel half (surface-2 on a hairline) is declared once for
   // the always-shipped panels; card/box keep their own copy in @CARD so the chat
   // sheet never pays for selectors it cannot use.
-  check('panel recipe is shared by the always-shipped panels, not repeated per component (4.19.0)', html.includes('.rc code,.rc pre,.rc .kpi,.rc .flow .s{background:var(--s2);border:var(--bd)}') && html.includes('.rc .kpi{border-radius:11px') && !/\.rc \.kpi\{background/.test(html));
+  check('panel recipe is shared by the always-shipped panels, not repeated per component (4.19.0)', html.includes('.rc code,.rc pre,.rc .kpi,.rc .flow .s{background:var(--s2);border:var(--bd)}'));
+
+  // 3c. read_kit: the lazy component selector. A MISS here renders a component
+  // unstyled in a real card, so these cover detection, dependencies, ordering,
+  // and completeness rather than just the happy path.
+  const kitOf = async (h) => (await rpc('tools/call', { name: 'read_kit', arguments: { html: h } })).content[0].text;
+
+  const kNone = await kitOf('<h2>سلام</h2><p>یک پاسخ ساده با <code>path/to/x</code></p><ul><li>یک</li></ul>');
+  check('read_kit ships NOTHING for a prose card: BASE already covers it', kNone === '');
+
+  const kKpi = await kitOf('<div class="grid c3"><div class="kpi"><div class="l">a</div><div class="n">7<span class="trend up">2%</span></div></div></div><span class="badge ok">ok</span>');
+  check('read_kit ships exactly what a kpi+badge card uses', kKpi.includes('.rc .kpi{') && kKpi.includes('.rc .trend{') && kKpi.includes('.rc .badge{') && !kKpi.includes('.rc table{') && !kKpi.includes('.rc .spark') && !kKpi.includes('.rc .cta') && !kKpi.includes('.rc .numbered'));
+
+  const kTable = await kitOf('<table class="zebra dense"><thead><tr><th>a</th></tr></thead><tbody><tr><td>b</td></tr></tbody></table>');
+  check('a zebra table also pulls @TABLE it restyles (declared dependency)', kTable.includes('.rc table{') && kTable.includes('table.zebra') && kTable.includes('table.dense'));
+
+  const kBox = await kitOf('<div class="box"><div class="lbl">x</div><p>y</p></div>');
+  check('a box-only card also pulls @CARD, which owns its panel rule (declared dependency)', kBox.includes('.rc .card,.rc .box{') && kBox.includes('.rc .box{border-color') && kBox.includes('.rc .lbl{'));
+
+  const kCards = await kitOf('<div class="cards c2"><div class="card pick"><h4>a<span class="badge ok">b</span></h4><p>c</p></div></div>');
+  check('cards reach a chat card now, chip restore included', kCards.includes('.rc .cards{') && kCards.includes('.rc .card.pick{') && kCards.includes(':is(.card,.box) .badge.ok'));
+  // The generic child inversion and .rc .badge.ok tie on specificity (0,3,0), so
+  // the delivered bundle must keep SHEET order or chips grey out inside a card.
+  check('delivered snippets keep sheet order, so the specificity ties still resolve', kCards.indexOf('.rc .badge{') < kCards.indexOf(':is(.card,.box)'));
+
+  const kQuote = await kitOf('<blockquote><p>q</p><cite>s</cite></blockquote><div class="src">source: x</div><div class="cols"><div><p>a</p></div></div>');
+  check('blockquote, src and cols are all detected', kQuote.includes('.rc blockquote{') && kQuote.includes('.rc blockquote cite{') && kQuote.includes('.rc .src{') && kQuote.includes('.rc .cols{'));
+
+  const kNum = await kitOf('<div class="numbered"><h3>a</h3><h4>b</h4></div>');
+  check('numbered reaches a chat card, direction-keyed numerals included', kNum.includes('.rc .numbered{counter-reset:sec}') && kNum.includes(':dir(ltr) .numbered>h3::before'));
+
+  // The duo-bar legend markup reuses the swatch rules that live in @DONUT, and
+  // the only signal is the `leg` class. If that link ever breaks the legend
+  // renders as a bare column of text with no colour chips.
+  const kDuo = await kitOf('<div class="bars"><div class="leg"><span class="a"><i></i>total</span><span class="b"><i></i>subset</span></div><div class="bar duo"><span class="l">l</span><span class="t"><i style="width:80%"></i><i style="width:40%"></i></span><span class="v">v</span></div></div>');
+  check('a duo-bar legend gets its colour swatches (the leg rules live in @DONUT)', kDuo.includes('.rc .bars .leg{') && kDuo.includes('.rc .leg i{') && kDuo.includes('.rc .leg .a i{'));
+
+  check('read_kit output is wire-ready: no comments, no newlines', !kCards.includes('/*') && kCards.indexOf(String.fromCharCode(10)) < 0 && kCards.startsWith('.rc '));
+  check('read_kit never ships print rules to an iframe', !(await kitOf('<div class="fold"></div><table></table>')).includes('@media print'));
+  // Detection parses class ATTRIBUTES, so prose is never mistaken for markup.
+  const kProse = await kitOf('<p>the src and box and card and fold of it</p>');
+  check('detection is token-exact: prose words never pull a component', kProse === '');
+
+  // COMPLETENESS. A new @TAG with no detector would silently render unstyled.
+  // This is the guard that makes adding a component fail loudly instead.
+  const srvSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const detectorBlock = srvSrc.split('const KIT_DETECT = {')[1].split('};')[0];
+  const detectors = new Set((detectorBlock.match(/([A-Z]+):\s*\{/g) || []).map((m) => m.split(':')[0]));
+  const kitSrc = fs.readFileSync(path.join(__dirname, '..', 'assets', 'rc.css'), 'utf8');
+  const tagsInSheet = new Set((kitSrc.match(/\/\*@([A-Z]+)/g) || []).map((m) => m.slice(3)));
+  tagsInSheet.delete('REPORT'); // tier divider, no CSS of its own
+  tagsInSheet.delete('PRINT');  // never ships to a card
+  check('every @TAG in the sheet has a read_kit detector (' + [...tagsInSheet].length + ' components)', [...tagsInSheet].every((t) => detectors.has(t)) && [...detectors].every((d) => tagsInSheet.has(d)));
 
   // 3b. kit source invariants that the chat template cannot see (report tier).
   const kit = fs.readFileSync(path.join(__dirname, '..', 'assets', 'rc.css'), 'utf8').replace(/\r\n/g, '\n');
