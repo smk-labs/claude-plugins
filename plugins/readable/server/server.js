@@ -121,6 +121,7 @@ const KIT_DETECT = {
   DONUT: { cls: ['donut', 'donut-w', 'leg'], tags: [] },
   FOLD: { cls: ['fold'], tags: ['details', 'summary'] },
   ICON: { cls: ['ic'], tags: [] },
+  FIG: { cls: [], tags: ['figure', 'figcaption', 'img'] },
 };
 /* A snippet may lean on BASE and on what it declares here, never on a sibling
  * happening to be present: @BOX takes its panel + child inversion from @CARD,

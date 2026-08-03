@@ -147,6 +147,20 @@
 /*@SRC - caption under a table or chart ("source: ...", "not measured"). The negative top
    margin hugs the element above it; .kpi .f does this job only inside a kpi.*/
 .rc .src{font-size:.8em;color:var(--text-secondary);margin:-.4em 0 .9em}
+/*@FIG - a screenshot, a diagram, or a looping /fig animation, with an optional caption.
+   Images and motion are ONE component on purpose: both are just <img src>, and build.py turns
+   the reference into a data: URI so a report stays one offline file. An animated SVG still
+   animates inside <img>, and an <img> is its own document, which is the point - a /fig file
+   carries its own <style>, and inlining that as a live <svg> would drop its class names into
+   the report's cascade next to the kit's own .s/.l/.t.
+   Report tier: a chat card cannot cheaply carry image bytes through the model's context, so
+   the chat rule does not offer this. It still works in htmlFile mode, where a worker writes
+   the data: URI into a *-card.html and the bytes never touch the model.
+   The border matters in dark mode: a screenshot with a white background otherwise floats with
+   no edge. Print keeps the ink - a figure is the content, not decoration.*/
+.rc figure{margin:.9em 0}
+.rc img,.rc figure svg{display:block;max-width:100%;height:auto;margin-inline:auto;border-radius:11px;border:.5px solid var(--border)}
+.rc figcaption{font-size:.8em;color:var(--text-secondary);margin-top:.4em}
 /*@NUMBERED - wrap a long document's body and h3 takes a section number in place of its
    square dot, h4 an N.M sub-number that resets per section. Authors NEVER type the numbers:
    they come from counters, so inserting a section renumbers the rest for free.

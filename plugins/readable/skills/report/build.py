@@ -10,6 +10,13 @@ Usage:
 fa (default): RTL, Vazirmatn (already imported by the kit).
 en: LTR, Inter, text-align and the CTA arrow flipped.
 
+Images and motion (5.1.0): every <img src="..."> pointing at a local file is
+inlined as a data: URI, so the report stays one offline file that survives being
+emailed or printed. Works for png/jpg/gif/webp/avif/svg, and for a /fig .html
+file, whose <svg> is lifted out with the document's <style> folded into it.
+Per-image cap is 2MB (--max-image-kb); over it the build refuses rather than
+shipping a broken image. data: and http(s): sources are left untouched.
+
 Project brand (4.13.0): when a committable .readable/ dir (brand.css +
 optional brand.json + logo.svg) exists above the content file, the report is
 reskinned with it automatically — palette overrides, an optional logo/wordmark
@@ -23,6 +30,8 @@ import json
 import pathlib
 import re
 import sys
+from urllib.parse import unquote, urlparse
+from urllib.request import url2pathname
 
 HERE = pathlib.Path(__file__).resolve().parent
 KIT = HERE.parents[1] / "assets" / "rc.css"
@@ -115,6 +124,100 @@ EN_EXTRA = (
 )
 
 
+MEDIA_TYPES = {
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
+    ".webp": "image/webp", ".avif": "image/avif", ".svg": "image/svg+xml",
+}
+
+
+def svg_from_html(text: str, src: pathlib.Path) -> str:
+    """The <svg> out of a /fig file, made self-contained.
+
+    /fig writes ONE html file whose animation css usually lives in the document
+    <style>, not inside the svg. Lifting the svg out on its own would therefore
+    drop the motion, so every <style> in the document is folded into the svg as a
+    child. That also isolates it: the svg becomes its own document inside <img>,
+    so a /fig class name can never land in the report's cascade next to the kit's
+    own .s/.l/.t."""
+    m = re.search(r"(?is)<svg\b.*?</svg\s*>", text)
+    if not m:
+        sys.exit("no <svg> found in %s: /fig output is expected to contain one" % src)
+    svg = m.group(0)
+    styles = "".join(
+        s for s in re.findall(r"(?is)<style[^>]*>(.*?)</style\s*>", text)
+        if "<svg" not in s
+    )
+    if styles and "<style" not in svg.lower():
+        svg = re.sub(r"(?is)(<svg\b[^>]*>)", r"\1<style>%s</style>" % styles.replace("\\", "\\\\"), svg, count=1)
+    return svg
+
+
+def data_uri(src: pathlib.Path, max_kb: int) -> str:
+    """One local file as a data: URI, so the report stays a single offline file.
+
+    Fails loudly rather than leaving the reference: a report that silently ships a
+    broken <img> is worse than one that refuses to build. --max-image-kb raises
+    the cap when a big screenshot is genuinely wanted."""
+    if not src.is_file():
+        sys.exit("image not found: %s" % src)
+    size = src.stat().st_size
+    if size > max_kb * 1024:
+        sys.exit("image too large: %s is %dKB, cap is %dKB (raise it with --max-image-kb)"
+                 % (src, size // 1024, max_kb))
+    ext = src.suffix.lower()
+    if ext in (".html", ".htm"):
+        svg = svg_from_html(src.read_text(encoding="utf-8"), src)
+        return "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode()
+    if ext not in MEDIA_TYPES:
+        sys.exit("unsupported image type %s (%s); use %s, or a /fig .html"
+                 % (ext, src, " ".join(sorted(MEDIA_TYPES))))
+    if ext == ".svg":
+        raw = re.sub(r"(?is)<\?xml.*?\?>", "", src.read_text(encoding="utf-8")).strip()
+        return "data:image/svg+xml;base64," + base64.b64encode(raw.encode("utf-8")).decode()
+    return "data:%s;base64,%s" % (MEDIA_TYPES[ext], base64.b64encode(src.read_bytes()).decode())
+
+
+def resolve_src(raw: str, base: pathlib.Path) -> pathlib.Path:
+    """An <img src> value as a local path.
+
+    src is a URL, not a path, so three forms turn up in practice: a plain
+    relative path, a real absolute path, and a file:// url — which is exactly what
+    this skill hands the user as a clickable link, so a model will copy one back.
+    url2pathname is the stdlib's answer to the last one: it turns /C:/a%20b into a
+    real Windows path, drive letter and percent-escapes included. Plain paths are
+    tried verbatim first, so a filename with a literal % still resolves."""
+    if raw.lower().startswith("file:"):
+        return pathlib.Path(url2pathname(urlparse(raw).path))
+    path = pathlib.Path(raw)
+    src = path if path.is_absolute() else (base / path)
+    if not src.is_file() and "%" in raw:
+        alt = pathlib.Path(unquote(raw))
+        src = alt if alt.is_absolute() else (base / alt)
+    return src
+
+
+def inline_media(content: str, base: pathlib.Path, max_kb: int) -> str:
+    """Every <img src> that points at a local file becomes a data: URI.
+
+    data: and http(s): sources are left alone — the first is already inline, and
+    the second is the author explicitly opting out of a self-contained file."""
+    done = []
+
+    def sub(m):
+        raw = m.group(2).strip()
+        if re.match(r"(?i)^(data:|https?:|//)", raw):
+            return m.group(0)
+        src = resolve_src(raw, base)
+        uri = data_uri(src.resolve(), max_kb)
+        done.append((src.name, len(uri)))
+        return "%s%s%s" % (m.group(1), uri, m.group(3))
+
+    out = re.sub(r'(?is)(<img\b[^>]*?\bsrc\s*=\s*["\'])([^"\']+)(["\'])', sub, content)
+    for name, n in done:
+        print("inlined %s (%dKB)" % (name, n // 1024), file=sys.stderr)
+    return out
+
+
 def kit_css(brand_css: str) -> str:
     """KIT_REMOTE_IMPORT: a report is a standalone document that gets printed and
     emailed, so it must not depend on a font host. When the brand layer inlines
@@ -132,12 +235,18 @@ def main():
     ap.add_argument("--lang", choices=["fa", "en"], default="fa")
     ap.add_argument("--title", default=None, help="page <title> (defaults to first <h2> text or a generic title)")
     ap.add_argument("--no-brand", action="store_true", help="ignore any project .readable brand layer")
+    ap.add_argument("--max-image-kb", type=int, default=2048,
+                    help="per-image cap before the build refuses (default 2048)")
     a = ap.parse_args()
 
     src = pathlib.Path(a.content).resolve()
     content = src.read_text(encoding="utf-8").strip()
     if "<style" in content.lower() or "<script" in content.lower():
         sys.exit("content must be building-block HTML only: no <style> or <script>")
+    # Images and /fig motion become data: URIs so the report stays one offline
+    # file, the same reason the brand layer inlines its font bytes. Runs BEFORE
+    # the title sniff so a src full of angle brackets cannot confuse it.
+    content = inline_media(content, src.parent, a.max_image_kb)
 
     brand_css, brand_head = "", ""
     if not a.no_brand:
