@@ -1,5 +1,71 @@
 # readable changelog
 
+## 5.3.0
+
+The rest of the figure-embedding story, plus one RTL table fix. A figure is
+lifted out of a `/fig` html file and embedded as its own document, and that
+document gets no script, no page CSS, **no page font**, and no network. 5.2.1
+covered the first two. This covers the rest, and stops trusting `<img>` at all
+when the report is going to a host.
+
+1. **Malformed XML stops the build** (5.2.1). Bare `<` or `&` in a figure's css
+   used to ship a broken-image glyph in silence.
+2. **The document `<style>` is always folded in** (5.2.1). A figure with an
+   inner `<style>` used to lose the outer block, motion included.
+3. **Text direction is carried onto the lifted `<svg>`** (5.2.1). RTL labels no
+   longer flip to the wrong side of their anchor.
+4. **A google-only brand font is fetched and inlined.** `brand_blocks` inlined
+   `@font-face` only from `font.files`, so a `brand.json` naming `font.google`
+   hit `if font.get("google"): pass` under a comment promising the faces were
+   inlined below. Nothing was. The family was declared, never loaded, and the
+   page only rendered because `kit_css` leaves the kit's remote `@import` in
+   place when no `@font-face` is present. Offline, every Persian glyph was
+   Tahoma. The faces are now fetched at build time (stdlib `urllib`, browser UA
+   for woff2, subsets filtered to arabic/latin/latin-ext) and inlined as data
+   URIs; `kit_css` then drops the import because it is genuinely redundant. A
+   fetch that fails warns, names `font.files` as the fix, and keeps the import
+   deliberately rather than shipping a family that was never loaded.
+   `--font-timeout` bounds every request, so a dead host cannot hang a build.
+5. **The figure gets the report's font.** `shell.html` documents this exact
+   mechanism for the PNG export ("an SVG-as-image can't load an external
+   @import font") and nothing acted on it for the figure path, so Persian
+   figure text rendered in a system serif beside a Vazirmatn paragraph. The
+   resolved face is now folded into the lifted svg, subset through the css2
+   api's `text=` parameter to the characters that figure actually letters:
+   roughly 5KB instead of the ~400KB a whole family costs. A figure that names
+   its own typeface keeps it; only one that named none inherits the report's.
+   `--no-figure-font` opts out.
+6. **`--inline-figures` writes the markup into the document.** `<img
+   src="data:">` is one point of failure with two common hosts behind it: a CSP
+   whose `img-src` omits `data:` blocks the image outright, and a sanitiser that
+   strips `<style>` from an svg takes every fill and stroke with it. Both end as
+   an empty box, silently, which is what the portal showed. Inline svg survives
+   both. It gives up the isolation `<img>` was providing, so the lift now
+   namespaces what the figure declares (classes, ids and their `url(#…)` and
+   `href="#…"` references, `@keyframes` and the animations naming them) with a
+   per-figure prefix. The kit already sized `.rc figure svg` exactly like
+   `.rc img`, so no stylesheet moved. Default is unchanged; the SKILL states the
+   matching authoring rule, that appearance belongs in presentation attributes
+   and CSS is for motion and theming only.
+7. **A JavaScript-only figure warns** (5.2.1), and fig 1.1.0 made css the stack.
+8. **Dead `.in_use` locks are reaped at startup** (5.2.1).
+
+Plus, from the field: **RTL table columns no longer render ragged.** `td` and
+`th` carried `unicode-bidi:plaintext`, which re-reads direction from each
+element's first strong character. Right for a standalone paragraph, wrong for a
+column: a cell opening on a Latin token (`NO_VERDICT`, a code path) resolved LTR
+and left-aligned while the Persian cell under it stayed RTL and right-aligned,
+and its runs came out reversed from what the author wrote. Cells now `isolate`,
+which keeps the card's own direction on every one of them and still seals each
+Latin run. Paragraphs and list items keep `plaintext`, where per-element
+detection is the correct behaviour. Chat cards and reports both, and the chat
+template stays under its ceiling at 26287B of 30000.
+
+Behaviour on a correct figure is unchanged byte for byte under
+`--no-figure-font`. `skills/report/test_build.py` runs 55 stdlib unittest cases
+(`python3 test_build.py`), at least one per item, with the network stubbed so
+the font paths are deterministic offline.
+
 ## 5.2.1
 
 Five fixes, one root cause. `build.py` inlines a `/fig` figure by lifting its
@@ -38,8 +104,7 @@ animated cycle figure.
    overlapping its neighbours. The fig document's own direction (a `dir`
    attribute, or a `direction:rtl` rule on the root) is now written onto the
    `<svg>` element; a figure that declares nothing in a Persian report is read as
-   RTL only when it letters RTL text. An explicit `ltr` always wins. Documented
-   under Motion in the report skill.
+   RTL only when it letters RTL text. An explicit `ltr` always wins.
 
 4. **A figure that can only move via JavaScript warns.** No script runs inside
    `<img>`, so React, `requestAnimationFrame` and every timer are dead there.
@@ -60,7 +125,3 @@ animated cycle figure.
    list reads as "every pid is dead" and would take the running session's own
    lock with it. Silent by design: a `SessionStart` hook's stdout is spent
    context.
-
-Behaviour on a correct figure is unchanged, byte for byte. `skills/report/test_build.py`
-(32 stdlib unittest cases, `python3 test_build.py`) pins every item above,
-including 5.2.0's exact output as a golden.

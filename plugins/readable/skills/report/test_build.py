@@ -9,15 +9,19 @@ than a real /fig file, because all four build defects come from ONE fact - an
 inlined svg is its own strictly-parsed, script-free, direction-less document -
 and reproducing that needs no real figure.
 """
+import base64
 import contextlib
 import io
+import json
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+from urllib.parse import quote
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -37,8 +41,8 @@ def doc(body, head="", html_attrs=""):
             '<body>\n%s\n</body>\n</html>' % (html_attrs, head, body))
 
 
-def lift(text, lang="en"):
-    return build.svg_from_html(text, FIG, lang)
+def lift(text, lang="en", font=None, prefix=None):
+    return build.svg_from_html(text, FIG, lang, font, 5.0, prefix)
 
 
 def lift_err(case, text, lang="en"):
@@ -270,7 +274,259 @@ class EndToEnd(unittest.TestCase):
             self.assertIn("direction:rtl", lifted)
 
 
-# ---------------------------------------------------------------- defect 5
+# ------------------------------------------------------- defects 4 and 5
+FAKE_SHEET = (
+    "/* arabic */\n@font-face {font-family: 'Test';font-style: normal;font-weight: 400;"
+    "src: url(https://fonts.gstatic.com/l/font?kit=AAA&skey=1) format('woff2');"
+    "unicode-range: U+0600-06FF;}\n"
+    "/* cyrillic */\n@font-face {font-family: 'Test';"
+    "src: url(https://fonts.gstatic.com/s/x/c.woff2) format('woff2');}\n")
+
+
+@contextlib.contextmanager
+def fake_net(sheet=FAKE_SHEET, blob=b"wOF2 pretend", dead=False):
+    """Google Fonts, without the network. Yields the urls that were asked for."""
+    asked = []
+    real = build.http_get
+
+    def stub(url, timeout):
+        asked.append(url)
+        if dead:
+            return None
+        return sheet.encode("utf-8") if "googleapis" in url else blob
+    build.http_get = stub
+    try:
+        yield asked
+    finally:
+        build.http_get = real
+
+
+class BrandFont(unittest.TestCase):
+    """A declared family that was never loaded is the defect, not a detail."""
+
+    def brand(self, d, meta):
+        (d / "brand.css").write_text(":root{--text-accent:#09f}", encoding="utf-8")
+        (d / "brand.json").write_text(json.dumps(meta), encoding="utf-8")
+        return d
+
+    def test_a_google_only_brand_font_is_actually_inlined(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = self.brand(pathlib.Path(t), {"font": {"family": "Test", "google": "Test:wght@400"}})
+            with fake_net():
+                css, _ = build.brand_blocks(d, "fa")
+        self.assertIn("@font-face", css)                       # 5.2.0 inlined nothing
+        self.assertIn("data:font/woff2;base64,", css)
+        self.assertNotIn("https://fonts.gstatic.com", css)
+
+    def test_a_subset_outside_the_allowlist_is_dropped(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = self.brand(pathlib.Path(t), {"font": {"family": "Test", "google": "Test:wght@400"}})
+            with fake_net():
+                css, _ = build.brand_blocks(d, "fa")
+        self.assertEqual(1, css.count("@font-face"))           # cyrillic is not kept
+
+    def test_an_unreachable_font_warns_and_keeps_the_remote_import(self):
+        err = io.StringIO()
+        with tempfile.TemporaryDirectory() as t:
+            d = self.brand(pathlib.Path(t), {"font": {"family": "Test", "google": "Test:wght@400"}})
+            with fake_net(dead=True), contextlib.redirect_stderr(err):
+                css, _ = build.brand_blocks(d, "fa")
+        self.assertIn("could not fetch the brand font", err.getvalue())
+        self.assertIn("font.files", err.getvalue())
+        self.assertNotIn("@font-face", css)
+        # No face embedded means kit_css leaves the import, which is the only
+        # thing that still makes the page render at all.
+        self.assertIn("fonts.googleapis.com", build.kit_css(css))
+
+    def test_embedding_a_face_drops_the_kits_remote_import(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = self.brand(pathlib.Path(t), {"font": {"family": "Test", "google": "Test:wght@400"}})
+            with fake_net():
+                css, _ = build.brand_blocks(d, "fa")
+        self.assertNotIn("fonts.googleapis.com", build.kit_css(css))
+
+    def test_a_files_brand_never_reaches_the_network(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = pathlib.Path(t)
+            (d / "v.woff2").write_bytes(b"wOF2 local")
+            self.brand(d, {"font": {"family": "Test", "google": "Test:wght@400",
+                                    "files": {"400": "v.woff2"}}})
+            with fake_net() as asked:
+                css, _ = build.brand_blocks(d, "fa")
+        self.assertEqual([], asked)
+        self.assertIn(base64.b64encode(b"wOF2 local").decode(), css)
+
+
+class FigureFont(unittest.TestCase):
+    """The figure is its own document, so it needs its own copy of the face."""
+
+    LABEL = '<text x="10" y="20">سلام</text>'
+
+    def test_the_report_font_is_embedded_in_the_figure(self):
+        with fake_net():
+            out = lift(doc(svg(self.LABEL)), font=("Test", "Test:wght@400", None))
+        self.assertIn("@font-face", out)
+        self.assertIn("data:font/woff2;base64,", out)
+
+    def test_the_face_is_subset_to_what_the_figure_letters(self):
+        with fake_net() as asked:
+            lift(doc(svg(self.LABEL)), font=("Test", "Test:wght@400", None))
+        sheet = [u for u in asked if "googleapis" in u][0]
+        self.assertIn("&text=", sheet)
+        for ch in "سلام":
+            self.assertIn(quote(ch), sheet)
+        self.assertNotIn("%20", sheet)          # whitespace between tags is not a glyph
+
+    def test_a_figure_that_names_its_own_typeface_keeps_it(self):
+        fig = svg('<text font-family="Courier">سلام</text>')
+        with fake_net():
+            out = lift(doc(fig), font=("Test", "Test:wght@400", None))
+        self.assertNotIn("font-family:'Test'", out)
+
+    def test_a_figure_that_names_none_gets_the_reports(self):
+        with fake_net():
+            fa = lift(doc(svg(self.LABEL)), lang="fa", font=("Test", "Test:wght@400", None))
+            en = lift(doc(svg(self.LABEL)), lang="en", font=("Test", "Test:wght@400", None))
+        # Single-quoted, so it cannot close the style attribute it sits in, and
+        # with the language's own fallback behind it.
+        self.assertIn("font-family:'Test',Tahoma,sans-serif", fa.split(">", 1)[0])
+        self.assertIn("font-family:'Test',system-ui,sans-serif", en.split(">", 1)[0])
+
+    def test_the_root_style_stays_valid_xml(self):
+        # A double-quoted family inside style="..." closes the attribute early
+        # and invalidates the whole document.
+        with fake_net():
+            out = lift(doc(svg(self.LABEL), html_attrs=' dir="rtl"'),
+                       font=("Test", "Test:wght@400", None))
+        self.assertEqual(build.SVG_NS, ET.fromstring(out).tag)
+        self.assertIn("direction:rtl", out.split(">", 1)[0])
+
+    def test_a_figure_with_no_text_asks_for_nothing(self):
+        with fake_net() as asked:
+            out = lift(doc(svg('<circle r="8"/>')), font=("Test", "Test:wght@400", None))
+        self.assertEqual([], asked)
+        self.assertNotIn("@font-face", out)
+
+    def test_an_unreachable_face_warns_and_still_builds(self):
+        err = io.StringIO()
+        with fake_net(dead=True), contextlib.redirect_stderr(err):
+            out = lift(doc(svg(self.LABEL)), font=("Test", "Test:wght@400", None))
+        self.assertIn("system fallback", err.getvalue())
+        self.assertEqual(build.SVG_NS, ET.fromstring(out).tag)
+
+
+# ---------------------------------------------------------------- defect 6
+class InlineFigures(unittest.TestCase):
+    """A data: URI is one point of failure; a CSP or a sanitiser is the other."""
+
+    FIG = doc(svg('<style>.d{fill:red}.d.b{animation:spin 2s}'
+                  '@keyframes spin{to{opacity:0}}</style>'
+                  '<circle id="dot" class="d b" r="8"/>'
+                  '<use href="#dot" x="20"/>'))
+
+    def build(self, extra=(), fig=None):
+        with tempfile.TemporaryDirectory() as t:
+            d = pathlib.Path(t)
+            (d / "fig.html").write_text(fig or self.FIG, encoding="utf-8")
+            (d / "c.html").write_text(
+                '<h2>T</h2>\n<figure><img src="fig.html" alt="a ring"></figure>',
+                encoding="utf-8")
+            out = d / "r.html"
+            run = subprocess.run(
+                [sys.executable, str(HERE / "build.py"), str(d / "c.html"), "-o", str(out),
+                 "--lang", "en", "--no-brand", "--no-figure-font"] + list(extra),
+                capture_output=True, text=True)
+            self.assertEqual(0, run.returncode, run.stderr)
+            return out.read_text(encoding="utf-8")
+
+    def figure(self, html):
+        return re.search(r"(?s)<figure>(.*?)</figure>", html).group(1)
+
+    def test_default_mode_is_still_a_data_uri(self):
+        self.assertIn("data:image/svg+xml;base64,", self.figure(self.build()))
+
+    def test_inline_mode_emits_markup_instead(self):
+        fig = self.figure(self.build(["--inline-figures"]))
+        self.assertNotIn("data:image/svg+xml", fig)
+        self.assertTrue(fig.lstrip().startswith("<svg"))
+
+    def test_inline_mode_namespaces_classes(self):
+        fig = self.figure(self.build(["--inline-figures"]))
+        self.assertIn('class="fig1-d fig1-b"', fig)
+        self.assertIn(".fig1-d{fill:red}", fig.replace(" ", ""))
+        self.assertNotIn('class="d b"', fig)
+
+    def test_inline_mode_namespaces_ids_and_their_references(self):
+        fig = self.figure(self.build(["--inline-figures"]))
+        self.assertIn('id="fig1-dot"', fig)
+        self.assertIn('href="#fig1-dot"', fig)
+
+    def test_inline_mode_renames_keyframes_and_the_animation_that_uses_them(self):
+        fig = self.figure(self.build(["--inline-figures"]))
+        self.assertIn("@keyframes fig1-spin", fig)
+        self.assertIn("animation:fig1-spin 2s", fig.replace("  ", " "))
+
+    def test_inline_mode_drops_the_cdata_fences(self):
+        # <style> is raw text in html; a fence would be read as a css rule and
+        # eat the first one.
+        self.assertNotIn("CDATA", self.figure(self.build(["--inline-figures"])))
+
+    def test_inline_mode_carries_alt_over_as_an_aria_label(self):
+        fig = self.figure(self.build(["--inline-figures"]))
+        self.assertIn('aria-label="a ring"', fig)
+        self.assertIn('role="img"', fig)
+
+    def test_two_figures_get_two_namespaces(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = pathlib.Path(t)
+            (d / "a.html").write_text(self.FIG, encoding="utf-8")
+            (d / "b.html").write_text(self.FIG, encoding="utf-8")
+            (d / "c.html").write_text(
+                '<h2>T</h2><figure><img src="a.html" alt="a"></figure>'
+                '<figure><img src="b.html" alt="b"></figure>', encoding="utf-8")
+            out = d / "r.html"
+            run = subprocess.run(
+                [sys.executable, str(HERE / "build.py"), str(d / "c.html"), "-o", str(out),
+                 "--lang", "en", "--no-brand", "--no-figure-font", "--inline-figures"],
+                capture_output=True, text=True)
+            self.assertEqual(0, run.returncode, run.stderr)
+            html = out.read_text(encoding="utf-8")
+        self.assertIn("fig1-d", html)
+        self.assertIn("fig2-d", html)
+
+
+class TableDirection(unittest.TestCase):
+    """A column reads down one edge, whatever a cell happens to start with."""
+
+    KIT = build.KIT.read_text(encoding="utf-8")
+
+    def test_cells_isolate_instead_of_plaintext(self):
+        # plaintext re-reads direction per element, so a cell opening on a Latin
+        # token went LTR and left-aligned under a right-aligned Persian one.
+        self.assertIn(".rc td,.rc th{unicode-bidi:isolate}", self.KIT)
+
+    def test_paragraphs_still_plaintext(self):
+        # Still correct THERE: an all-English paragraph in a Persian card should
+        # set itself LTR. Only cells belong to a column.
+        rule = re.search(r"^\.rc p,[^\n]*\{unicode-bidi:plaintext\}", self.KIT, re.M).group(0)
+        self.assertNotIn("td", rule)
+        self.assertNotIn("th", rule)
+
+    def test_a_report_carries_the_isolate_rule(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = pathlib.Path(t)
+            (d / "c.html").write_text(
+                "<h2>ت</h2><table><tbody><tr><td>NO_VERDICT، «الف»</td></tr></tbody></table>",
+                encoding="utf-8")
+            out = d / "r.html"
+            run = subprocess.run(
+                [sys.executable, str(HERE / "build.py"), str(d / "c.html"), "-o", str(out),
+                 "--no-brand", "--no-figure-font"], capture_output=True, text=True)
+            self.assertEqual(0, run.returncode, run.stderr)
+            self.assertIn("unicode-bidi:isolate", out.read_text(encoding="utf-8"))
+
+
+# ---------------------------------------------------------------- defect 8
 class ReapLocks(unittest.TestCase):
     """Dead .in_use locks go; live ones, above all our own, stay."""
 
