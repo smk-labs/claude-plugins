@@ -56,15 +56,21 @@ Do NOT add one for: a heading that felt bare, mood or texture, a stock photo, a 
 
 **Motion** is `<figure><img src="thing.html" alt="..."></figure>` pointing at the `/fig` output; `build.py` lifts the `<svg>` out with every document `<style>` folded in, so it animates and stays isolated from the report's CSS. Report path only, never a chat card. It prints as one frozen frame, so the animation must read at rest — if it only makes sense mid-motion, it is the wrong figure. At most one per report.
 
-Inside an `<img>` that svg is its own document. Three consequences:
+Inside an `<img>` that svg is its own document: strict XML, no script, no page CSS, no page font, nothing fetchable. Everything below follows from that one fact.
 
 - **The motion has to be CSS `@keyframes` or SMIL, written inside the svg.** No script runs in there, so a figure driven by React, a CDN, or `requestAnimationFrame` ships as a single still frame. `/fig` writes CSS since fig 1.1.0; an older figure needs rebuilding. The build warns and names the file.
-- **Direction is not inherited.** The report's `dir="rtl"` stops at the image boundary, so a Persian figure's `text-anchor="start"` labels jump to the wrong side of their anchor and overlap. `build.py` carries the fig document's own direction onto the `<svg>`, so declare it there (`style="direction:rtl"`) and nothing has to be guessed.
+- **Appearance goes in presentation attributes, CSS is for motion and theming only.** Write `fill`, `stroke`, `font-size`, `text-anchor` on the elements. Plenty of hosts run a sanitiser that strips `<style>` from an svg, and a figure holding its colours in CSS classes then renders as nothing at all. Written this way it loses its loop and keeps its ring, nodes, labels and arrows.
+- **Direction is not inherited.** The report's `dir="rtl"` stops at the image boundary, so a Persian figure's `text-anchor="start"` labels jump to the wrong side of their anchor and overlap. `build.py` carries the fig document's own direction onto the `<svg>`, so declare it there (`style="direction:rtl"`) and nothing has to be guessed. In an RTL figure `start` is the RIGHT edge and `end` the left, so a label to the right of a node wants `end`.
+- **Give `<text>` a `font-family` with a system fallback.** `build.py` embeds the report's own face into the figure, subset to the characters it letters (a few KB), so the figure and the paragraph beside it are the same typeface. The fallback is what shapes the text if that embed is ever skipped.
 - **It is parsed as strict XML.** One bare `<` or `&` (inside a CSS comment counts) stops the build with the file, line, and column, instead of shipping a report whose figure is a broken-image glyph.
+
+**Publishing to a host?** Add `--inline-figures`. A `data:` URI is one point of failure: a CSP whose `img-src` omits `data:` blocks the image outright, and the reader gets an empty box with no clue why. The flag writes the figure's markup into the document instead, where a CSP has nothing to block, and namespaces the figure's classes and ids so they cannot collide with the kit's. Default stays `<img src="data:">`.
 
 ## Project brand
 
 If the project carries a `.readable/` brand layer (created by the `brand` skill: `brand.css`, optional `brand.json` + `logo.svg`), `build.py` finds it automatically above the content file and reskins the report — project palette, logo/wordmark header, brand fonts inlined. Nothing to do; `--no-brand` opts out. This is the ONLY sanctioned reskin path.
+
+Brand fonts are fetched and inlined at build time whether `brand.json` names `font.files` (local woff2) or `font.google` (a Google Fonts spec), so the finished report carries its own bytes and renders in the right family with the network off. That costs real weight: a four-weight Persian family is roughly 600KB. If the fetch fails the build says so and keeps the remote `@import`, which still renders online but is not print-safe; add `font.files` to settle it. `--font-timeout` bounds each request.
 
 ## Signature
 

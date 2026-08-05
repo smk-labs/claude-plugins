@@ -46,7 +46,15 @@
 .rc h3::before{content:'';width:7px;height:7px;margin-inline-end:calc(1em - 7px);border-radius:2px;background:var(--text-accent);flex:0 0 auto}
 .rc h4{font-weight:700;font-size:1em;margin:1em 0 .3em}
 .rc p{margin:.6em 0}.rc .lead{color:var(--text-secondary);font-size:1.05em}
-.rc p,.rc li,.rc h2,.rc h4,.rc td,.rc th,.rc .kpi,.rc .tl div{unicode-bidi:plaintext}
+.rc p,.rc li,.rc h2,.rc h4,.rc .kpi,.rc .tl div{unicode-bidi:plaintext}
+/* Cells ISOLATE, they do not plaintext. plaintext re-reads direction from each
+   element's first strong character, which is right for a standalone paragraph and
+   wrong for a column: one cell opening on a Latin token (NO_VERDICT, a code path)
+   went LTR and left-aligned while the Persian cell under it stayed RTL and
+   right-aligned, so a column rendered ragged and its runs came out reversed.
+   isolate keeps the card's own direction on every cell and still seals each
+   Latin run, so a column reads down one edge. */
+.rc td,.rc th{unicode-bidi:isolate}
 .rc strong{font-weight:700}
 .rc code{display:inline-block;direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.85em;color:var(--text-accent);border-radius:5px;padding:1px 5px}
 .rc a{color:var(--text-accent);text-decoration:none}.rc a:hover{border-bottom:1px solid currentColor}

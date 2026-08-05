@@ -174,7 +174,13 @@ window.__rcEmail = function (cb) {
    report has no MCP server, so it embeds client-side: fetch every @import
    sheet, swap each gstatic url for a data: URI, mount as #rcfont. menu.js's
    ensureFonts then finds #rcfont and keeps it in the export. Best-effort:
-   any failure just leaves the system-font fallback. */
+   any failure just leaves the system-font fallback.
+
+   The same rule binds every INLINED FIGURE, which is also an svg-as-image, and
+   for two releases nothing acted on it: figure text sat in a system serif beside
+   a Vazirmatn paragraph. build.py's figure_font now folds the report's face into
+   the lifted svg at BUILD time (subset to the characters that figure letters, so
+   it costs a few KB rather than the whole family). Two paths, one reason. */
 (function () {
   var imports = [];
   document.querySelectorAll('style').forEach(function (s) {

@@ -41,8 +41,10 @@ import json
 import pathlib
 import re
 import sys
+import urllib.error
+import urllib.request
 import xml.etree.ElementTree as ET
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 from urllib.request import url2pathname
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -56,6 +58,71 @@ BRAND_HEAD_CSS = (
     ".brand b{font-size:14.5px;font-weight:800}\n"
     ".brand span{font-size:11px;color:var(--text-secondary);border-inline-start:1px solid var(--border-strong);padding-inline-start:9px}\n"
 )
+
+
+# The css2 api serves woff2 only to a browser UA; anything else gets ttf, which
+# is three times the bytes. Same UA and subset allowlist the card server uses.
+FONT_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+           "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+FONT_SUBSETS = ("arabic", "latin", "latin-ext")
+FACE_RE = re.compile(r"(?s)(?:/\*\s*([\w-]+)\s*\*/\s*)?@font-face\s*\{([^}]*)\}")
+# The url is matched by its format() marker, not by a .woff2 suffix: the css2
+# api's text= subsetting answers with /l/font?kit=... and no extension at all.
+WOFF2_RE = re.compile(r"""(?i)url\((https://[^)\s]+)\)\s*format\(['"]?woff2""")
+FIG_FONT_CAP = 256 * 1024
+
+
+def http_get(url: str, timeout: float):
+    """One GET with a browser UA, or None. Never raises and never hangs.
+
+    Every caller is doing something optional-but-better (embedding a face so the
+    report survives offline), so a dead network has to degrade into a decision
+    the caller can explain, not a traceback and not a stalled build."""
+    req = urllib.request.Request(url, headers={"User-Agent": FONT_UA})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.read()
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+
+def google_faces(spec: str, timeout: float, text: str = None):
+    """@font-face css for a Google Fonts family with the woff2 bytes inlined.
+
+    A report is a standalone document that gets printed and emailed, so it must
+    not depend on reaching a font host: a blocked cdn makes the browser hang
+    before it will print, and every Persian glyph lands in Tahoma. Returns None
+    when the network is unavailable, so the caller decides what to say about it.
+
+    `text` uses the css2 api's own subsetting. Passing the exact characters a
+    figure letters returns roughly 5KB instead of the ~400KB the whole family
+    costs, which is what makes folding a face into a figure affordable at all."""
+    url = "https://fonts.googleapis.com/css2?family=" + spec.replace(" ", "+")
+    if text:
+        # Whitespace only: the api rejects a text= carrying the newlines and
+        # indentation that sit between a figure's <text> elements.
+        glyphs = "".join(sorted({c for c in text if not c.isspace()}))
+        if not glyphs:
+            return None
+        url += "&text=" + quote(glyphs)
+    else:
+        url += "&display=swap"
+    sheet = http_get(url, timeout)
+    if sheet is None:
+        return None
+    out = ""
+    for subset, body in FACE_RE.findall(sheet.decode("utf-8", "replace")):
+        if subset and subset not in FONT_SUBSETS:
+            continue
+        m = WOFF2_RE.search(body)
+        if not m:
+            continue
+        raw = http_get(m.group(1), timeout)
+        if raw is None:
+            return None
+        out += "@font-face{%s}" % body.strip().replace(
+            m.group(1), "data:font/woff2;base64," + base64.b64encode(raw).decode())
+    return out or None
 
 
 def find_brand(start: pathlib.Path):
@@ -72,11 +139,17 @@ def find_brand(start: pathlib.Path):
     return None
 
 
-def brand_blocks(brand_dir: pathlib.Path, lang: str):
+def brand_blocks(brand_dir: pathlib.Path, lang: str, timeout: float = 12.0):
     """(style_css, header_html) for the shell's {{BRAND}}/{{BRANDHEAD}} slots.
     brand.css is authored card-first (:root + bare [data-theme="dark"]); the
     report shell adds system-preference dark, so the dark block is mirrored
-    into a prefers-color-scheme media query for un-toggled viewers."""
+    into a prefers-color-scheme media query for un-toggled viewers.
+
+    A google-only brand font is fetched and inlined here (5.3.0). 5.2.0 carried
+    the comment about being print-safe and then inlined nothing, because the
+    loop reads font.files and a google-only brand has none: the family was
+    declared, never loaded, and the page silently leaned on the kit's remote
+    @import surviving kit_css. Offline, that is every Persian glyph in Tahoma."""
     css = (brand_dir / "brand.css").read_text(encoding="utf-8")
     dark = re.search(r'\[data-theme="?dark"?\]\s*\{([^}]*)\}', css)
     css = re.sub(r'(^|[}\s,])\[data-theme=', r'\1:root[data-theme=', css)
@@ -89,19 +162,32 @@ def brand_blocks(brand_dir: pathlib.Path, lang: str):
         meta = json.loads(meta_file.read_text(encoding="utf-8"))
 
     font = meta.get("font") or {}
-    if font.get("google"):
-        # PRINT-SAFE: no remote @import. The faces are inlined below, and a blocked
-        # font host makes the browser hang before it will print.
-        pass
+    faces = ""
     for weight, rel in (font.get("files") or {}).items():
         f = brand_dir / rel
         if not f.is_file():
             sys.exit("brand font file missing: %s" % f)
-        css += (
+        faces += (
             '\n@font-face{font-family:"%s";src:url("data:font/woff2;base64,%s") format("woff2");'
             "font-weight:%s;font-style:normal;font-display:swap}"
             % (font.get("family", "Brand"), base64.b64encode(f.read_bytes()).decode(), weight)
         )
+    if font.get("google") and not faces:
+        # PRINT-SAFE: no remote @import. The faces really are inlined now.
+        got = google_faces(font["google"], timeout)
+        if got:
+            faces += "\n" + got
+        else:
+            # The other half of the contract: say so. Silence here is what let a
+            # report ship declaring a family it never loaded. Emitting no
+            # @font-face also leaves the kit's @import in place (see kit_css), so
+            # the page still renders online instead of not at all.
+            print('warning: could not fetch the brand font "%s" from Google Fonts.\n'
+                  "  The report keeps the remote @import, so it needs the network to render\n"
+                  "  in that family and will not be print-safe. Add font.files to\n"
+                  "  %s to inline it for good."
+                  % (font["google"], brand_dir / "brand.json"), file=sys.stderr)
+    css += faces
     if font.get("family"):
         fallback = "Vazirmatn,Tahoma,sans-serif" if lang == "fa" else "Inter,system-ui,sans-serif"
         css += '\n.rc,.meta,.brand{font-family:"%s",%s}' % (font["family"], fallback)
@@ -117,6 +203,29 @@ def brand_blocks(brand_dir: pathlib.Path, lang: str):
         head = '<div class="brand">%s%s%s</div>\n' % (logo_html, ("<b>%s</b>" % wordmark) if wordmark else "", kind)
         css += "\n" + BRAND_HEAD_CSS
     return css, head
+
+
+KIT_FONT = {"fa": "Vazirmatn", "en": "Inter"}
+
+
+def report_font(brand_dir, no_brand: bool, lang: str):
+    """(family, google spec, local files) for the face the report body renders in.
+
+    A figure must letter in the same typeface as the paragraph beside it, and the
+    figure is its own document, so it needs its own copy of that face rather than
+    a reference to the page's."""
+    if brand_dir and not no_brand:
+        f = brand_dir / "brand.json"
+        if f.is_file():
+            try:
+                meta = json.loads(f.read_text(encoding="utf-8")).get("font") or {}
+            except (ValueError, OSError):
+                meta = {}
+            if meta.get("family"):
+                files = {str(w): brand_dir / r for w, r in (meta.get("files") or {}).items()}
+                return (meta["family"], meta.get("google"), files or None)
+    fam = KIT_FONT[lang]
+    return (fam, "%s:wght@400" % fam, None)
 
 
 def signature() -> str:
@@ -180,6 +289,7 @@ DIR_ATTR = re.compile(r'(?is)<(?:html|body|svg)\b[^>]*\bdir\s*=\s*["\']?(rtl|ltr
 DIR_RULE = re.compile(r"(?is)(?:^|[}\s,])(?::root|html|body|svg|\*)[^{}]*\{[^{}]*\bdirection\s*:\s*rtl")
 KEYFRAMES = re.compile(r"(?i)@(?:-\w+-)?keyframes\b")
 SMIL = re.compile(r"(?i)<(?:animate[a-z]*|set)\b")
+FALLBACK = {"fa": "Tahoma,sans-serif", "en": "system-ui,sans-serif"}
 
 
 BAD_AMP = re.compile(r"&(?![A-Za-z#]\w{0,31};)")
@@ -277,18 +387,119 @@ def fig_rtl(text: str, svg: str, lang: str) -> bool:
     return lang == "fa" and bool(RTL_SCRIPT.search(svg))
 
 
-def rtl_root(svg: str) -> str:
-    """direction:rtl on the <svg> element itself, where the embedded document
-    will actually read it. Left alone if the author already set one."""
+def root_style(svg: str, decl: str) -> str:
+    """One css declaration onto the <svg> element itself, where the embedded
+    document will actually read it. Left alone if the author already set that
+    property. Prepended, so an existing style attribute keeps winning."""
+    prop = decl.split(":", 1)[0].strip()
+
     def add(m):
         tag = m.group(0)
-        if re.search(r"(?i)\bdirection\s*:", tag):
+        if re.search(r"(?i)\b%s\s*:" % re.escape(prop), tag):
             return tag
         style = re.search(r'(?is)\bstyle\s*=\s*(["\'])(.*?)\1', tag)
         if style:
-            return tag[:style.start(2)] + "direction:rtl;" + tag[style.start(2):]
-        return tag[:-1].rstrip() + ' style="direction:rtl"' + tag[-1]
+            # A quoted font family inside a quoted attribute closes it early and
+            # invalidates the whole document. Whichever quote delimits the
+            # attribute becomes its entity; both parsers resolve it back.
+            q = style.group(1)
+            safe = decl.replace(q, "&quot;" if q == '"' else "&apos;")
+            return tag[:style.start(2)] + safe + ";" + tag[style.start(2):]
+        return tag[:-1].rstrip() + ' style="%s"' % decl.replace('"', "&quot;") + tag[-1]
     return re.sub(r"(?is)<svg\b[^>]*>", add, svg, count=1)
+
+
+def rtl_root(svg: str) -> str:
+    """direction:rtl on the lifted root: an <img>-embedded svg inherits none."""
+    return root_style(svg, "direction:rtl")
+
+
+def svg_text(svg: str) -> str:
+    """Every character the figure actually letters, tags stripped."""
+    return re.sub(r"(?s)<[^>]*>", "",
+                  "".join(re.findall(r"(?is)<text[^>]*>(.*?)</text\s*>", svg)))
+
+
+def figure_font(svg: str, font, timeout: float, src: pathlib.Path):
+    """(css, needs_root_family) so the figure letters in the REPORT's font.
+
+    shell.html already spells the mechanism out for the PNG export: an
+    svg-as-image cannot load an external @import font, so it rasterizes in a
+    system fallback. That is just as true of every inlined figure, and nothing
+    handled it, so Persian figure text sat in a system serif beside a Vazirmatn
+    paragraph. The face is subsetted to the characters this figure letters, so
+    the cost is a few KB rather than the whole family.
+
+    `needs_root_family` is False when the figure already names a font anywhere:
+    a figure that chose its own typeface keeps it, and only the ones that named
+    nothing (and were therefore rendering in the svg default) get the report's."""
+    family, spec, files = font
+    label = svg_text(svg)
+    if not label.strip():
+        return "", False
+    css = ""
+    if files:
+        # A local brand file: fold ONE weight, not four. A figure letters a
+        # handful of words and cannot justify 400KB of family.
+        pick = files.get("400") or files.get(400) or list(files.values())[0]
+        if pick.is_file() and pick.stat().st_size <= FIG_FONT_CAP:
+            css = ('@font-face{font-family:"%s";src:url("data:font/woff2;base64,%s") '
+                   'format("woff2");font-weight:400;font-style:normal}'
+                   % (family, base64.b64encode(pick.read_bytes()).decode()))
+    elif spec:
+        css = google_faces(spec, timeout, text=label) or ""
+        if not css:
+            print("warning: %s could not embed the report font, so its text will render in a\n"
+                  "  system fallback. Build online once, or pass --no-figure-font to silence\n"
+                  "  this." % src, file=sys.stderr)
+    if css and len(css) > FIG_FONT_CAP:
+        print("warning: %s: the embedded font came back at %dKB, over the %dKB figure cap;\n"
+              "  skipped." % (src, len(css) // 1024, FIG_FONT_CAP // 1024), file=sys.stderr)
+        css = ""
+    return css, not re.search(r"(?i)font-family", svg)
+
+
+NS_SKIP = {"none", "inherit", "initial", "unset", "currentcolor"}
+
+
+def namespace_svg(svg: str, prefix: str) -> str:
+    """Prefix every class, id and @keyframes name the figure declares.
+
+    Inline svg shares the page cascade, which is the one thing <img> was buying:
+    a /fig class called .s or .l or .t would otherwise land straight on top of
+    the kit's own. Renaming what the figure declares is cheaper than isolation
+    and survives a host that blocks data: images or strips <style>."""
+    names = set(re.findall(r'(?is)\bclass\s*=\s*["\']([^"\']+)["\']', svg))
+    classes = {c for group in names for c in group.split() if c}
+    frames = set(re.findall(r"(?i)@(?:-\w+-)?keyframes\s+([\w-]+)", svg))
+    ids = set(re.findall(r'(?is)\bid\s*=\s*["\']([^"\']+)["\']', svg))
+
+    def rename(m):
+        return m.group(1) + prefix + m.group(2)
+
+    for c in sorted(classes, key=len, reverse=True):
+        svg = re.sub(r"(\.)(%s)(?![\w-])" % re.escape(c), rename, svg)
+    svg = re.sub(r'(?is)(\bclass\s*=\s*["\'])([^"\']+)(["\'])',
+                 lambda m: m.group(1) + " ".join(prefix + c for c in m.group(2).split()) + m.group(3),
+                 svg)
+    for i in sorted(ids, key=len, reverse=True):
+        svg = re.sub(r"(#)(%s)(?![\w-])" % re.escape(i), rename, svg)
+    svg = re.sub(r'(?is)(\bid\s*=\s*["\'])([^"\']+)(["\'])',
+                 lambda m: m.group(1) + prefix + m.group(2) + m.group(3), svg)
+    # Only names actually declared as keyframes get renamed, so an `animation`
+    # shorthand keeps its timing function and its `infinite` untouched.
+    for f in sorted(frames, key=len, reverse=True):
+        if f.lower() in NS_SKIP:
+            continue
+        svg = re.sub(r"(?<![\w-])(%s)(?![\w-])" % re.escape(f), prefix + r"\1", svg)
+    return svg
+
+
+def uncdata(svg: str) -> str:
+    """Drop the CDATA fences we added. Inline in an html document, <style> is
+    already raw text, and the fence would be read as a css rule and eat the
+    first one. The xml validation ran on the fenced copy either way."""
+    return svg.replace("<![CDATA[", "").replace("]]>", "")
 
 
 def in_script(text: str, at: int) -> bool:
@@ -312,7 +523,8 @@ def warn_motionless(text: str, svg: str, src: pathlib.Path):
           "  or SMIL <animate> INSIDE the <svg> instead." % src, file=sys.stderr)
 
 
-def svg_from_html(text: str, src: pathlib.Path, lang: str = "fa") -> str:
+def svg_from_html(text: str, src: pathlib.Path, lang: str = "fa",
+                  font=None, timeout: float = 12.0, prefix: str = None) -> str:
     """The <svg> out of a /fig file, made self-contained.
 
     /fig writes ONE html file whose animation css usually lives in the document
@@ -327,7 +539,11 @@ def svg_from_html(text: str, src: pathlib.Path, lang: str = "fa") -> str:
     held, and @keyframes living outside the svg is exactly how /fig writes them,
     so the figure shipped motionless and looked like a design choice. The outer
     rules go in as the FIRST child, ahead of the svg's own, which is the order
-    they had in the source document - the inner block keeps winning ties."""
+    they had in the source document - the inner block keeps winning ties.
+
+    `font` folds the report's own face in so the figure letters in the same
+    typeface as the paragraph beside it; `prefix` namespaces the figure for the
+    inline path, where the isolation <img> used to provide is gone."""
     m = re.search(r"(?is)<svg\b.*?</svg\s*>", text)
     if not m:
         sys.exit("no <svg> found in %s: /fig output is expected to contain one" % src)
@@ -353,12 +569,27 @@ def svg_from_html(text: str, src: pathlib.Path, lang: str = "fa") -> str:
         svg = re.sub(r"(?is)(<svg\b[^>]*>)", r"\1<style>%s</style>" % folded, svg, count=1)
     if fig_rtl(text, svg, lang):
         svg = rtl_root(svg)
+    if prefix:
+        svg = namespace_svg(svg, prefix)
+    if font:
+        face, needs_family = figure_font(svg, font, timeout, src)
+        if face:
+            svg = re.sub(r"(?is)(<svg\b[^>]*>)",
+                         r"\1<style>%s</style>" % cdata(face).replace("\\", "\\\\"),
+                         svg, count=1)
+        if needs_family and face:
+            # Only a figure that named no typeface at all. One that chose its own
+            # keeps it; this is for the ones that were silently in the svg default.
+            svg = root_style(svg, "font-family:'%s',%s" % (font[0], FALLBACK[lang]))
+    # Validated fenced, always, so switching embed mode can never change whether
+    # a figure builds. The fences come back off below for the inline path.
     check_xml(svg, src, None)
     warn_motionless(text, svg, src)
-    return svg
+    return uncdata(svg) if prefix else svg
 
 
-def data_uri(src: pathlib.Path, max_kb: int, lang: str = "fa") -> str:
+def data_uri(src: pathlib.Path, max_kb: int, lang: str = "fa", font=None,
+             timeout: float = 12.0) -> str:
     """One local file as a data: URI, so the report stays a single offline file.
 
     Fails loudly rather than leaving the reference: a report that silently ships a
@@ -374,7 +605,7 @@ def data_uri(src: pathlib.Path, max_kb: int, lang: str = "fa") -> str:
                  % (src, size // 1024, max_kb))
     ext = src.suffix.lower()
     if ext in (".html", ".htm"):
-        svg = svg_from_html(src.read_text(encoding="utf-8"), src, lang)
+        svg = svg_from_html(src.read_text(encoding="utf-8"), src, lang, font, timeout)
         return "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode()
     if ext not in MEDIA_TYPES:
         sys.exit("unsupported image type %s (%s); use %s, or a /fig .html"
@@ -404,27 +635,67 @@ def resolve_src(raw: str, base: pathlib.Path) -> pathlib.Path:
     return src
 
 
-def inline_media(content: str, base: pathlib.Path, max_kb: int, lang: str) -> str:
+SRC_RE = re.compile(r'(?is)(<img\b[^>]*?\bsrc\s*=\s*["\'])([^"\']+)(["\'])')
+
+
+def root_attr(svg: str, name: str, value: str) -> str:
+    """One attribute on the <svg> root, if it does not already carry it."""
+    m = re.match(r"(?is)<svg\b[^>]*>", svg)
+    if not m or re.search(r"(?i)\b%s\s*=" % re.escape(name), m.group(0)):
+        return svg
+    tag = m.group(0)
+    return (tag[:-1].rstrip() + ' %s="%s"' % (name, value.replace('"', "&quot;"))
+            + tag[-1] + svg[m.end():])
+
+
+def inline_media(content: str, base: pathlib.Path, max_kb: int, lang: str,
+                 font=None, timeout: float = 12.0, inline_svg: bool = False) -> str:
     """Every <img src> that points at a local file becomes a data: URI.
 
     data: and http(s): sources are left alone — the first is already inline, and
     the second is the author explicitly opting out of a self-contained file.
     lang travels this far because a lifted /fig svg inherits no direction from
-    the page it is embedded in, and a Persian report is the last clue there is."""
+    the page it is embedded in, and a Persian report is the last clue there is.
+
+    --inline-figures writes the figure's markup straight into the document
+    instead. A data: URI is one point of failure with two common hosts behind it:
+    a CSP whose img-src omits data: blocks the image outright, and a sanitiser
+    that strips <style> from an svg takes every fill and stroke with it. Inline
+    markup survives both, which is why the observed portal showed an empty box.
+    The kit already sizes `.rc figure svg` exactly like `.rc img`, so nothing in
+    the stylesheet moves; what inline costs is the page cascade, and
+    namespace_svg pays that by renaming what the figure declares."""
     done = []
+    seen = [0]
 
-    def sub(m):
-        raw = m.group(2).strip()
+    def one(m):
+        tag = m.group(0)
+        s = SRC_RE.match(tag)
+        if not s:
+            return tag
+        raw = s.group(2).strip()
         if re.match(r"(?i)^(data:|https?:|//)", raw):
-            return m.group(0)
-        src = resolve_src(raw, base)
-        uri = data_uri(src.resolve(), max_kb, lang)
-        done.append((src.name, len(uri)))
-        return "%s%s%s" % (m.group(1), uri, m.group(3))
+            return tag
+        src = resolve_src(raw, base).resolve()
+        if inline_svg and src.suffix.lower() in (".html", ".htm"):
+            if not src.is_file():
+                sys.exit("image not found: %s" % src)
+            seen[0] += 1
+            svg = svg_from_html(src.read_text(encoding="utf-8"), src, lang, font,
+                                timeout, prefix="fig%d-" % seen[0])
+            alt = re.search(r'(?is)\balt\s*=\s*["\']([^"\']*)["\']', tag)
+            if alt and alt.group(1).strip():
+                svg = root_attr(svg, "role", "img")
+                svg = root_attr(svg, "aria-label", alt.group(1).strip())
+            done.append((src.name, len(svg), "inline"))
+            return svg
+        uri = data_uri(src, max_kb, lang, font, timeout)
+        done.append((src.name, len(uri), "data:"))
+        return tag[:s.end(1)] + uri + tag[s.start(3):]
 
-    out = re.sub(r'(?is)(<img\b[^>]*?\bsrc\s*=\s*["\'])([^"\']+)(["\'])', sub, content)
-    for name, n in done:
-        print("inlined %s (%dKB)" % (name, n // 1024), file=sys.stderr)
+    out = re.sub(r"(?is)<img\b[^>]*>", one, content)
+    for name, n, how in done:
+        print("inlined %s (%dKB, %s)" % (name, n // 1024, how), file=sys.stderr)
     return out
 
 
@@ -432,7 +703,11 @@ def kit_css(brand_css: str) -> str:
     """KIT_REMOTE_IMPORT: a report is a standalone document that gets printed and
     emailed, so it must not depend on a font host. When the brand layer inlines
     real @font-face rules the kit's remote @import is redundant, and a blocked
-    font host makes the browser hang before it will print."""
+    font host makes the browser hang before it will print.
+
+    The @font-face test IS the contract, not a coincidence: the import survives
+    exactly when no face was embedded, which is the one case the page still needs
+    it. brand_blocks leans on that when a google font cannot be fetched."""
     css = KIT.read_text(encoding="utf-8")
     if brand_css and "@font-face" in brand_css:
         css = re.sub(r"@import\s+url\(['\"]?https://fonts\.googleapis\.com[^)]*\);?", "", css)
@@ -447,21 +722,32 @@ def main():
     ap.add_argument("--no-brand", action="store_true", help="ignore any project .readable brand layer")
     ap.add_argument("--max-image-kb", type=int, default=2048,
                     help="per-image cap before the build refuses (default 2048)")
+    ap.add_argument("--inline-figures", action="store_true",
+                    help="write /fig markup into the document instead of <img src=data:>; "
+                         "survives a CSP without data: and a sanitiser that strips <style>")
+    ap.add_argument("--no-figure-font", action="store_true",
+                    help="do not embed the report font into figures")
+    ap.add_argument("--font-timeout", type=float, default=12.0,
+                    help="seconds per font request before giving up (default 12)")
     a = ap.parse_args()
 
     src = pathlib.Path(a.content).resolve()
     content = src.read_text(encoding="utf-8").strip()
     if "<style" in content.lower() or "<script" in content.lower():
         sys.exit("content must be building-block HTML only: no <style> or <script>")
-    # Images and /fig motion become data: URIs so the report stays one offline
-    # file, the same reason the brand layer inlines its font bytes. Runs BEFORE
-    # the title sniff so a src full of angle brackets cannot confuse it.
-    content = inline_media(content, src.parent, a.max_image_kb, a.lang)
-
+    # The brand resolves FIRST now: a figure is its own document and needs its own
+    # copy of the report's face, so inline_media has to know what that face is.
     brand_dir = find_brand(src.parent) or find_brand(pathlib.Path.cwd())
     brand_css, brand_head = "", ""
     if brand_dir and not a.no_brand:
-        brand_css, brand_head = brand_blocks(brand_dir, a.lang)
+        brand_css, brand_head = brand_blocks(brand_dir, a.lang, a.font_timeout)
+
+    # Images and /fig motion become data: URIs so the report stays one offline
+    # file, the same reason the brand layer inlines its font bytes. Runs BEFORE
+    # the title sniff so a src full of angle brackets cannot confuse it.
+    font = None if a.no_figure_font else report_font(brand_dir, a.no_brand, a.lang)
+    content = inline_media(content, src.parent, a.max_image_kb, a.lang,
+                           font, a.font_timeout, a.inline_figures)
 
     # SIGNATURE: the last child of .rc, exactly where the card template mounts it,
     # so the report's own menu exports (html / png / markdown / text / email all
