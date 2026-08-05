@@ -256,8 +256,8 @@ const BRIDGE_JS = [
   "/* Project brand (4.13.0): when a call carries a brand dir, fetch its normalized css through the app-only read_brand tool (same channel as htmlFile) and mount it as a late <style> — variable overrides win by source order. One-shot per iframe (bLoaded guard), so no element reuse; palette swaps don't change height and a brand font swap re-fits via the body ResizeObserver. A failed read silently keeps the default look. */",
   "var bLoaded=null;",
   "function bApply(p){if(!p||p===bLoaded)return;bLoaded=p;rpc('tools/call',{name:'read_brand',arguments:{dir:p}},function(res,err){var c=!err&&res&&!res.isError&&res.content,t=c&&c[0]&&c[0].text;if(!t)return;var s=document.createElement('style');s.id='rcbrand';s.textContent=t;document.head.appendChild(s);fit()})}",
-  "/* Host adapter for the shared menu (assets/menu.js): email HTML renders server-side (render_email tool, static style map) because the ui:// template must stay under the host's ~30KB resource ceiling. The report shell swaps in a computed-style walker instead. */",
-  "window.__rcEmail=function(cb){rpc('tools/call',{name:'render_email',arguments:{html:document.getElementById('card').innerHTML,theme:'light'}},function(res,err){var t=!err&&res&&!res.isError&&res.content&&res.content[0]&&res.content[0].text;if(t)cb(t,null);else cb(null,err?String(err.code||'')+' '+String(err.message||'').slice(0,60):'render failed')})};",
+  "/* Host adapter for the shared menu (assets/menu.js): email HTML renders server-side through the render_email tool, which runs the SAME assets/email.js the standalone report inlines. It renders there rather than here because the ui:// template must stay under the host's ~30KB resource ceiling. The brand dir rides along so a branded card exports in its own colours instead of the kit blue — the transform resolves every literal from that brand's css. */",
+  "window.__rcEmail=function(cb){rpc('tools/call',{name:'render_email',arguments:{html:document.getElementById('card').innerHTML,theme:'light',brand:bLoaded||''}},function(res,err){var t=!err&&res&&!res.isError&&res.content&&res.content[0]&&res.content[0].text;if(t)cb(t,null);else cb(null,err?String(err.code||'')+' '+String(err.message||'').slice(0,60):'render failed')})};",
   "window.addEventListener('message',function(e){var m=e.data;if(typeof m==='string'){try{m=JSON.parse(m)}catch(err){return}}if(!m||m.jsonrpc!=='2.0')return;tap('<',m);",
   "/* A response is a message carrying result or error for a pending id. Do NOT discriminate on the absence of 'method': at least one real host echoes the method field in its responses, and treating those as requests silently kills the ui/initialize handshake, which keeps the iframe visibility:hidden forever (anthropics/claude-ai-mcp#61). */",
   "if(m.id!=null&&pending[m.id]&&(('result' in m)||('error' in m))){var cb=pending[m.id];delete pending[m.id];cb(m.result,m.error);return}",
@@ -371,14 +371,13 @@ const SAVE_TOOL = {
   },
 };
 
-/* render_email: server-side email transform (4.4). Email clients strip
- * <style> and classes, so the card is rebuilt as inline-styled HTML: a
- * static class->style map with the palette resolved to literal colors (the
- * server owns rc.css, so the map is written down instead of measured),
- * pseudo-element decorations materialized as real spans (list glyphs, h2
- * underline bar, h3 square, trend arrows, flow arrows), flex/grid flattened
- * to block, interactive bits dropped. Transform decisions ported from the
- * 4.3.0 in-template emailHtml() (commit 8beb7e1). */
+/* render_email: the card's side of the shared email transform (assets/email.js).
+ * Email clients are not browsers - Gmail strips <style> on forward, Outlook
+ * renders through Word - so the card is rebuilt as table-based, inline-styled
+ * HTML with literal colors, and every pseudo-element decoration materialized
+ * as a real character. It runs HERE rather than in the card because the ui://
+ * template must stay under the host's ~30KB resource ceiling. The brand arg is
+ * the card's own .readable dir, so a branded card exports in its own colours. */
 const EMAIL_TOOL = {
   name: 'render_email',
   description:
@@ -388,6 +387,7 @@ const EMAIL_TOOL = {
     properties: {
       html: { type: 'string', description: 'card content HTML (building blocks)' },
       theme: { type: 'string', enum: ['light', 'dark'] },
+      brand: { type: 'string', description: 'absolute path to the project .readable dir' },
     },
     required: ['html'],
   },
@@ -696,214 +696,29 @@ function sigOff(dir) {
   } catch (e) { return false; }
 }
 
-const EMAIL_PAL = {
-  light: { tx: '#1f1f1f', sub: '#6f6f6a', ac: '#2f66c4', s1: '#ffffff', s2: '#f2f2ef', bd: '#dcdcd6', bs: '#b8b8b0', gok: '#e6f4ec', gac: '#e8effc', gwa: '#faf0d9', gda: '#fbe9e7' },
-  dark: { tx: '#ececea', sub: '#9f9f98', ac: '#82abec', s1: '#262624', s2: '#302f2c', bd: '#3e3e3a', bs: '#55554f', gok: '#143122', gac: '#16283f', gwa: '#382c13', gda: '#3a1d19' },
-};
-const EMAIL_CA = '#0f9d58', EMAIL_CB = '#3f8ac9', EMAIL_CD = '#d96666';
-const EMAIL_MONO = 'ui-monospace,Menlo,monospace';
-const EMAIL_VOID = { br: 1, hr: 1, img: 1 };
+/* The email transform is not written here: assets/email.js is THE single
+ * source, shared verbatim with the standalone report (skills/report/build.py
+ * inlines the same file). Until 5.4.0 each host carried its own adapter and
+ * they drifted apart; the only thing this side owns now is resolving the
+ * project brand into the palette the transform paints with. */
+const EMAIL_CANDIDATES = [
+  path.join(__dirname, '..', 'assets', 'email.js'), // plugin layout
+  path.join(__dirname, 'email.js'), // bundled layout (.mcpb extension)
+];
+const renderEmail = require(EMAIL_CANDIDATES.find((p) => fs.existsSync(p)));
 
-/* Minimal tag walker for the card's constrained building-block HTML
- * (already validated upstream: no <style>/<script>). Zero dependencies. */
-function emailParse(html) {
-  const root = { tag: '#root', attrs: {}, children: [], parent: null };
-  let cur = root;
-  const re = /<!--[^]*?-->|<\/([a-zA-Z][a-zA-Z0-9]*)\s*>|<([a-zA-Z][a-zA-Z0-9]*)((?:"[^"]*"|'[^']*'|[^>])*?)(\/?)>|([^<]+)/g;
-  let m;
-  while ((m = re.exec(html))) {
-    if (m[1]) {
-      const t = m[1].toLowerCase();
-      let n = cur;
-      while (n && n.tag !== t) n = n.parent;
-      if (n && n.parent) cur = n.parent;
-    } else if (m[2]) {
-      const tag = m[2].toLowerCase();
-      const attrs = {};
-      const ar = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
-      let am;
-      while ((am = ar.exec(m[3] || ''))) attrs[am[1].toLowerCase()] = am[2] != null ? am[2] : am[3] != null ? am[3] : am[4] || '';
-      const node = { tag: tag, attrs: attrs, children: [], parent: cur };
-      cur.children.push(node);
-      if (!EMAIL_VOID[tag] && m[4] !== '/') cur = node;
-    } else if (m[5]) {
-      cur.children.push({ text: m[5] });
-    }
+/* A branded card used to export with no brand at all: the transform's palette
+ * was a hardcoded map, so the one artifact most likely to leave the building
+ * left it in someone else's colours. The brand css the card itself is wearing
+ * is fed in instead, and email.js resolves every literal from it. Never
+ * throws: an unbrandable dir is simply the default palette. */
+function emailBrand(dir) {
+  try {
+    const d = brandDirFor(dir);
+    return d ? brandParts(d).css : '';
+  } catch (e) {
+    return '';
   }
-  return root;
-}
-
-/* Email direction follows the content's majority script, same rule as the
- * template bridge (ties go RTL: the tool is Persian-first). code/pre spans
- * are stripped before counting — paths and commands are direction-neutral
- * and must not outvote the prose (same 4.6.1 fix as the bridge dirOf). */
-function emailDir(html) {
-  const t = String(html)
-    .replace(/<(code|pre)[^>]*>[^]*?<\/\1>/gi, ' ')
-    .replace(/<[^>]*>/g, ' ');
-  const r = (t.match(/[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g) || []).length;
-  const l = (t.match(/[A-Za-z]/g) || []).length;
-  return r >= l ? 'rtl' : 'ltr';
-}
-
-function renderEmail(html, theme) {
-  const P = EMAIL_PAL[theme === 'dark' ? 'dark' : 'light'];
-  const DIR = emailDir(html);
-  const R = DIR === 'rtl';
-  const S = R ? 'right' : 'left'; // physical side of inline-start
-  const E = R ? 'left' : 'right'; // physical side of inline-end
-  const has = (n, c) => (' ' + ((n.attrs && n.attrs['class']) || '') + ' ').indexOf(' ' + c + ' ') !== -1;
-
-  function children(n, ctx) {
-    let last = null;
-    for (const c of n.children) if (c.tag) last = c;
-    let out = '';
-    for (const c of n.children) out += emit(c, n, Object.assign({}, ctx, { isLast: c === last }));
-    return out;
-  }
-
-  /* .flow: the kit draws the arrows as ::after; here they become real spans between steps */
-  function flowChildren(n, ctx) {
-    let out = '', first = true;
-    for (const c of n.children) {
-      if (!c.tag) continue;
-      if (!first) out += '<span style="color:' + P.ac + ';padding:0 6px">' + (R ? '\u2190' : '\u2192') + '</span>';
-      out += emit(c, n, ctx);
-      first = false;
-    }
-    return out;
-  }
-
-  function emit(n, parent, ctx) {
-    if (n.text != null) return n.text;
-    const tag = n.tag;
-    const p = (c) => parent != null && has(parent, c);
-
-    /* interactive + undrawable bits are dropped (spark is SVG: email clients strip it) */
-    if (has(n, 'btns') || has(n, 'cta') || tag === 'button' || has(n, 'spark')) return '';
-
-    let st = '', dir = DIR, pre = '', post = '', inner = null, next = ctx;
-
-    if (tag === 'h2') {
-      st = 'font-weight:800;font-size:15.5px;margin:0 0 2px;unicode-bidi:plaintext';
-      post = '<div style="width:28px;height:3px;background:' + P.ac + ';border-radius:2px;margin-top:6px"></div>';
-    } else if (tag === 'h3') {
-      st = 'font-weight:700;font-size:12.7px;margin:18px 0 6px';
-      pre = '<span style="display:inline-block;width:7px;height:7px;background:' + P.ac + ';border-radius:2px;margin-' + E + ':8px"></span>';
-    } else if (tag === 'h4') {
-      st = 'font-weight:700;font-size:11.5px;margin:12px 0 3px;unicode-bidi:plaintext';
-    } else if (tag === 'p') {
-      st = 'margin:' + (ctx.cal ? '2px' : '7px') + ' 0;unicode-bidi:plaintext';
-      if (has(n, 'lead')) st += ';color:' + P.sub + ';font-size:12.1px';
-    } else if (has(n, 'badge')) {
-      const bset = has(n, 'ok') ? [P.gok, EMAIL_CA] : has(n, 'warn') ? [P.gwa, '#c98a1a'] : has(n, 'info') ? [P.gac, EMAIL_CB] : [P.s2, P.sub];
-      st = 'display:inline-block;font-size:9px;font-weight:700;padding:1px 9px;border-radius:20px;background:' + bset[0] + ';color:' + bset[1];
-    } else if (has(n, 'trend')) {
-      const up = has(n, 'up');
-      st = 'display:inline-block;font-size:11.4px;font-weight:700;padding:1px 8px;border-radius:12px;vertical-align:2px;margin-' + S + ':7px;background:' + (up ? P.gok : P.gda) + ';color:' + (up ? EMAIL_CA : EMAIL_CD);
-      pre = up ? '▲ ' : '▼ ';
-    } else if (tag === 'strong' || (tag === 'b' && !ctx.kvRow && !ctx.tlRow)) {
-      st = 'font-weight:700';
-    } else if (tag === 'b' && ctx.kvRow) {
-      st = 'color:' + P.sub + ';font-weight:400';
-    } else if (tag === 'b' && ctx.tlRow) {
-      st = 'display:block;font-weight:700';
-    } else if (tag === 'code' && parent && parent.tag === 'pre') {
-      dir = 'ltr'; st = 'display:block';
-    } else if (tag === 'code') {
-      dir = 'ltr';
-      st = 'display:inline-block;direction:ltr;font-family:' + EMAIL_MONO + ';font-size:9.8px;color:' + P.ac + ';background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:5px;padding:1px 5px';
-    } else if (tag === 'a') {
-      st = 'color:' + (ctx.sig ? P.sub : P.ac) + ';text-decoration:none';
-    } else if (tag === 'ul') {
-      st = 'list-style:none;padding:0 ' + (R ? '17px 0 0' : '0 0 17px') + ';margin:6px 0';
-    } else if (tag === 'ol') {
-      st = 'padding:0 ' + (R ? '17px 0 0' : '0 0 17px') + ';margin:6px 0';
-    } else if (tag === 'li') {
-      st = 'margin:4px 0;unicode-bidi:plaintext';
-      if (has(n, 'ok')) pre = '<span style="color:' + EMAIL_CA + ';font-weight:800">✓&nbsp;</span>';
-      else if (has(n, 'no')) pre = '<span style="color:#e05555;font-weight:800">✕&nbsp;</span>';
-      else if (parent && parent.tag === 'ul') pre = '<span style="color:' + P.ac + '">•&nbsp;</span>';
-    } else if (has(n, 'cal')) {
-      const edge = has(n, 'tip') ? EMAIL_CA : has(n, 'note') ? EMAIL_CB : has(n, 'warn') ? '#c98a1a' : has(n, 'danger') ? '#d64545' : P.bs;
-      const fill = has(n, 'tip') ? P.gok : has(n, 'note') ? P.gac : has(n, 'warn') ? P.gwa : has(n, 'danger') ? P.gda : P.s2;
-      st = 'display:block;background:' + fill + ';border-' + S + ':3px solid ' + edge + ';border-radius:10px;padding:9px 12px;margin:9px 0';
-      next = Object.assign({}, ctx, { cal: true });
-    } else if (tag === 'hr') {
-      st = 'border:none;border-top:.5px solid ' + P.bd + ';margin:15px 0';
-    } else if (has(n, 'sig')) {
-      /* The signature arrives inside the card html (the bridge mounts it as the
-       * last child of #card), so nothing is injected here - it only needs the
-       * inline equivalent of the kit rule, and its link muted instead of accent. */
-      st = 'display:block;margin:22px 0 0;padding-top:10px;border-top:.5px solid ' + P.bd +
-        ';font-size:9.2px;color:' + P.sub + ';text-align:' + E;
-      next = Object.assign({}, ctx, { sig: true });
-    } else if (tag === 'pre') {
-      dir = 'ltr';
-      st = 'direction:ltr;text-align:left;font-family:' + EMAIL_MONO + ';font-size:9.8px;background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:8px;padding:10px 12px;line-height:1.6;margin:8px 0;white-space:pre-wrap';
-    } else if (tag === 'table') {
-      st = 'border-collapse:collapse;width:100%;margin:9px 0;font-size:11px';
-    } else if (tag === 'tr') {
-      next = Object.assign({}, ctx, { lastRow: Boolean(ctx.isLast && parent && parent.tag === 'tbody') });
-    } else if (tag === 'th') {
-      st = 'color:' + P.sub + ';font-weight:700;font-size:9.7px;border-bottom:1.5px solid ' + P.bs + ';padding:5px 10px;text-align:' + S;
-    } else if (tag === 'td') {
-      st = 'padding:7px 10px;text-align:' + S + ';unicode-bidi:plaintext' + (ctx.lastRow ? '' : ';border-bottom:.5px solid ' + P.bd);
-    } else if (has(n, 'kv')) {
-      st = 'margin:9px 0';
-      next = Object.assign({}, ctx, { kv: true });
-    } else if (ctx.kv && tag === 'div') {
-      st = 'display:block;padding:6px 2px' + (ctx.isLast ? '' : ';border-bottom:.5px solid ' + P.bd);
-      next = Object.assign({}, ctx, { kv: false, kvRow: true });
-    } else if (ctx.kvRow && tag === 'span') {
-      st = 'font-weight:500';
-    } else if (has(n, 'grid')) {
-      st = 'margin:9px 0';
-    } else if (has(n, 'kpi')) {
-      st = 'display:block;background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:11px;padding:11px 13px;margin:0 0 8px;unicode-bidi:plaintext';
-    } else if (has(n, 'l') && p('kpi')) {
-      st = 'font-size:9.4px;color:' + P.sub + ';margin-bottom:3px';
-    } else if (has(n, 'n') && p('kpi')) {
-      st = 'font-size:20.7px;font-weight:800;line-height:1.2';
-    } else if (has(n, 'bars')) {
-      st = 'margin:9px 0';
-    } else if (has(n, 'bar') && p('bars')) {
-      st = 'display:block;margin:5px 0';
-    } else if (has(n, 'l') && p('bar')) {
-      st = 'display:inline-block;min-width:52px;margin-' + E + ':10px;color:' + P.sub;
-    } else if (has(n, 't') && p('bar')) {
-      st = 'display:inline-block;width:220px;height:7px;background:' + P.s2 + ';border-radius:4px;vertical-align:middle';
-    } else if (tag === 'i' && p('t')) {
-      const w = (String((n.attrs && n.attrs.style) || '').match(/width\s*:\s*([\d.]+%)/) || [])[1] || '0%';
-      st = 'display:block;width:' + w + ';height:7px;background:' + P.ac + ';border-radius:4px';
-    } else if (has(n, 'v') && p('bar')) {
-      st = 'display:inline-block;font-weight:700;font-size:10.4px;margin-' + S + ':10px';
-    } else if (has(n, 'flow')) {
-      st = 'margin:10px 2px';
-      inner = flowChildren(n, next);
-    } else if (has(n, 's') && p('flow')) {
-      st = 'display:inline-block;background:' + P.s2 + ';border:.5px solid ' + P.bd + ';border-radius:9px;padding:5px 13px;font-weight:500';
-    } else if (has(n, 'tl')) {
-      st = 'margin:10px 3px;padding:0 ' + (R ? '16px 0 0' : '0 0 16px');
-      next = Object.assign({}, ctx, { tl: true });
-    } else if (ctx.tl && tag === 'div') {
-      st = 'margin:9px 0;unicode-bidi:plaintext';
-      next = Object.assign({}, ctx, { tl: false, tlRow: true });
-    }
-
-    if (EMAIL_VOID[tag]) return '<' + tag + (st ? ' style="' + st + '"' : '') + '>';
-    if (inner == null) inner = children(n, next);
-    let keep = '';
-    if (tag === 'a' && n.attrs.href) keep = ' href="' + String(n.attrs.href).replace(/"/g, '&quot;') + '"';
-    if (n.attrs.colspan) keep += ' colspan="' + n.attrs.colspan + '"';
-    if (n.attrs.rowspan) keep += ' rowspan="' + n.attrs.rowspan + '"';
-    return '<' + tag + ' dir="' + dir + '"' + keep + (st ? ' style="' + st + '"' : '') + '>' + pre + inner + post + '</' + tag + '>';
-  }
-
-  const rootStyle = 'font-family:' + (R ? 'Vazirmatn,Tahoma,sans-serif' : 'Inter,system-ui,-apple-system,sans-serif') +
-    ';font-size:11.5px;line-height:1.9;color:' + P.tx +
-    ';background:' + P.s1 + ';border:.5px solid ' + P.bd + ';border-radius:14px;padding:19px 22px;text-align:' + S + ';direction:' + DIR;
-  return '<div dir="' + DIR + '" style="' + rootStyle + '">' + children(emailParse(html), {}) + '</div>';
 }
 
 function saveDir() {
@@ -1092,7 +907,7 @@ function handle(msg) {
         const a = params.arguments || {};
         if (typeof a.html !== 'string' || !a.html.trim()) return fail(-32602, 'html (string) is required');
         if (/<\s*(style|script)\b/i.test(a.html)) return fail(-32602, 'html must not contain <style> or <script>');
-        respond({ content: [{ type: 'text', text: renderEmail(a.html, a.theme) }] });
+        respond({ content: [{ type: 'text', text: renderEmail(a.html, { theme: a.theme, brand: emailBrand(a.brand) }) }] });
         return;
       }
       if (params && params.name === 'read_kit') {
