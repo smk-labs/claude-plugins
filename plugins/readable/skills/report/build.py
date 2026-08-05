@@ -50,6 +50,7 @@ from urllib.request import url2pathname
 HERE = pathlib.Path(__file__).resolve().parent
 KIT = HERE.parents[1] / "assets" / "rc.css"
 MENU = HERE.parents[1] / "assets" / "menu.js"
+EMAIL = HERE.parents[1] / "assets" / "email.js"
 SHELL = HERE / "assets" / "shell.html"
 
 BRAND_HEAD_CSS = (
@@ -257,12 +258,18 @@ def sig_off(brand_dir) -> bool:
         return False
 
 
-def menu_js() -> str:
-    """The shared card menu (assets/menu.js, same single source the chat card
-    template inlines). Comment lines out per its style contract; newlines kept
-    (a report has no size ceiling)."""
-    lines = MENU.read_text(encoding="utf-8").split("\n")
-    return "\n".join(l for l in lines if not l.startswith("/*"))
+def inline_js(src: pathlib.Path) -> str:
+    """A shared asset (assets/menu.js, assets/email.js) inlined into the report.
+    Both files hold their block comments on whole lines of their own, which is
+    the contract that makes this safe: drop those lines, keep the newlines
+    (a report has no size ceiling, so nothing else needs squeezing)."""
+    out = []
+    for line in src.read_text(encoding="utf-8").split("\n"):
+        s = line.strip()
+        if s.startswith("/*") and s.endswith("*/"):
+            continue
+        out.append(line)
+    return "\n".join(out)
 
 EN_EXTRA = (
     "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');\n"
@@ -772,7 +779,8 @@ def main():
         .replace("{{DIR}}", "rtl" if a.lang == "fa" else "ltr")
         .replace("{{TITLE}}", title)
         .replace("{{KIT}}", kit_css(brand_css))
-        .replace("{{MENU}}", menu_js())
+        .replace("{{MENU}}", inline_js(MENU))
+        .replace("{{EMAIL}}", inline_js(EMAIL))
         .replace("{{EXTRA}}", EN_EXTRA if a.lang == "en" else "")
         .replace("{{BRAND}}", brand_css)
         .replace("{{BRANDHEAD}}", brand_head)

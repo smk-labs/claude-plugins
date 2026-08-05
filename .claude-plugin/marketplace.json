@@ -34,7 +34,7 @@
       "name": "readable",
       "source": "./plugins/readable",
       "description": "Replies as styled cards instead of raw chat text. Persian and RTL always render correctly, English by default. Export any card as a standalone HTML report, and give a project its own brand so every card and report matches it.",
-      "version": "5.3.0",
+      "version": "5.4.0",
       "category": "writing"
     },
     {

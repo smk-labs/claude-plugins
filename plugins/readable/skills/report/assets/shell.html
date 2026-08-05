@@ -94,62 +94,40 @@ if(window.matchMedia){var m=window.matchMedia('print');if(m.addEventListener)m.a
 {{MENU}}
 </script>
 <script>
-/* Email adapter for the shared menu (assets/menu.js): a standalone report has
-   no MCP server, so email HTML is computed from the live DOM instead of the
-   server's render_email: every element gets its computed styles inlined
-   (resolved against the LIGHT palette), pseudo-element decorations become real
-   spans, interactive bits are dropped. Same walker the 4.3.0 template shipped. */
+{{EMAIL}}
+</script>
+<script>
+/* Email adapter for the shared menu (assets/menu.js). A standalone report has
+   no MCP server to call, so it inlines assets/email.js — THE transform, the
+   same one the card's render_email tool runs — and only has to hand it the two
+   things the file cannot know: the direction, and the palette this report is
+   actually wearing.
+
+   Before 5.4.0 the report had its OWN getComputedStyle walker here and the two
+   paths drifted: it kept <svg>, flattened grid to a stacked block, and never
+   built a table, so a KPI row that read as a dashboard on screen pasted into
+   Outlook as a run of naked numbers.
+
+   The palette is read off the live card rather than off the brand file, so
+   whatever cascade produced the look on screen produces it in the mail. Read
+   under the LIGHT theme (mail is white paper), then the reader's theme is put
+   back. Values that are still var() or color-mix() are left out on purpose —
+   the transform resolves those itself, and neither survives an email client. */
 window.__rcEmail = function (cb) {
-  var EMAIL_PROPS = ['color', 'background-color', 'font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'text-align', 'direction', 'unicode-bidi', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right', 'border-radius', 'border-top', 'border-bottom', 'border-left', 'border-right', 'vertical-align', 'white-space', 'letter-spacing', 'border-collapse'];
+  var NAMES = ['--text-primary', '--text-secondary', '--text-accent', '--surface-1', '--surface-2', '--border', '--border-strong', '--bg-success', '--bg-accent', '--bg-warning', '--bg-danger', '--ca', '--cb', '--cc', '--cd'];
   var root = document.documentElement, prev = root.getAttribute('data-theme');
   root.setAttribute('data-theme', 'light');
   try {
-    var card = document.getElementById('card');
-    var srcEls = [card].concat([].slice.call(card.querySelectorAll('*')));
-    var clone = card.cloneNode(true);
-    var dstEls = [clone].concat([].slice.call(clone.querySelectorAll('*')));
-    var rtl = (getComputedStyle(card).direction === 'rtl');
-    var accent = getComputedStyle(card).getPropertyValue('--text-accent').trim() || '#2f66c4';
-    var jobs = [];
-    for (var i = 0; i < srcEls.length; i++) {
-      var s = srcEls[i], d = dstEls[i], cs = getComputedStyle(s), st = '';
-      for (var q = 0; q < EMAIL_PROPS.length; q++) {
-        var v = cs.getPropertyValue(EMAIL_PROPS[q]);
-        if (v && v !== 'none' && v !== 'normal' && v !== 'auto' && v.indexOf('0px none') === -1) st += EMAIL_PROPS[q] + ':' + v + ';';
-      }
-      var disp = cs.getPropertyValue('display');
-      if (disp && disp !== 'inline' && disp !== 'block') st += 'display:' + ((disp.indexOf('flex') > -1 || disp.indexOf('grid') > -1) ? 'block' : disp) + ';';
-      if (s.style && s.style.width && s.style.width.indexOf('%') > -1) st += 'width:' + s.style.width + ';background:' + cs.getPropertyValue('background-color') + ';display:block;';
-      var cls = s.className || '';
-      var tag = s.tagName;
-      if (/(^| )t( |$)/.test(cls) && s.parentNode && /(^| )bar( |$)/.test(s.parentNode.className || '')) st += 'width:220px;display:inline-block;' + (/(^| )duo( |$)/.test(s.parentNode.className || '') ? '' : 'height:7px;');
-      if (s.style && s.style.width && s.style.width.indexOf('%') > -1) st += 'height:7px;';
-      d.setAttribute('style', st); d.removeAttribute('class'); d.removeAttribute('onclick'); d.removeAttribute('id');
-      var dr = cs.getPropertyValue('direction');
-      if (dr) d.setAttribute('dir', dr);
-      if (tag === 'H2') jobs.push(['h2', d]); else if (tag === 'H3') jobs.push(['h3', d]);
-      else if (tag === 'LI') { if (/(^| )ok( |$)/.test(cls)) jobs.push(['ok', d]); else if (/(^| )no( |$)/.test(cls)) jobs.push(['no', d]); else if (s.parentNode.tagName === 'UL') jobs.push(['dot', d]); }
-      else if (/(^| )trend( |$)/.test(cls)) jobs.push([/(^| )up( |$)/.test(cls) ? 'up' : 'dn', d]);
-      else if (/(^| )flow( |$)/.test(cls)) jobs.push(['flow', d]);
-      else if (/(^| )donut( |$)/.test(cls)) jobs.push(['kill', d]);
-      else if (/(^| )btns( |$)/.test(cls)) jobs.push(['kill', d]);
-      else if (tag === 'I' && /(^| )leg( |$)/.test(s.parentNode.parentNode ? s.parentNode.parentNode.className || '' : '')) jobs.push(['sw', d, cs.getPropertyValue('background-color')]);
+    var card = document.getElementById('card'), cs = getComputedStyle(card), vars = '';
+    for (var i = 0; i < NAMES.length; i++) {
+      var v = cs.getPropertyValue(NAMES[i]).trim();
+      if (v) vars += NAMES[i] + ':' + v + ';';
     }
-    function mk(html) { var t = document.createElement('span'); t.innerHTML = html; return t.firstChild; }
-    for (var j = 0; j < jobs.length; j++) {
-      var kind = jobs[j][0], el = jobs[j][1];
-      if (kind === 'kill') { if (el.parentNode) el.parentNode.removeChild(el); }
-      else if (kind === 'h2') { el.appendChild(mk('<div style="width:28px;height:3px;background:' + accent + ';border-radius:2px;margin-top:6px"></div>')); }
-      else if (kind === 'h3') { el.insertBefore(mk('<span style="display:inline-block;width:7px;height:7px;background:' + accent + ';border-radius:2px;margin-' + (rtl ? 'left' : 'right') + ':8px"></span>'), el.firstChild); }
-      else if (kind === 'ok') { el.insertBefore(mk('<span style="color:#0f9d58;font-weight:800">✓&nbsp;</span>'), el.firstChild); el.style.listStyle = 'none'; }
-      else if (kind === 'no') { el.insertBefore(mk('<span style="color:#e05555;font-weight:800">✕&nbsp;</span>'), el.firstChild); el.style.listStyle = 'none'; }
-      else if (kind === 'dot') { el.insertBefore(mk('<span style="color:' + accent + '">•&nbsp;</span>'), el.firstChild); el.style.listStyle = 'none'; }
-      else if (kind === 'up') { el.insertBefore(document.createTextNode('▲ '), el.firstChild); }
-      else if (kind === 'dn') { el.insertBefore(document.createTextNode('▼ '), el.firstChild); }
-      else if (kind === 'sw') { el.setAttribute('style', (el.getAttribute('style') || '') + 'display:inline-block;width:9px;height:9px;border-radius:3px;background:' + jobs[j][2]); }
-      else if (kind === 'flow') { var kids = [].slice.call(el.children); for (var k = 1; k < kids.length; k++) el.insertBefore(mk('<span style="color:' + accent + ';padding:0 6px">' + (rtl ? '←' : '→') + '</span>'), kids[k]); }
-    }
-    cb(clone.outerHTML, null);
+    cb(window.__rcEmailRender(card.innerHTML, {
+      theme: 'light',
+      brand: ':root{' + vars + '}',
+      dir: cs.direction === 'rtl' ? 'rtl' : 'ltr',
+    }), null);
   } catch (e) {
     cb(null, String(e && e.message));
   } finally {

@@ -359,6 +359,72 @@ function check(name, cond) {
   );
   check('render_email rejects embedded <style>', emBad);
 
+  // 6b. THE email contract (5.4.0). Email clients are not browsers: Gmail
+  // strips <style> on forward, Outlook renders through Word. Every feature
+  // below is unsupported there, and the pseudo-element row is the one that
+  // fails SILENTLY — a list keeps its text and loses its bullets. One card
+  // using every layout component, then the whole forbidden class asserted at
+  // once. Cheap, and it catches the entire regression family.
+  const FULL = '<h2>گزارش</h2><p class="lead">خلاصه</p><ul><li>ساده</li><li class="ok">پاس</li></ul>' +
+    '<div class="grid c3"><div class="kpi"><div class="l">درآمد</div><div class="n">۱.۲M<span class="trend up">۱۸٪</span></div></div><div class="kpi"><div class="l">کاربر</div><div class="n">۸۴۰</div></div><div class="kpi"><div class="l">نرخ</div><div class="n">۳٪</div></div></div>' +
+    '<div class="kv"><div><b>مسئول</b><span>تیم</span></div></div>' +
+    '<div class="bars"><div class="bar"><span class="l">وب</span><span class="t"><i style="width:72%"></i></span><span class="v">۷۲٪</span></div></div>' +
+    '<div class="cards c2"><div class="card"><h4>الف</h4><p>م</p></div><div class="card pick"><h4>ب</h4><p>م</p></div></div>' +
+    '<div class="cols"><div><p>مزیت</p></div><div><p>ایراد</p></div></div>' +
+    '<div class="box"><div class="lbl">جمع‌بندی</div><p>خوب</p></div>' +
+    '<div class="tl"><div><b>تیر</b>شروع</div></div>' +
+    '<div class="numbered"><h3>یک</h3><h4>زیر</h4><h3>دو</h3></div>' +
+    '<div class="donut-w"><div class="donut" style="--a:60"></div><div class="leg"><span class="a"><i></i>الف ۶۰٪</span></div></div>' +
+    '<details class="fold"><summary>جزئیات</summary><p>بدنه</p></details>' +
+    '<blockquote><p>نقل</p><cite>منبع</cite></blockquote>' +
+    '<figure><img src="data:image/png;base64,AAAA"><figcaption>نمودار</figcaption></figure>' +
+    '<h3><i class="ic check"></i>پایان</h3>';
+  const emAll = (await rpc('tools/call', { name: 'render_email', arguments: { html: FULL, theme: 'light' } })).content[0].text;
+  const FORBIDDEN = ['var(--', 'display:grid', 'display:flex', '::before', '::after', 'color-mix(', ':is(', 'inset-inline'];
+  check('email carries none of the features no client runs', FORBIDDEN.every((f) => !emAll.includes(f)));
+  check('email carries no class-based styling at all', !emAll.includes('class='));
+  // <table> is the one layout primitive every client supports, so every block
+  // that is grid or flex on screen has to arrive as one.
+  check('kpi grid becomes a real table, one cell per tile', /<table[^>]*cellspacing="8"[^>]*>(?:(?!<\/table>)[\s\S])*?۱\.۲M/.test(emAll));
+  check('cards, cols, kv, bars, callout and box are all tables', (emAll.match(/<table/g) || []).length >= 9);
+  check('every table declares its own direction (Word resolves dir per table)', !/<table(?![^>]*\bdir=)/.test(emAll));
+  check('cells align by attribute, not by text-align (Word ignores the CSS)', emAll.includes('<td align="right"'));
+  // Pseudo-elements are the silent failure: the text survives, the marker does
+  // not, and a counter cannot come back at all because it was never a character.
+  check('bullets, timeline dots and legend swatches are real characters', emAll.includes('•') && emAll.includes('●') && emAll.includes('■'));
+  check('section numbers are written into the headings as Persian digits', emAll.includes('۱.') && emAll.includes('۱.۱') && emAll.includes('۲.'));
+  // h4 is also the kit's CARD title, so the counter has to reach one level and
+  // stop, exactly like the kit's `>`. A descendant rule numbers every card in a
+  // `cards` row and pushes the real section h4 down the sequence.
+  const emNest = (await rpc('tools/call', { name: 'render_email', arguments: { html:
+    '<div class="numbered"><h3>یک</h3><div class="cards c2"><div class="card"><h4>عنوان کارت</h4></div></div><h4>زیربخش</h4><h3>دو</h3></div>' } })).content[0].text;
+  check('numbering counts direct children only, never a nested card title', JSON.stringify(emNest.match(/[۰-۹]+\.[۰-۹]*/g)) === JSON.stringify(['۱.', '۱.۱', '۲.']));
+  const emHref = (await rpc('tools/call', { name: 'render_email', arguments: { html: '<p><a href="https://x.test/?a=1&amp;b=2">لینک</a></p>' } })).content[0].text;
+  check('a link keeps its href intact (an already-escaped & is not escaped twice)', emHref.includes('href="https://x.test/?a=1&amp;b=2"'));
+  check('the heading mark survives as a glyph, and an icon heading keeps it', (emAll.match(/▪/g) || []).length === 1 && !emAll.includes('<i'));
+  // Undrawable in a mail, so each degrades to what still carries meaning.
+  check('a fold exports already open (<details> never opens in a mail)', !emAll.includes('<details') && emAll.includes('جزئیات') && emAll.includes('بدنه'));
+  check('a donut ships its legend numbers, not a broken ring', !emAll.includes('<svg') && emAll.includes('الف ۶۰٪'));
+  check('a data-URI figure falls back to its caption (Gmail draws neither)', !emAll.includes('<img') && emAll.includes('نمودار'));
+  const EM_BRAND = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-embrand-')), '.readable');
+  fs.mkdirSync(EM_BRAND);
+  fs.writeFileSync(path.join(EM_BRAND, 'brand.css'),
+    ':root{--text-accent:#C2410C}\n[data-theme="dark"]{--text-accent:#FB923C}\n');
+  const emBrand = (await rpc('tools/call', { name: 'render_email', arguments: {
+    html: '<h2>گزارش</h2><ul><li>یک</li></ul>', theme: 'light', brand: EM_BRAND,
+  } })).content[0].text;
+  check('a branded card exports in its own colours, not the kit blue', emBrand.includes('#C2410C') && !emBrand.includes('#2f66c4'));
+  const emNoBrand = (await rpc('tools/call', { name: 'render_email', arguments: {
+    html: '<h2>گزارش</h2><ul><li>یک</li></ul>', theme: 'light', brand: '/nonexistent/.readable',
+  } })).content[0].text;
+  check('a dangling brand arg degrades to the kit palette, never an error', emNoBrand.includes('#2f66c4'));
+  // ONE transform, or the two hosts drift again the way they did before 5.4.0.
+  const emailSrc = fs.readFileSync(path.join(__dirname, '..', 'assets', 'email.js'), 'utf8');
+  const emailShell = fs.readFileSync(path.join(__dirname, '..', 'skills', 'report', 'assets', 'shell.html'), 'utf8');
+  check('the transform lives in assets/email.js and nowhere else', emailSrc.includes('__rcEmailRender') && !fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8').includes('function renderEmail'));
+  check('the report inlines that same file instead of its own walker', emailShell.includes('{{EMAIL}}') && emailShell.includes('__rcEmailRender') && !emailShell.includes('EMAIL_PROPS'));
+  check('the card asks the server for it, and hands over its brand dir', html.includes("name:'render_email'") && html.includes('brand:bLoaded'));
+
   // 7. save_card: writes to READABLE_SAVE_DIR, returns absolute path, dedupes, sanitizes
   const s1 = await rpc('tools/call', { name: 'save_card', arguments: { filename: 'card.md', content: '# hi', encoding: 'utf8' } });
   check('save_card returns absolute path', s1.content[0].text.startsWith(SAVE_DIR));

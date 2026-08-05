@@ -274,6 +274,53 @@ class EndToEnd(unittest.TestCase):
             self.assertIn("direction:rtl", lifted)
 
 
+class EmailExport(unittest.TestCase):
+    """A report used to carry its OWN email adapter, a getComputedStyle walker
+    that kept <svg>, flattened grid to a stacked block and never built a table.
+    The card's transform and the report's had drifted apart. Both hosts now run
+    assets/email.js; what this asserts is that the report really inlines it and
+    keeps no second copy. The transform's own behaviour is covered where it can
+    actually be executed, in server/test.js."""
+
+    def report(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = pathlib.Path(d)
+            (d / "c.html").write_text(
+                '<h2>گزارش</h2>\n<div class="grid c3"><div class="kpi">'
+                '<div class="l">درآمد</div><div class="n">۱.۲M</div></div></div>',
+                encoding="utf-8")
+            out = d / "r.html"
+            run = subprocess.run(
+                [sys.executable, str(HERE / "build.py"), str(d / "c.html"),
+                 "-o", str(out), "--no-brand"],
+                capture_output=True, text=True)
+            self.assertEqual(0, run.returncode, run.stderr)
+            return out.read_text(encoding="utf-8")
+
+    def test_the_shared_transform_is_inlined(self):
+        r = self.report()
+        self.assertIn("__rcEmailRender", r)
+        self.assertIn("window.__rcEmail = function", r)
+        self.assertNotIn("{{EMAIL}}", r)
+
+    def test_no_second_adapter_survives(self):
+        self.assertNotIn("EMAIL_PROPS", self.report())
+
+    def test_the_adapter_hands_over_the_live_palette_and_direction(self):
+        r = self.report()
+        self.assertIn("--text-accent", r)
+        self.assertIn("dir: cs.direction === 'rtl' ? 'rtl' : 'ltr'", r)
+
+    def test_the_inliner_leaves_no_orphan_comment_line(self):
+        """Both shared assets keep block comments on whole lines of their own;
+        the inliner drops those lines, so a stray opener would mean a comment
+        spilling into code."""
+        for src in (build.MENU, build.EMAIL):
+            js = build.inline_js(src)
+            for line in js.split("\n"):
+                self.assertFalse(line.strip().startswith("/*"), f"{src.name}: {line[:60]}")
+
+
 # ------------------------------------------------------- defects 4 and 5
 FAKE_SHEET = (
     "/* arabic */\n@font-face {font-family: 'Test';font-style: normal;font-weight: 400;"

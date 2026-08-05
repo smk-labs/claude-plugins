@@ -1,5 +1,62 @@
 # readable changelog
 
+## 5.4.0
+
+The Email export shipped CSS that no email client runs. Fixed at the root: one
+transform for both hosts, and its output is table-based, inline-styled, and
+made of real characters.
+
+**Why it was not cosmetic.** Email clients are not browsers. Gmail strips
+`<style>` on forward and reply; Outlook on Windows renders through the Word
+engine. The kit leans on custom properties, grid, flex, `::before`/`::after`,
+`color-mix()`, `:is()` and logical properties, and not one of those survives.
+So the export was not degrading, it was collapsing: a card that reads as a
+dashboard on screen pasted into a mail as a run of naked text with the numbers
+in the wrong order. The pseudo-element row was the worst, because it fails
+silently — a list keeps its text and loses its bullets, a `flow` becomes three
+words with no arrows, and a `numbered` document loses every section number with
+no way to get them back, since they were counters and never characters.
+
+1. **One transform, in [assets/email.js](assets/email.js).** There were two
+   adapters and they had drifted: the server ran a div/inline-block style map,
+   the report ran a `getComputedStyle` walker that kept `<svg>` and flattened
+   grid to a stacked block. Neither ever built a table. The card now calls the
+   same file through `render_email` (server-side, because the `ui://` template
+   must stay under the host's ~30 KB ceiling) that the report inlines.
+2. **Every layout component is a `<table>`**, the one primitive every client
+   supports. `grid`/`kpi` is one table with a cell per tile, a short last row
+   padded so the columns stay even; `cards` is one column, or two under `c2`;
+   `cols` is a 2-3 column table; `kv` is key and value cells; a bar is a
+   label cell, a fixed 220px track whose fill and remainder are two cells (no
+   `overflow:hidden`, no percentage flex), then the value; `cal` and `box` are
+   one-cell tables with a thick coloured edge; `blockquote` likewise. Cells
+   carry `align=` rather than `text-align`, which Word ignores in several
+   cases, and every table carries its own `dir`, because Word resolves
+   direction per table and not from an ancestor.
+3. **Pseudo-elements become real characters.** Bullets, ✓/✕ markers, flow
+   arrows, timeline dots, legend swatches, the section mark, trend triangles.
+   `numbered` headings get their number written into the text, in Persian
+   digits for an RTL card and decimal for LTR, exactly as `counter(sec,persian)`
+   renders it on screen. The `h2` rule is a one-cell table, placed after the
+   heading rather than inside it, since a nested table closes an `<h2>` early.
+4. **A branded card exports branded.** The palette was a hardcoded map, so the
+   one artifact most likely to leave the building left it in someone else's
+   colours. The card's own `.readable` brand css is fed to the transform and
+   every literal is resolved from it; the report reads the same values off the
+   live DOM under the light theme. The chart ramp `--cb`/`--cc` is `color-mix()`
+   in the kit, so it is recomputed in sRGB here.
+5. **What cannot be drawn degrades to what still carries meaning.** A `fold`
+   exports already open, as plain divs — `<details>` never opens in a mail and
+   several clients strip the tag with its content. A donut ships its legend
+   numbers instead of a broken ring. A `data:` figure falls back to its caption,
+   which is what Gmail would have shown anyway. A spark is dropped: its polyline
+   is normalized to a 0..100 by 0..30 box, so there are no underlying numbers
+   left to tabulate, and half a chart is worse than none.
+6. **A test that catches the whole class.** `server/test.js` renders one card
+   using every layout component and asserts the output contains none of
+   `var(--`, `display:grid`, `display:flex`, `::before`, `::after`,
+   `color-mix(`, `:is(`, `inset-inline` — or any `class=` at all.
+
 ## 5.3.0
 
 The rest of the figure-embedding story, plus one RTL table fix. A figure is
