@@ -1,9 +1,0 @@
-{
-  "name": "cursor-copy-writing-fa",
-  "description": "Persian web copy (blog articles, product descriptions, landing pages, microcopy) written on the Cursor subscription's quota instead of Claude's. Claude owns the brief, the angle and the acceptance gate; Cursor workers write and lint. Model routing is measured, not guessed: a live bake-off across seven Cursor models showed Opus 5 writes the best Persian prose, GPT-5.6 Sol is the sharpest proofreader, and free auto is good enough for bulk drafts, so the pipeline sends each stage to the model that won it. Ships fa-lint, a dependency-free Persian copy linter that enforces ZWNJ, Persian punctuation and digits, administrative words, ad clichés and voice as a real exit code, so house style is checked by a script rather than promised in a doc.",
-  "version": "1.2.2",
-  "author": {
-    "name": "Seyed M. Keramati",
-    "url": "https://github.com/SMKeramati"
-  }
-}

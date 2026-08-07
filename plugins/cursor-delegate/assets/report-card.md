@@ -10,6 +10,7 @@ Your task told you to write a report card file. Follow this contract exactly; th
 - Write in the language of your task. For Persian (or any RTL) content, start the `<h2>` title with an RTL word.
 - The card is the USER-facing completion report of your task: what was done, key numbers and file paths, pass/fail status, anything a human must act on.
 - Do NOT write a status header line (worker name, session id, elapsed time, model) — the runner prepends the standard header with the Cursor logo after your run (`scripts/card-header.sh`). Start the file directly with your `<h2>` title.
+- Do NOT write a footer, credit, or signature line either. readable adds its own one-line credit when it renders the card, so anything you write there ends up duplicated. End the file with your last content block.
 - Your CHAT reply stays separate and short — exactly what the task asks for (typically one line `DONE <path>`). Never paste the card HTML into the chat reply.
 
 ## Block vocabulary (nothing else)

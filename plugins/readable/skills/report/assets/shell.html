@@ -27,6 +27,8 @@ html,body{margin:0;background:var(--page-bg)}
 html[dir=ltr] #rcmenu{top:16px;right:62px}
 html[dir=rtl] #rcmenu{top:16px;left:62px;right:auto}
 html[dir=rtl] #rcmenu .items{left:0;right:auto}
+/* IMG_FIT: a screenshot must never be wider than the column, on screen or
+   on paper. Unconstrained, it widens the layout and clips the text. */
 @page{margin:15mm 14mm}
 @media print{
 .theme-toggle,.rbar,#rcmenu,#rctoast,#rccp{display:none}
@@ -40,12 +42,23 @@ html,body{background:#fff}
    block across a page. */
 h2,h3{break-after:avoid;page-break-after:avoid}
 h2,h3,p,li{orphans:3;widows:3}
-.cal,.kpi,.kv>div,.bar,.spark,.donut,.tl>div,.flow,blockquote,pre,tr,img,svg{break-inside:avoid;page-break-inside:avoid}
+.cal,.kpi,.kv>div,.bar,.spark,.donut,.tl>div,.flow,blockquote,pre,tr,img,svg,figure{break-inside:avoid;page-break-inside:avoid}
 thead{display:table-header-group}
 tfoot{display:table-footer-group}
 /* A long table should still be allowed to flow onto the next page. */
 table,.grid,.bars,.scroll-table{break-inside:auto;page-break-inside:auto}
 a{text-decoration:none}
+/* On paper the sheet IS the surface. The screen card is a panel floating on a
+   page background; printed, that panel ends wherever the content ends and the
+   rest of the sheet stays raw white, so every page breaks into a coloured block
+   over a white strip. Drop the panel entirely and let the text sit on the paper.
+   Semantic fills (callouts, badges, table stripes) are untouched and still
+   print, because print-color-adjust above keeps them. */
+html,body{background:#fff !important}
+/* Report-only half of the figure rules: the kit's @FIG owns the screen look, this caps an
+   image to one page and squares the corners for paper. */
+.rc img{max-width:100% !important;max-height:140mm;width:auto;height:auto;border-radius:0}
+.wrap,.rc,.brand,.meta{background:none !important;box-shadow:none !important;border:none !important;border-radius:0 !important}
 }
 </style>
 <style>
@@ -62,6 +75,15 @@ a{text-decoration:none}
 <button id="rbpdf" title="Print / Save as PDF"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v6H8z"/></svg></button>
 </div>
 <script>try{var t=localStorage.getItem('report-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script>/* Paper is white, so a report always prints in the light palette no matter
+   what the reader is viewing on screen. Without this, print-color-adjust:exact
+   faithfully reproduces the dark theme and the page comes out a black slab.
+   Restores the reader's own theme afterwards. */
+(function(){var r=document.documentElement,prev=null;
+function before(){prev=r.getAttribute('data-theme');r.setAttribute('data-theme','light')}
+function after(){if(prev===null)r.removeAttribute('data-theme');else r.setAttribute('data-theme',prev);prev=null}
+window.addEventListener('beforeprint',before);window.addEventListener('afterprint',after);
+if(window.matchMedia){var m=window.matchMedia('print');if(m.addEventListener)m.addEventListener('change',function(e){e.matches?before():after()})}})()</script>
 <div class="wrap">
 {{BRANDHEAD}}<div class="rc" id="card">
 {{CONTENT}}

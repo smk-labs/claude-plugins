@@ -67,6 +67,13 @@ a.fref:hover{border-color:var(--border-strong)}
 .tr a.on{background:var(--bg-accent)}
 .hidden{display:none!important}
 footer{margin-top:46px;color:var(--text-secondary);font-size:.85em;text-align:center}
+/* readable's signature (injected verbatim from its rc.css @sig marker, so the literal
+   is never copied). The kit's own .sig rule is not here - this shell has its own CSS -
+   so the footer neutralizes the parts that only make sense inside a card: no second
+   hairline (the footer margin already separates it) and no end-alignment. */
+footer .sig{border:none;margin:.35em 0 0;padding:0;font-size:1em;color:inherit;text-align:inherit}
+footer .sig a{color:inherit;text-decoration:none}
+footer .sig a:hover{text-decoration:underline}
 @media (max-width:760px){.layout{flex-direction:column}#tree{width:100%;flex:none;position:static;max-height:300px;order:-1}}
 </style>
 </head>
@@ -89,7 +96,7 @@ footer{margin-top:46px;color:var(--text-secondary);font-size:.85em;text-align:ce
   </div>
 </nav>
 </div>
-<footer>ساخته‌شده با پلاگین decode · {{DATE}}</footer>
+<footer>ساخته‌شده با پلاگین decode · {{DATE}}{{SIG}}</footer>
 </div>
 <script>
 (function(){

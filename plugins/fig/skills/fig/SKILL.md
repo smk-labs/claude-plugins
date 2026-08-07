@@ -5,7 +5,7 @@ description: Make a fig. A single looping animated SVG, one self-contained HTML 
 
 Some ideas are explained better by a 5-second looping animation than by 100 lines of text.
 
-Sketch the figure in ASCII first: static layout, labelled motion, loop length. Get a yes before writing JSX.
+Sketch the figure in ASCII first: static layout, labelled motion, loop length. Get a yes before writing the svg.
 
 After building, look at the rendered file as a stranger would and refine once before handing back. ASCII covers structure; visual issues (collisions, weak contrast, orphan elements, dated chrome, loose components that should be grouped) only appear on screen.
 
@@ -21,7 +21,17 @@ Pick fonts, palette, background, canvas, and layout for the subject. Nothing bel
 
 ## Stack
 
-Single HTML, React 18 + Babel via CDN. No npm, no sidecars.
+One HTML file, one inline `<svg>`, motion in CSS. No JavaScript, no CDN, no build step.
+
+That is not taste, it is the delivery format. A fig is made to be embedded: as an `<img>` in a report, as an attachment in an email, as a paste in a slide. Every one of those lifts the `<svg>` out and renders it as its own document. In that document **no script ever runs and nothing is fetched**. A figure animated from JavaScript freezes on its first frame there, or shows nothing at all. CSS `@keyframes` and SMIL are the only motion that survives the trip.
+
+Five rules that document imposes. Break one and the figure dies quietly, looking fine on your screen:
+
+1. **Everything lives inside `<svg>`.** The `<style>`, the gradients, the filters. Only the svg element travels; whatever sits in `<head>` is left behind.
+2. **`xmlns="http://www.w3.org/2000/svg"` on the svg.** An HTML parser forgives a missing namespace. An `<img>` renders nothing without it.
+3. **Strict XML.** Every tag closes, and no bare `<` or `&` anywhere, including inside a CSS comment, where it is easiest to forget. Write `&lt;` and `&amp;`.
+4. **No `<script>`, no event handlers, no `requestAnimationFrame`.**
+5. **RTL is declared, never inherited.** `dir="rtl"` is an HTML attribute and means nothing to an svg document, and the host page's direction stops at the image boundary. Put `style="direction:rtl"` on the `<svg>` itself, or every `text-anchor="start"` label jumps to the wrong side of its anchor.
 
 ```html
 <!DOCTYPE html>
@@ -29,88 +39,56 @@ Single HTML, React 18 + Babel via CDN. No npm, no sidecars.
 <head>
 <meta charset="utf-8">
 <title></title>
-<style>
-  html, body { margin: 0; padding: 0; }
-  /* Layout, sizing, fonts, palette: design for the subject. */
-  @media (prefers-reduced-motion: reduce) { /* simplify motion */ }
-</style>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>html, body { margin: 0; padding: 0; }</style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-// Plumbing (copy as-is)
-const Easing = {
-  linear: (t) => t,
-  easeOutCubic: (t) => --t * t * t + 1,
-  easeInOutCubic: (t) => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
-  easeInOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
-  easeOutBack: (t) => {
-    const c1 = 1.70158, c3 = c1 + 1;
-    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-  },
-};
+<!-- One element, self-contained. Add style="direction:rtl" for an RTL figure. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="">
+<style>
+  /* Palette, type, layout: design for the subject. */
+  svg { --accent: #4f46e5; }
 
-const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+  /* Easing, as the cubic-bezier of the curve you want.
+     easeInOutCubic  cubic-bezier(.65, 0, .35, 1)
+     easeInOutSine   cubic-bezier(.37, 0, .63, 1)
+     easeOutCubic    cubic-bezier(.33, 1, .68, 1)      */
 
-// interpolate([0, 0.5, 1], [0, 100, 50], ease) -> fn(t)
-function interpolate(input, output, ease = Easing.linear) {
-  return (t) => {
-    if (t <= input[0]) return output[0];
-    if (t >= input[input.length - 1]) return output[output.length - 1];
-    for (let i = 0; i < input.length - 1; i++) {
-      if (t >= input[i] && t <= input[i + 1]) {
-        const span = input[i + 1] - input[i];
-        const local = span === 0 ? 0 : (t - input[i]) / span;
-        const easeFn = Array.isArray(ease) ? ease[i] || Easing.linear : ease;
-        return output[i] + (output[i + 1] - output[i]) * easeFn(local);
-      }
-    }
-    return output[output.length - 1];
-  };
-}
+  /* ONE duration for every animation in the figure, so the seam lines up.
+     Offset a copy in time with a NEGATIVE delay, never a different duration. */
+  .pulse   { animation: pulse 8s cubic-bezier(.65, 0, .35, 1) infinite; }
+  .pulse.b { animation-delay: -2.67s; }
 
-// animate({from, to, start, end, ease})(t): single-segment tween.
-function animate({ from = 0, to = 1, start = 0, end = 1, ease = Easing.easeInOutCubic }) {
-  return (t) => {
-    if (t <= start) return from;
-    if (t >= end) return to;
-    return from + (to - from) * ease((t - start) / (end - start));
-  };
-}
+  /* First and last keyframe identical: that is what makes the loop seamless. */
+  @keyframes pulse {
+    0%, 100% { opacity: .25; transform: translateX(0); }
+    50%      { opacity: 1;   transform: translateX(120px); }
+  }
 
-// useTime(duration): seamlessly looping playhead in [0, duration) seconds.
-function useTime(duration) {
-  const [t, setT] = React.useState(0);
-  React.useEffect(() => {
-    let raf, t0 = performance.now();
-    const tick = (now) => {
-      setT(((now - t0) / 1000) % duration);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [duration]);
-  return t;
-}
+  @media (prefers-reduced-motion: reduce) { * { animation: none; } }
+</style>
 
-// Figure: your design (SVG, HTML, or both). One time source.
-function Scene() {
-  const t = useTime(/* loop seconds */);
-  return null; // compose freely
-}
+<!-- The figure. -->
 
-ReactDOM.createRoot(document.getElementById('root')).render(<Scene />);
-</script>
+</svg>
 </body>
 </html>
 ```
 
+`transform` on an SVG element animates around the element's own origin; set `transform-box: fill-box; transform-origin: center` when you want it to rotate or scale in place. Reach for SMIL (`<animateMotion>`, `<animate>`) for the two things CSS cannot do here: moving along a `<path>`, and animating a geometry attribute that is not a CSS property in every renderer.
+
+## Check it before handing it back
+
+Open the file. Then open it a second way, because that is the way it will actually be seen:
+
+```html
+<img src="fig.html" alt="">
+```
+
+If the figure is still and the first view moved, the motion is in the wrong place. Static frame plus a broken-image glyph means the XML is malformed: rule 2 or 3.
+
 ## GIF (only if the user asks)
 
-A fig is HTML. If the user wants a GIF (for email clients that strip JS, slack previews, slide screenshots), use the bundled converter:
+A fig is HTML. If the user wants a GIF (Slack previews, slide screenshots, mail clients that strip `<style>` even out of an svg), use the bundled converter:
 
 `bash scripts/html2gif.sh <file.html> <loop_seconds>`
 

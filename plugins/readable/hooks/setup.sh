@@ -6,6 +6,9 @@
 # never touched, so a dev override pointing at a checkout survives.
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Before anything that can exit early: reap this version's dead .in_use locks.
+sh "$ROOT/hooks/reap.sh" 2>/dev/null
+
 # Stable copy: the config must never point into the plugin cache (its path
 # embeds the version and dies on every update). server.js resolves rc.css and
 # menu.js from its own dir (bundled layout), so one flat dir is enough.

@@ -1,7 +1,7 @@
 {
   "name": "readable",
-  "description": "Beautiful replies as styled cards (Persian/RTL always, English by default) via a bundled MCP Apps card server: the model sends content only, the template carries all styling. KPI grids, charts, trend sparklines, timelines, flows, callouts, badges, CTA buttons. Cards can also render straight from *-card.html files written by background workers (htmlFile mode, zero context cost). Projects can carry a committable .readable/ brand layer (brand skill) that reskins their cards and reports. Plus report export and a visualize skill.",
-  "version": "4.17.1",
+  "description": "Beautiful replies as styled cards (Persian/RTL always, English by default) via a bundled MCP Apps card server: the model sends content only, the template carries all styling. KPI grids, charts, trend sparklines, timelines, flows, callouts, badges, CTA buttons, content cards, side-by-side columns, quotes, section numbering, a minimal icon set, and screenshots or looping /fig animations inlined so a report stays one offline file. The kit is pay-per-use: the template carries only the base sheet and each card is served just the component CSS it uses. Cards can also render straight from *-card.html files written by background workers (htmlFile mode, zero context cost). Projects can carry a committable .readable/ brand layer (brand skill) that reskins their cards and reports. Every artifact closes with one muted signature line, defined once in the kit and injected at build time, which a project can switch off. Plus report export and a visualize skill.",
+  "version": "5.2.1",
   "author": {
     "name": "Seyed M. Keramati",
     "url": "https://github.com/SMKeramati"

@@ -1,77 +1,73 @@
 # SMK Claude Code Plugins
 
-Everything I built for Claude Code, in one marketplace, organized by category.
+Everything I have built for Claude Code, in one marketplace. Most of it exists because I hit the same problem twice and got tired of solving it by hand.
+
+Persian and RTL are first-class here, not an afterthought.
 
 ## Install
 
 ```
 /plugin marketplace add smk-labs/claude-plugins
-/plugin install <name>@smk
 ```
 
-For example, to install the fig plugin:
+Then install any plugin by name:
 
 ```
-/plugin install fig@smk
+/plugin install readable@smk
 ```
 
-## Visual and Animation
+## The catalog
 
-| Plugin | What it does | Install command |
-| --- | --- | --- |
-| fig | Single-file looping animated SVG explainers, plus a to-gif converter command. | `/plugin install fig@smk` |
-| web-animation-engine | Animated scenes and explainers: a skill plus a React/SVG runtime. | `/plugin install web-animation-engine@smk` |
+### Get work done somewhere else
 
-## Thinking
+| Plugin | What it does |
+| --- | --- |
+| **cursor-delegate** | Runs coding and writing tasks on your Cursor subscription's quota instead of Claude's. Claude plans and reviews, Cursor workers execute, one task or a parallel fleet. Long jobs run as short resumable legs, so a dropped connection costs one leg and never the work. Carries `copy-writing-fa` for Persian web copy, with `fa-lint` as the gate. |
 
-| Plugin | What it does | Install command |
-| --- | --- | --- |
-| principles-first | First-principles and design-thinking checks for product and architecture decisions. | `/plugin install principles-first@smk` |
+### Keep a codebase honest
 
-## Engineering Workflow
+| Plugin | What it does |
+| --- | --- |
+| **spring-clean** | Deep-cleans a repo, then leaves guardrails so it stays clean. Deletes dead surfaces, moves dev docs out of the code tree, splits oversized files, draws package boundaries, and writes architecture tests that hold the line. |
+| **portal-skills** | Platform engineering and security. GitLab CI/CD and Helm charts for Kubernetes, pod rightsizing from real Prometheus data, a secure-coding baseline that applies while you write, and a deep OWASP reference. |
 
-| Plugin | What it does | Install command |
-| --- | --- | --- |
-| dev-agents | A ten-agent dev squad (architect, frontend, backend, devops, tester, reviewer and more) plus a browser-test command. | `/plugin install dev-agents@smk` |
-| multirepo-git | Branch and merge across multiple sub-repos with two commands: isolate and merge. | `/plugin install multirepo-git@smk` |
-| spring-clean | Repo housekeeping (خونه تکونی): delete dead surfaces, gitignore build artifacts, move dev docs to a project workspace repo, split huge files, draw package boundaries, and leave architecture tests that keep it clean. | `/plugin install spring-clean@smk` |
-| portal-skills | Platform engineering and security: GitLab CI/CD + Helm chart generation for Kubernetes (gitlab-helm-deploy), Prometheus-driven pod rightsizing and KEDA tuning (k8s-rightsize), a proactive secure-coding baseline (secure-coding), and a deep OWASP reference incl. LLM and agentic AI security (owasp-security). | `/plugin install portal-skills@smk` |
+### Make the output readable
 
-## Writing and Docs
+| Plugin | What it does |
+| --- | --- |
+| **readable** | Replies as styled cards instead of raw chat text. Persian and RTL always render correctly, English by default. Export any card as a standalone HTML report, and give a project its own brand so every card matches it. |
+| **decode** | A narrated tour of a codebase for people who do not read code. A two-minute story, a browsable file tree, one clean canvas per file, and pull requests translated into product language. Persian first. |
+| **learnable** | Turns any subject into a course you actually finish. A placement quiz finds your real level, the plan aims at your gaps, and each lesson teaches itself one hard question at a time. |
 
-| Plugin | What it does | Install command |
-| --- | --- | --- |
-| tldr | Bilingual English and Persian TL;DR summaries, written for product managers. | `/plugin install tldr@smk` |
-| readable | Easy-to-read outputs: Persian/RTL replies as clean styled cards at near zero token cost, plus a visualize skill for light diagrams on demand. | `/plugin install readable@smk` |
+### Show it, do not describe it
 
-## Content and Media
+| Plugin | What it does |
+| --- | --- |
+| **fig** | Single-file looping animated SVGs for ideas that move: flows, loops, retries, queues, fan-outs. One HTML file you can drop in an email or a slide. Converts to GIF too. |
+| **getpix** | Finds free licensed images from five sources with zero API keys, shows them in the chat, or drops optimized WebP into the project with alt text and attribution. Includes a whole-site art-direction pass. |
+| **open-design-guide** | 151 real design systems with real tokens (Apple, Vercel, Linear, Stripe, plus styles like brutalism and claymorphism), 71 design and frontend skills, and 114 templates for decks, documents, video frames, and social cards. Installs the [Open Design](https://github.com/nexu-io/open-design) content library as a sparse clone, so there is no desktop app, no daemon, and no `od` binary. |
 
-| Plugin | What it does | Install command |
-| --- | --- | --- |
-| getpix | Finds free licensed images from five sources (works with zero API keys), shows them right in the chat, or drops optimized WebP into your project with alt text and attribution. Includes photo-pass, a whole-site art-direction pass. | `/plugin install getpix@smk` |
+### Everyday
 
-## Task Management
+| Plugin | What it does |
+| --- | --- |
+| **daily-tools** | Persian-first helpers: swarm QA campaigns, copy-ready prompt writing, light multi-agent research, plain-language how-to guides, and a one-word resume command. |
+| **principles-first** | First-principles and design-thinking checks for product and architecture calls. Built to run before scope is added, not after. |
+| **backlog-md** | Backlog.md task management as a plugin: MCP server, hooks, and a skill that imports messy docs into a clean backlog. |
 
-| Plugin | What it does | Install command |
-| --- | --- | --- |
-| backlog-md | Backlog.md task management as a plugin: MCP server, hooks, and a docs-migration skill. | `/plugin install backlog-md@smk` |
+### Packaged from others
 
-## Packaged from Others
+| Plugin | What it does |
+| --- | --- |
+| **gstack** | Garry Tan's [gstack](https://github.com/garrytan/gstack) dev workflow (53+ skills) packaged for Claude Code. Not my work: all credit and ongoing development belong upstream. |
 
-| Plugin | What it does | Install command |
-| --- | --- | --- |
-| gstack | Garry Tan's gstack dev workflow (53+ skills) packaged for Claude Code. Not our work: all credit to Garry Tan. | `/plugin install gstack@smk` |
-| gstack-installer | Installs gstack natively from upstream: runs its real `./setup` build (browse binary, 60+ bin tools), always current. | `/plugin install gstack-installer@smk` |
+## Related tools
 
-gstack is Garry Tan's work. It is only packaged here as a Claude Code plugin. I claim no ownership of it. All credit and ongoing development belong upstream: https://github.com/garrytan/gstack
+These are CLI tools, not plugins. They live in the same org.
 
-Two ways to get gstack, pick one: the `gstack` plugin is a self-contained snapshot that works out of the box; `gstack-installer` runs the upstream installer for the full native setup (compiled browse binary and bin tools) and always tracks the latest upstream version.
-
-## Related CLI tools
-
-- [claude-sync](https://github.com/smk-labs/claude-sync): see your Claude Code sessions across every account.
-- [claude-rtl](https://github.com/smk-labs/claude-rtl): fixes right-to-left Persian text in Claude Desktop on macOS.
-- [backlog-overview](https://github.com/smk-labs/backlog-overview): cross-project Backlog.md overview in pure bash.
+- [claude-deck](https://github.com/smk-labs/claude-deck): run many Claude accounts side by side on one machine, with a usage dashboard. Includes `claude-sync`, which gives every account and profile the same Claude Code session list.
+- [claude-config](https://github.com/smk-labs/claude-config): my `~/.claude`, versioned. Clone it as `~/.claude` on a new machine.
+- [backlog-overview](https://github.com/smk-labs/backlog-overview): what is in progress across every project, in pure bash.
 
 ## License
 

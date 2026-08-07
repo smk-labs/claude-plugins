@@ -5,12 +5,12 @@ Persian/RTL replies scramble as plain chat text. In this client, deliver every P
 <div class="rc" dir="rtl">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
-.rc{--ca:#0f9d58;--cb:#3f8ac9;--cc:#e0a52e;--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);border:.5px solid var(--border);border-radius:14px;padding:1.2rem 1.4rem;text-align:right;margin:.5rem 0}
+.rc{--ca:var(--text-accent);--cb:color-mix(in srgb,var(--text-accent) 55%,var(--surface-1));--cc:color-mix(in srgb,var(--text-accent) 28%,var(--surface-1));--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);border:.5px solid var(--border);border-radius:14px;padding:1.2rem 1.4rem;text-align:start;margin:.5rem 0}
 .rc>:first-child{margin-top:0}.rc>:last-child{margin-bottom:0}
 .rc h2{font-weight:800;font-size:1.35em;margin:0 0 .15em}
 .rc h2::after{content:'';display:block;width:28px;height:2.5px;border-radius:2px;background:var(--text-accent);margin-top:.45em}
 .rc h3{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.1em;margin:1.4em 0 .45em}
-.rc h3::before{content:'';width:7px;height:7px;border-radius:2px;background:var(--text-accent);flex:0 0 auto}
+.rc h3::before{content:'';width:7px;height:7px;margin-inline-end:calc(1em - 7px);border-radius:2px;background:var(--text-accent);flex:0 0 auto}
 .rc h4{font-weight:700;font-size:1em;margin:1em 0 .3em}
 .rc p{margin:.6em 0}.rc .lead{color:var(--text-secondary);font-size:1.05em}
 .rc p,.rc li,.rc h2,.rc h4,.rc td,.rc th,.rc .kpi,.rc .tl div{unicode-bidi:plaintext}
@@ -21,13 +21,18 @@ Persian/RTL replies scramble as plain chat text. In this client, deliver every P
 .rc ul{list-style:none}.rc ul>li::before{content:'';position:absolute;inset-inline-start:-1.1em;top:.68em;width:4px;height:4px;border-radius:50%;background:var(--text-accent)}
 .rc ol{list-style:decimal}.rc ol>li::marker{color:var(--text-accent);font-weight:700}
 .rc li.ok::before,.rc li.no::before{content:'✓';background:none;width:auto;height:auto;top:0;inset-inline-start:-1.35em;font-weight:800;font-size:1em;line-height:inherit;color:var(--ca)}
-.rc li.no::before{content:'✕';color:#e05555}
-.rc .cal{display:flex;gap:9px;padding:9px 12px;border-radius:10px;margin:.8em 0;border-inline-start:3px solid var(--border-strong)}.rc .cal>div{min-width:0}.rc .cal p{margin:.15em 0}
-.rc .cal.tip{background:var(--bg-success);border-color:var(--ca)}.rc .cal.note{background:var(--bg-accent);border-color:var(--cb)}.rc .cal.warn{background:var(--bg-warning);border-color:#c98a1a}.rc .cal.danger{background:var(--bg-danger);border-color:#d64545}
+.rc li.no::before{content:'✕';color:var(--cd)}
+.rc .cal{display:flex;gap:9px;padding:9px 12px;border-radius:11px;margin:.8em 0;border-inline-start:3px solid var(--border-strong)}.rc .cal>div{min-width:0}.rc .cal p{margin:.15em 0}
+.rc .cal.tip,.rc .cal.note{background:var(--bg-accent);border-color:var(--ca)}.rc .cal.warn,.rc .cal.danger{background:var(--bg-danger);border-color:var(--cd)}
 .rc hr{border:none;border-top:.5px solid var(--border);margin:1.3em 0}
+.rc .sig{margin-top:1.6em;padding-top:.7em;border-top:.5px solid var(--border);font-size:.8em;color:var(--text-secondary);text-align:end}
+.rc .sig a{color:inherit}
 </style>
 CONTENT
 </div>
+
+CONTENT always ENDS with this exact line, last thing inside the card, copied verbatim and never edited or translated (it is the readable signature; every other path injects it automatically, and this is the one path where you type it):
+<div class="sig">created by readable · <a href="https://github.com/smk-labs" target="_blank" rel="noopener">github.com/smk-labs</a></div>
 
 BASE already styles all text content: <h2> once as the title; <h3> per section; <p>; <p class="lead"> for a muted intro line; <ul>/<ol>; status items <li class="ok">/<li class="no">; callouts <div class="cal tip|note|warn|danger"><div>text</div></div>; <a>; <strong>; <hr> sparingly; and <code> wrapped around every path, command, URL, and code token (it renders LTR-isolated).
 
@@ -44,6 +49,7 @@ Components (HTML shapes only; their CSS comes from that import):
 - Donut (2-4 slices summing to 100, legend classes a/b/c/d): <div class="donut-w"><div class="donut" style="--a:46;--b:31"></div><div class="leg"><span class="a"><i></i>label 46%</span><span class="b"><i></i>label 31%</span><span class="c"><i></i>label 23%</span></div></div>.
 - Process flow: <div class="flow"><span class="s">step</span>...</div> (arrows render automatically).
 - Timeline: <div class="tl"><div><b>title</b>text</div>...</div>.
+- Fold (collapsible, closed by default, native and JS-free): <details class="fold"><summary>label</summary>…blocks…</details>. Use it for long content the reader wants on demand (a full run log, a raw payload, a long quote), never as a substitute for sections or tables. Content is normal blocks; one level of nesting is fine.
 - Optional closing CTA (max two, only when a natural next step exists): <div class="btns"><button class="cta" onclick="sendPrompt('the exact prompt')">label</button><button class="cta ghost" onclick="sendPrompt('...')">label</button></div>.
 
 Pick the lightest structure that fits the content: a short conversational answer is plain paragraphs with zero components, and no component is ever used just because the kit has it. When content genuinely benefits, numbers get kpi/bars/spark, sequences get flow/tl, comparisons get a table, list-shaped content gets ul/ol/kv, and one callout may hold the single most important takeaway. A long structured answer reads best opened with <h2> plus one <p class="lead"> and an <h3> per section. One bidi caveat: an RTL line that must START with a Latin token needs &rlm; prefixed (or lead with an RTL word) to stay right-to-left.

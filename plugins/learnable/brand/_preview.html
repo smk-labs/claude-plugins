@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8"><title>learnable icon batch 3</title>
+<style>
+body{background:#f4f4f1;color:#1e211f;font:13px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:20px}
+.dark{background:#191b1a;color:#eceeec}
+.row{display:flex;align-items:flex-end;gap:16px;padding:5px 0;border-bottom:1px solid #0001}
+.row b{width:52px;font-weight:500;font-size:11px}
+.teal{color:#0E6A62}.tealD{color:#6FC9BB}
+.wrap{display:flex;gap:20px}.col{flex:1}
+.ctx{margin-top:16px;font:11.5px/1.9 Tahoma,sans-serif;direction:rtl;text-align:right;background:#fff;border:.5px solid #dcdcd6;border-radius:14px;padding:12px 14px;max-width:420px}
+.ctx h3{display:flex;align-items:center;gap:8px;font-size:1.1em;margin:.2em 0}
+</style>
+<div class="wrap"><div class="col" id="light"></div><div class="col dark" id="dark" style="padding:14px;border-radius:12px"></div></div>
+<div id="ctxbox"></div>
+<script>
+// book cover: sharp spine side, rounded fore-edge
+const BOOK = (spine) => spine==='L'
+ ? `<path d="M5.6 2.5h11a2.9 2.9 0 0 1 2.9 2.9v13.2a2.9 2.9 0 0 1-2.9 2.9h-11a1.1 1.1 0 0 1-1.1-1.1V3.6a1.1 1.1 0 0 1 1.1-1.1z"/>`
+ : `<path d="M18.4 2.5h-11a2.9 2.9 0 0 0-2.9 2.9v13.2a2.9 2.9 0 0 0 2.9 2.9h11a1.1 1.1 0 0 0 1.1-1.1V3.6a1.1 1.1 0 0 0-1.1-1.1z"/>`;
+const S=(w,inner)=>`<g fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${inner}</g>`;
+// ribbon: slides under the top edge, diagonal cut
+const RIB=(x,w,btm,dir)=> dir>0
+ ? `<path d="M${x} 2.5h${w}v${btm-2.5}l-${w} -1.8z" fill="currentColor"/>`
+ : `<path d="M${x} 2.5h${w}v${btm-2.5-1.8}l-${w} 1.8V2.5z" fill="currentColor"/>`;
+const G={
+ 'F1 spineL rib-right': S(2,BOOK('L'))+RIB(12.5,3,11,1),
+ 'F2 spineL rib-left':  S(2,BOOK('L'))+RIB(8.5,3,11,1),
+ 'F3 spineR rib-left':  S(2,BOOK('R'))+RIB(8.5,3,11,1),
+ 'F4 spineR rib-right': S(2,BOOK('R'))+RIB(12.5,3,11,1),
+ 'F5 cut up':           S(2,BOOK('L'))+RIB(12.5,3,11,-1),
+ 'F6 rib w3.5 short':   S(2,BOOK('L'))+RIB(12.25,3.5,9.5,1),
+ 'F7 rib w2.5 long':    S(2,BOOK('L'))+RIB(12.75,2.5,12.5,1),
+ 'F8 stroke1.75':       S(1.75,BOOK('L'))+RIB(12.5,3,11,1),
+ 'F9 no spine (rect)':  S(2,`<rect x="4.5" y="2.5" width="15" height="19" rx="2.6"/>`)+RIB(12.5,3,11,1),
+ 'F10 512 detail':      S(1.9,BOOK('L'))+S(1.9,`<path d="M16.6 5.2v11.6"/>`)+RIB(11.5,3,11,1),
+};
+const sizes=[16,18,20,24,32,48,64,128];
+function build(host,cls){let h='';for(const k in G){h+=`<div class="row"><b>${k.split(' ')[0]}</b>`;for(const s of sizes)h+=`<svg class="${cls}" viewBox="0 0 24 24" style="width:${s}px;height:${s}px">${G[k]}</svg>`;h+=`<span style="font-size:10px;opacity:.6">${k}</span></div>`}host.innerHTML=h}
+build(document.getElementById('light'),'teal');
+build(document.getElementById('dark'),'tealD');
+document.getElementById('ctxbox').innerHTML=`<div class="ctx"><h3><svg class="teal" viewBox="0 0 24 24" style="width:15px;height:15px">${G['F1 spineL rib-right']}</svg> درس چهارم: چرا cache از دست می‌رود</h3><p>یک خط متن فارسی برای اینکه ببینیم مارک کنار متن ویزیرمتن چطور می‌نشیند و وزنش با متن هم‌خوان است یا نه.</p></div>`;
+</script>
