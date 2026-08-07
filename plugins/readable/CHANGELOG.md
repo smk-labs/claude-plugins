@@ -1,5 +1,24 @@
 # readable changelog
 
+## 5.4.1
+
+5.4.0 shipped a card server that could not start.
+
+1. **`setup.sh` now copies `assets/email.js` into the stable dir.** 5.4.0 moved
+   the email transform into that file and made `server.js` `require()` it at
+   module load, but the copy list still ended at `menu.js`. In the flat stable
+   layout the candidate lookup returned `undefined`, `require(undefined)` threw
+   `ERR_INVALID_ARG_TYPE`, and the server died before its first line of
+   protocol. Not a degraded export: no server, no `card` tool, every reply back
+   to plain text. The failure only reached machines that install from the
+   marketplace, since a dev checkout resolves `../assets/email.js` and works.
+2. **The rule names the right tool again when two are exposed.** The line
+   telling the model to prefer `mcp__readable-card__card` over a plugin-scoped
+   `mcp__plugin_readable_readable-card__card` was dropped in 5.x on the
+   assumption no plugin-scoped variant could still exist. Orphaned 4.x versions
+   linger in the plugin cache with their `mcp/` dir intact, so it can, and when
+   it wins the reply renders as raw HTML.
+
 ## 5.4.0
 
 The Email export shipped CSS that no email client runs. Fixed at the root: one
