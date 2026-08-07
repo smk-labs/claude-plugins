@@ -10,11 +10,14 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 sh "$ROOT/hooks/reap.sh" 2>/dev/null
 
 # Stable copy: the config must never point into the plugin cache (its path
-# embeds the version and dies on every update). server.js resolves rc.css and
-# menu.js from its own dir (bundled layout), so one flat dir is enough.
+# embeds the version and dies on every update). server.js resolves rc.css,
+# menu.js and email.js from its own dir (bundled layout), so one flat dir is
+# enough. email.js is not optional: server.js require()s it at module load, so
+# a stable dir missing it does not degrade, it refuses to start and the session
+# gets no card tool at all.
 STABLE="$HOME/.claude/plugins/data/readable/server"
 mkdir -p "$STABLE" || exit 0
-for f in server/server.js assets/rc.css assets/menu.js; do
+for f in server/server.js assets/rc.css assets/menu.js assets/email.js; do
   b="$(basename "$f")"
   cmp -s "$ROOT/$f" "$STABLE/$b" 2>/dev/null || cp "$ROOT/$f" "$STABLE/$b"
 done

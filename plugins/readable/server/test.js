@@ -699,6 +699,29 @@ function check(name, cond) {
   check('no-ui host gets fallback instruction', got[2].result.content[0].text.includes('show_widget'));
   srv2.kill();
 
+  /* The stable dir is a FLAT copy of the files hooks/setup.sh names, and every
+   * marketplace install runs from it. 5.4.0 added assets/email.js as a
+   * module-load require and left the copy list alone, so that dir got a server
+   * that threw before its first byte of protocol and every machine installing
+   * from the marketplace lost the card tool. A checkout never notices: it
+   * resolves ../assets/. So build the flat dir exactly as setup.sh does and
+   * boot it — any future file the server needs and setup.sh forgets fails
+   * here, not on a user's machine. */
+  const setup = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'setup.sh'), 'utf8');
+  const copied = (setup.match(/^for f in (.+); do$/m) || [, ''])[1].trim().split(/\s+/);
+  check('setup.sh still declares a copy list', copied.length > 1 && copied.every((f) => f.includes('/')));
+  const flat = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-flat-'));
+  for (const f of copied) fs.copyFileSync(path.join(__dirname, '..', f), path.join(flat, path.basename(f)));
+  const srvFlat = spawn(process.execPath, [path.join(flat, 'server.js')], { stdio: ['pipe', 'pipe', 'ignore'], cwd: NEUTRAL_CWD });
+  const boot = new Promise((res) => {
+    let buf = '';
+    srvFlat.stdout.on('data', (d) => { buf += d; if (buf.includes('\n')) res(buf); });
+    srvFlat.on('exit', () => res(buf));
+  });
+  srvFlat.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {} } }) + '\n');
+  check('the flat stable dir setup.sh builds boots and answers initialize', (await boot).includes('"serverInfo"'));
+  srvFlat.kill();
+
   srv.kill();
   let pass = 0;
   for (const [name, okc] of checks) {
