@@ -1,0 +1,4 @@
+# Syncthing carries this repo between a Mac and Windows. Without this, git
+# rewrites every file on checkout and the other machine sees the whole tree
+# as modified, which hides real work and blocks a pull.
+* text=auto eol=lf
