@@ -170,10 +170,13 @@ function titleFrom (src) {
 
 // ---------- auth ----------
 
-function readToken () {
+// The saved login lives where mcp-remote keeps it, under a filename that is
+// the md5 of the server URL. Nothing else refreshes it now that the desktop
+// app talks to the portal directly, so this refreshes it itself.
+function tokenFile () {
   const root = path.join(os.homedir(), '.mcp-auth')
   const hash = crypto.createHash('md5').update(SERVER).digest('hex')
-  if (!fs.existsSync(root)) die(noAuth())
+  if (!fs.existsSync(root)) return null
   const dirs = fs.readdirSync(root)
     .filter(d => d.startsWith('mcp-remote-'))
     .map(d => path.join(root, d))
@@ -181,12 +184,56 @@ function readToken () {
     .reverse()
   for (const d of dirs) {
     const f = path.join(d, `${hash}_tokens.json`)
-    if (fs.existsSync(f)) {
-      const j = JSON.parse(fs.readFileSync(f, 'utf8'))
-      if (j.access_token) return j.access_token
-    }
+    if (fs.existsSync(f)) return { tokens: f, client: path.join(d, `${hash}_client_info.json`) }
   }
-  die(noAuth())
+  return null
+}
+
+function readToken () {
+  const f = tokenFile()
+  if (!f) die(noAuth())
+  const j = JSON.parse(fs.readFileSync(f.tokens, 'utf8'))
+  if (!j.access_token) die(noAuth())
+  return j.access_token
+}
+
+// Trades the refresh token for a fresh pair and saves it. The portal rotates
+// refresh tokens and revokes a session that replays a spent one, so the new
+// pair is written before it is used and never kept only in memory.
+async function refreshToken () {
+  const f = tokenFile()
+  if (!f) return null
+  const tok = JSON.parse(fs.readFileSync(f.tokens, 'utf8'))
+  if (!tok.refresh_token) return null
+  let clientId
+  try { clientId = JSON.parse(fs.readFileSync(f.client, 'utf8')).client_id } catch { return null }
+  if (!clientId) return null
+
+  const origin = new URL(SERVER).origin
+  let tokenUrl = `${origin}/oauth/token`
+  try {
+    const meta = await fetch(`${origin}/.well-known/oauth-authorization-server`)
+    if (meta.ok) {
+      const m = await meta.json()
+      if (m.token_endpoint) tokenUrl = m.token_endpoint
+    }
+  } catch { /* the default endpoint is the documented one */ }
+
+  const res = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: tok.refresh_token,
+      client_id: clientId
+    })
+  })
+  if (!res.ok) return null
+  const fresh = await res.json()
+  if (!fresh.access_token) return null
+  fs.writeFileSync(f.tokens, JSON.stringify({ ...tok, ...fresh }, null, 2))
+  console.error('login refreshed')
+  return fresh.access_token
 }
 
 function noAuth () {
@@ -195,7 +242,7 @@ function noAuth () {
 
 // ---------- call ----------
 
-async function call (token, name, args) {
+async function call (token, name, args, retried) {
   const res = await fetch(SERVER, {
     method: 'POST',
     headers: {
@@ -206,6 +253,10 @@ async function call (token, name, args) {
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } })
   })
   const text = await res.text()
+  if (res.status === 401 && !retried) {
+    const fresh = await refreshToken()
+    if (fresh) return call(fresh, name, args, true)
+  }
   if (res.status === 401) die(`portal rejected the token (401).\n${noAuth()}`)
   if (!res.ok) die(`portal returned ${res.status}\n${text.slice(0, 400)}`)
   const line = text.trim().split('\n').map(l => l.replace(/^data: /, '')).filter(Boolean).pop()
