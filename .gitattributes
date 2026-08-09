@@ -1,4 +1,5 @@
-# Syncthing carries this repo between a Mac and Windows. Without this, git
-# rewrites every file on checkout and the other machine sees the whole tree
-# as modified, which hides real work and blocks a pull.
+# core.autocrlf is true on the Windows machine, but the tools that write
+# these files (editors, agents, scripts) write LF. Git then reports a clean
+# tree as fully modified, which hides real work and blocks a pull. Pinning
+# LF in the working tree makes both sides agree.
 * text=auto eol=lf
