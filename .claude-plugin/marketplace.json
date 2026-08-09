@@ -11,77 +11,77 @@
   "plugins": [
     {
       "name": "cursor-delegate",
-      "source": "./plugins/cursor-delegate",
+      "source": "./cursor-delegate",
       "description": "Run coding and writing tasks on your Cursor subscription's quota instead of Claude's. Claude plans and reviews, Cursor workers execute, one task at a time or as a parallel fleet. Long jobs run as short resumable legs, so a dropped connection costs one leg and never the work. Includes copy-writing-fa for Persian web copy, with fa-lint as the gate.",
       "version": "1.9.1",
       "category": "engineering"
     },
     {
       "name": "spring-clean",
-      "source": "./plugins/spring-clean",
+      "source": "./spring-clean",
       "description": "Deep-clean a repo and leave guardrails so it stays clean: delete dead surfaces, move dev docs out of the code tree, split oversized files, draw package boundaries, and write architecture tests that hold the line.",
       "version": "1.4.0",
       "category": "engineering"
     },
     {
       "name": "portal-skills",
-      "source": "./plugins/portal-skills",
+      "source": "./portal-skills",
       "description": "Platform engineering and security: GitLab CI/CD and Helm charts for Kubernetes, pod rightsizing from real Prometheus data, a secure-coding baseline that applies while you write, and a deep OWASP reference (Top 10:2025, LLM Top 10, Agentic AI).",
       "version": "1.0.0",
       "category": "engineering"
     },
     {
       "name": "readable",
-      "source": "./plugins/readable",
+      "source": "./readable",
       "description": "Replies as styled cards instead of raw chat text. Persian and RTL always render correctly, English by default. Export any card as a standalone HTML report, and give a project its own brand so every card and report matches it.",
       "version": "5.4.1",
       "category": "writing"
     },
     {
       "name": "decode",
-      "source": "./plugins/decode",
+      "source": "./decode",
       "description": "A narrated tour of a codebase for people who do not read code: a two-minute story, a browsable file tree, one clean canvas per file, and pull requests translated into product language. Persian first.",
       "version": "2.0.0",
       "category": "writing"
     },
     {
       "name": "learnable",
-      "source": "./plugins/learnable",
+      "source": "./learnable",
       "description": "Turns any subject into a course you actually finish: a placement quiz that finds your real level, a researched taxonomy and plan aimed at your gaps, and lesson files that teach themselves one hard question at a time and wait for your questions before moving on.",
       "version": "0.1.0",
       "category": "learning"
     },
     {
       "name": "fig",
-      "source": "./plugins/fig",
+      "source": "./fig",
       "description": "Single-file looping animated SVGs for ideas that move: flows, loops, retries, queues, fan-outs. One HTML file you can drop in an email, a slide, or a report, animated with css so the motion survives being embedded. No player, no deck, plus a to-gif command.",
       "version": "1.1.0",
       "category": "visual"
     },
     {
       "name": "getpix",
-      "source": "./plugins/getpix",
+      "source": "./getpix",
       "description": "Find free licensed images from five sources with zero API keys, show them right in the chat, or drop optimized WebP into the project with alt text and attribution. Includes photo-pass, a whole-site art-direction pass.",
       "version": "1.1.3",
       "category": "visual"
     },
     {
       "name": "open-design-guide",
-      "source": "./plugins/open-design-guide",
+      "source": "./open-design-guide",
       "description": "Teaches Claude to use the Open Design content library: 151 design systems with real tokens (Apple, Vercel, Linear, Stripe, brutalism, claymorphism), 71 design and frontend skills, and 114 rendering templates for decks, documents, video frames, and social cards. Installs the library as a sparse clone: no desktop app, no daemon, no od binary.",
       "version": "1.0.0",
       "category": "visual"
     },
     {
       "name": "daily-tools",
-      "source": "./plugins/daily-tools",
+      "source": "./daily-tools",
       "description": "Everyday Persian-first helpers: four-phase swarm QA campaigns (swarm-qa), copy-ready prompt writing (mkprompt), light multi-agent research (mini-research), plain-language step-by-step guides (steps), ultra-terse resume-and-continue (go), and report-to-page-to-email publishing with real file upload (publish).",
       "version": "1.6.1",
       "category": "daily"
     },
     {
       "name": "principles-first",
-      "source": "./plugins/principles-first",
+      "source": "./principles-first",
       "description": "First-principles and design-thinking checks for product and architecture calls. Built to run before scope is added, not after.",
       "version": "1.0.0",
       "category": "thinking"

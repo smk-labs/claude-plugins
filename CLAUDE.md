@@ -15,7 +15,7 @@ So never leave any of these behind:
 
 ## Test from the checkout, then clean up
 
-Run a plugin's own tests in place, for example `node plugins/readable/server/test.js`. For a visual check, render a scratch HTML file somewhere outside the repo and open it. If a check needed a local install or a dev override, delete it in the same session that created it. Nothing test-related stays on the machine, and nothing test-related gets committed.
+Run a plugin's own tests in place, for example `node readable/server/test.js`. For a visual check, render a scratch HTML file somewhere outside the repo and open it. If a check needed a local install or a dev override, delete it in the same session that created it. Nothing test-related stays on the machine, and nothing test-related gets committed.
 
 ## Shipping is a push
 
