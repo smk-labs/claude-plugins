@@ -62,12 +62,20 @@ box still renders, just unconnected. The tree has no such cap. Both components n
 than scroll sideways, and both are delivered per card by `read_kit` like every
 other component.
 
-**Known cost.** The pair is 2168 bytes minified, against a 900 byte target. The
-eight-slot ring is about 470 of that and cannot be folded: with wide, short
+**Known cost.** The pair is 2225 bytes minified, against a 900 byte target. The
+eight-slot ring is about 420 of that and cannot be folded: with wide, short
 cells each slot genuinely needs its own anchor, and deriving the anchors from
 the angle with `round(cos())` saves under 40 bytes while making the geometry
-unreadable. For comparison the sheet already carries `card` at 1021 and `fold`
-at 1002. Nothing pays for it on a card that has no hub.
+unreadable. The rest is the two connector rules (440), the panels, centre and
+row span (400), the tree (480), the narrow reflow (160) and RTL (60). For
+comparison the sheet already carries `card` at 1021 and `fold` at 1002, and
+nothing pays for any of it on a card that has no hub.
+
+**Verified, not eyeballed.** Twenty-four renders (two variants x two directions
+x two themes x 1200/768/375), each checked by hand and then by a machine pass
+for sideways scroll, overlapping boxes, collapsed boxes, and leg landings; plus
+print with backgrounds forced off, the real card end to end through `read_kit`
+and the template, and both over-capacity cases.
 
 ## 5.4.1
 
