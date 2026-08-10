@@ -153,11 +153,22 @@
    cell's corner with nothing measured. Anchoring on the BOX rather than on the hub centre is
    what makes that exact - cells are wide and short, so a 45deg ray from the hub centre misses
    the corner cells completely.
+   The head is a SOLID triangle: one 8px border-left with transparent 3px caps above and
+   below, which is the border trick, so it is still ink a printer keeps. Its centre sits at
+   --d and its tip 4px further, exactly on the target box. The line stops AT that centre
+   (--w, not --l), because a triangle is narrower than a 1.5px line for the last 2px before
+   its point, so a line run to the tip pokes a blunt nub through it - visible at 16x, and the
+   reason the head and the line now share one silhouette. .out is the same head turned 180deg
+   with its tip 2px inside its own box, which is exactly where the head is as wide as the
+   line, so no sliver of line shows past the point, and its line still runs the full --l to the centre.
+   The first pass drew an open two-border chevron floating at the line's end: hollow, and
+   detached by the width of its own miter. Every dimension is an integer so the rotated
+   raster stays symmetric.
    RTL is one sign, not a second table: --r is read in the INLINE frame (from the inline-end
    axis toward block-end), so every slot's angle is identical in both directions and only the
-   frame flips, via --f/--o on :dir(rtl). The arrowhead is a border corner, so it must use
-   PHYSICAL border-top/right and let scaleX(-1) mirror it; a logical border-inline-end would
-   mirror twice and leave the arrow pointing up.
+   frame flips, via --f/--o on :dir(rtl). The head must use a PHYSICAL border-left and let
+   scaleX(-1) mirror it; a logical border-inline-start would mirror twice and point the arrow
+   back at its own box. --a is the head's own turn: 0 into the centre, 180 for .out.
    Connectors are BORDERS, never backgrounds: print-color-adjust drops backgrounds, and a hub
    that prints as boxes with no legs is not a hub.
    .out moves the head to the spoke end and turns it around. That, not a second colour, is what
@@ -180,11 +191,11 @@
 .rc .hub div{position:relative;align-content:center;background:var(--surface-2);border:.5px solid var(--border);border-radius:9px;padding:5px 9px}
 .rc .hub .c{grid-area:2/2;background:var(--bg-accent);border-color:var(--ca);font-weight:700}
 .rc .hub span{display:block;font-size:.86em;color:var(--text-secondary)}
-.rc .hub .s{--x:50%;--y:50%;--r:0deg;--l:44px;--a:45deg;--d:calc(var(--l) - 4px)}
+.rc .hub .s{--x:50%;--y:50%;--r:0deg;--l:44px;--a:0deg;--w:calc(var(--l) - 4px);--d:var(--w)}
 .rc .hub .s::before,.rc .hub .s::after,.rc .tree>.c::after{content:var(--k,'');position:absolute;inset-inline-start:var(--x);top:var(--y);border-top:1.5px solid var(--cb)}
-.rc .hub .s::before{width:var(--l);margin-top:-.75px;transform-origin:var(--o) 50%;transform:rotate(calc(var(--r)*var(--f)))}
-.rc .hub:not(.tree) .s::after{width:5px;height:5px;margin:-2.5px;border-right:1.5px solid var(--cb);transform:scaleX(var(--f)) rotate(var(--r)) translateX(var(--d)) rotate(var(--a))}
-.rc .hub .out{--a:225deg;--d:4px}
+.rc .hub .s::before{width:var(--w);margin-top:-.75px;transform-origin:var(--o) 50%;transform:rotate(calc(var(--r)*var(--f)))}
+.rc .hub:not(.tree) .s::after{margin:-3px -4px;border:3px solid transparent;border-right:0;border-left:8px solid var(--cb);transform:scaleX(var(--f)) rotate(var(--r)) translateX(var(--d)) rotate(var(--a))}
+.rc .hub .out{--a:180deg;--w:var(--l);--d:2px}
 .rc .hub:not(.tree)>:nth-child(n+10){--k:none}
 .rc .hub>:nth-child(2){--x:100%;--y:100%;--r:45deg;--l:66px}
 .rc .hub>:nth-child(3){--y:100%;--r:90deg}

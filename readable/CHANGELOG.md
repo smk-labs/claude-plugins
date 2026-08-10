@@ -1,5 +1,32 @@
 # readable changelog
 
+## 5.5.1
+
+The hub's arrowheads were an open two-border chevron floating at the end of each
+line: hollow, and detached by the width of its own miter. They are now a solid
+triangle that shares one silhouette with the line.
+
+1. **Solid, from a border.** One 8px `border-left` between transparent 3px caps,
+   which is the CSS triangle trick, so the head is still border ink and a
+   printer keeps it with backgrounds off. Every dimension is an integer, so the
+   rotated raster stays symmetric; the first attempt used 3.5px half-widths and
+   put a visible step on one edge of each vertical arrow.
+
+2. **The line stops at the head's centre, not at its tip.** A triangle is
+   narrower than a 1.5px line for the last 2px before its point, so a line run
+   all the way to the tip pokes a blunt nub straight through it. The line ends at
+   `--w` (the head's centre) and the head covers the rest, which is what makes
+   the two read as one arrow instead of two shapes that touch.
+
+3. **`.out` is the same head turned 180 degrees**, with its tip 2px inside its
+   own box: exactly the depth at which the head is as wide as the line, so no
+   sliver of line shows past the point. Its line still runs the full length to
+   the centre, because the flow really does reach there.
+
+Caught at 14x and 16x magnification, then confirmed numerically: every head's
+tip lands on its target box to the pixel, in both directions. The pair is now
+2273 bytes minified.
+
 ## 5.5.0
 
 Two diagram components: `hub` and `hub tree`. The kit could draw a sequence

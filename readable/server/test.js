@@ -197,6 +197,11 @@ function check(name, cond) {
   check('read_kit delivers the hub for a hub or a tree', kHub.includes('.rc .hub{') && (await kitOf('<div class="hub tree"><div class="c">r</div></div>')).includes('.rc .tree{'));
   check('no hub CSS for a card without one', !kKpi.includes('.rc .hub{'));
   const hubCss = kit.split('/*@HUB')[1].split('/*@BADGE')[0];
+  // Rules only. The block's comment mentions both `.out` and `print-color-adjust`, so a
+  // regex over the raw text can walk from one to the other and 'find' a colour that is prose.
+  // The split ate the opening `/*@HUB`, so the doc comment has no opener left to match: drop
+  // everything up to the first `*/` first, then any later comment.
+  const hubRules = hubCss.replace(/^[^]*?\*\//, '').replace(/\/\*[^]*?\*\//g, '');
   // The centre owns the middle cell and the eight legs auto-flow around it, so a slot
   // carries only its own geometry. A missing slot leaves a leg pointing nowhere.
   check('all eight ring slots are declared, and only eight', (() => {
@@ -209,16 +214,22 @@ function check(name, cond) {
   check('one gap for both axes, and the corner legs are that gap x 1.41 (+ the 9px radius)', /\.rc \.hub\{[^}]*gap:44px[;}]/.test(hubCss) && (hubCss.match(/--l:66px/g) || []).length === 4 && /--l:44px/.test(hubCss));
   // Connectors are BORDERS. print-color-adjust drops backgrounds, and a hub that prints
   // as boxes with no legs is not a hub.
-  check('every connector is drawn with a border, never a background', hubCss.split('\n').filter((l) => /::(before|after)/.test(l)).every((l) => !/background/.test(l)) && (hubCss.match(/border-top:1\.5px|border-right:1\.5px|border-inline-start:1\.5px/g) || []).length >= 3);
+  check('every connector is drawn with a border, never a background', hubCss.split('\n').filter((l) => /::(before|after)/.test(l)).every((l) => !/background/.test(l)) && (hubCss.match(/border-top:1\.5px|border-left:8px|border-inline-start:1\.5px/g) || []).length >= 3);
   check('print keeps the hub whole and un-inks its panels inside a card', kit.includes('.rc .card,.rc .cols>div,.rc .hub{break-inside:avoid}') && /@media print\{[^]*:is\(\.kpi,\.flow \.s,\.hub \.c,\.hub \.s,/.test(kit));
   // RTL is one sign flip, not a second slot table: --r is read in the INLINE frame, so a
   // slot's angle is identical both ways and only the frame mirrors.
   check('rtl mirrors the frame, not the table: one :dir(rtl) rule flips --f/--o', hubCss.includes('.rc .hub:dir(rtl){--f:-1;--o:100%}') && !/:dir\(rtl\)[^}]*--r:/.test(hubCss));
-  // The arrowhead is a border corner, so it must use PHYSICAL borders and let scaleX(-1)
-  // mirror it. A logical border-inline-end mirrors TWICE and points the arrow up.
-  check('the arrowhead uses physical borders under scaleX, so rtl mirrors it exactly once', /\.s::after\{[^}]*border-right:1\.5px[^}]*transform:scaleX\(var\(--f\)\)/.test(hubCss));
+  // The head is a SOLID triangle (one thick border-left between transparent caps), and it
+  // must use a PHYSICAL border so scaleX(-1) mirrors it exactly once; a logical
+  // border-inline-start mirrors twice and turns the arrow back on its own box.
+  check('the head is a solid border triangle, mirrored by scaleX exactly once', /\.s::after\{[^}]*border:3px solid transparent;border-right:0;border-left:8px solid var\(--cb\)[^}]*transform:scaleX\(var\(--f\)\)/.test(hubCss));
+  // A triangle is narrower than a 1.5px line for the last 2px before its point, so a line
+  // run all the way to the tip pokes a blunt nub through it. The line stops at the head's
+  // CENTRE (--w) and the head covers the rest, which is what makes them one silhouette.
+  check('the line stops at the head centre, so no nub pokes through the point', /--w:calc\(var\(--l\) - 4px\);--d:var\(--w\)/.test(hubCss) && /\.s::before\{width:var\(--w\)/.test(hubCss));
+  check('an out head keeps the full line and sits its tip 2px inside its own box', /\.rc \.hub \.out\{--a:180deg;--w:var\(--l\);--d:2px\}/.test(hubCss));
   // Direction, not a second hue: the whole component speaks one accent ramp.
-  check('out only turns the arrow around; it never buys a second colour', /\.rc \.hub \.out\{--a:225deg;--d:4px\}/.test(hubCss) && !/\.out[^}]*(color|--cd)/.test(hubCss));
+  check('out only turns the arrow around; it never buys a second colour', /\.rc \.hub \.out\{--a:180deg/.test(hubRules) && !/\.out[^}]*(color|--cd)/.test(hubRules));
   // The tree root spans every row, and -1 needs EXPLICIT rows to mean the last line -
   // without them it collapses to one row and the root lands in the wrong column.
   check('the tree root spans the explicit rows it needs, column pinned too (grid-area:2/2 pins column 2)', hubCss.includes('grid-template-rows:repeat(40,auto)') && hubCss.includes('.rc .tree>.c{grid-area:1/1/-1/2') && /gap:0 26px/.test(hubCss));

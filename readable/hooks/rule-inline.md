@@ -113,11 +113,12 @@ HUB — one thing connected to many, which no other component draws: FLOW is a s
 .rc .hub div{position:relative;align-content:center;background:var(--surface-2);border:.5px solid var(--border);border-radius:9px;padding:5px 9px}
 .rc .hub .c{grid-area:2/2;background:var(--bg-accent);border-color:var(--ca);font-weight:700}
 .rc .hub span{display:block;font-size:.86em;color:var(--text-secondary)}
-.rc .hub .s{--x:50%;--y:50%;--r:0deg;--l:44px;--a:45deg;--d:calc(var(--l) - 4px)}
-.rc .hub .s::before,.rc .hub .s::after,.rc .tree>.c::after{content:'';position:absolute;inset-inline-start:var(--x);top:var(--y);border-top:1.5px solid var(--cb)}
-.rc .hub .s::before{width:var(--l);margin-top:-.75px;transform-origin:var(--o) 50%;transform:rotate(calc(var(--r)*var(--f)))}
-.rc .hub:not(.tree) .s::after{width:5px;height:5px;margin:-2.5px;border-right:1.5px solid var(--cb);transform:scaleX(var(--f)) rotate(var(--r)) translateX(var(--d)) rotate(var(--a))}
-.rc .hub .out{--a:225deg;--d:4px}
+.rc .hub .s{--x:50%;--y:50%;--r:0deg;--l:44px;--a:0deg;--w:calc(var(--l) - 4px);--d:var(--w)}
+.rc .hub .s::before,.rc .hub .s::after,.rc .tree>.c::after{content:var(--k,'');position:absolute;inset-inline-start:var(--x);top:var(--y);border-top:1.5px solid var(--cb)}
+.rc .hub .s::before{width:var(--w);margin-top:-.75px;transform-origin:var(--o) 50%;transform:rotate(calc(var(--r)*var(--f)))}
+.rc .hub:not(.tree) .s::after{margin:-3px -4px;border:3px solid transparent;border-right:0;border-left:8px solid var(--cb);transform:scaleX(var(--f)) rotate(var(--r)) translateX(var(--d)) rotate(var(--a))}
+.rc .hub .out{--a:180deg;--w:var(--l);--d:2px}
+.rc .hub:not(.tree)>:nth-child(n+10){--k:none}
 .rc .hub>:nth-child(2){--x:100%;--y:100%;--r:45deg;--l:66px}
 .rc .hub>:nth-child(3){--y:100%;--r:90deg}
 .rc .hub>:nth-child(4){--x:0;--y:100%;--r:135deg;--l:66px}
@@ -127,7 +128,7 @@ HUB — one thing connected to many, which no other component draws: FLOW is a s
 .rc .hub>:nth-child(8){--y:0;--r:-90deg}
 .rc .hub>:nth-child(9){--x:0;--y:0;--r:-135deg;--l:66px}
 @media(max-width:520px){.rc .hub{grid-template-columns:1fr;gap:6px}.rc .hub .c{grid-area:auto}.rc .hub .s{--x:0;--y:50%;--r:180deg;--l:16px;margin-inline-start:16px}}
-.rc .tree{grid-template-columns:minmax(0,12em) auto;grid-template-rows:repeat(20,auto);gap:0 26px;text-align:start}
+.rc .tree{grid-template-columns:minmax(6em,12em) auto;grid-template-rows:repeat(40,auto);gap:0 26px;text-align:start}
 .rc .tree>.c{grid-area:1/1/-1/2;align-self:center;--x:100%;--y:50%}
 .rc .tree>.c::after{width:13px;margin-top:-.75px}
 .rc .tree .s{--x:-13px;--y:50%;--r:0deg;--l:13px;margin-block:4px}
