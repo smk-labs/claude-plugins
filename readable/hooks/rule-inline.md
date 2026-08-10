@@ -107,6 +107,35 @@ TL — timeline <div class="tl"><div><b>title</b>text</div>...</div>:
 .rc .tl>div::before{content:'';position:absolute;inset-inline-start:-1.34em;top:.5em;width:8px;height:8px;border-radius:50%;background:var(--text-accent);outline:2.5px solid var(--surface-1)}
 .rc .tl b{display:block;font-weight:700}
 
+HUB — one thing connected to many, which no other component draws: FLOW is a sequence, TL a chronology, CARD a comparison. `hub` is a centre with up to eight legs, each leg an arrow that carries direction of flow; `hub tree` is a root, branches and leaves with no arrows, for items that GROUP. Flat markup: one <div class="c"> first, then the items as <div class="s">, plus an optional <span> inside either for a muted second line: <div class="hub"><div class="c">centre<span>what it is</span></div><div class="s">reads from this<span>what it holds</span></div><div class="s out">writes to this<span>what it gets</span></div></div>. `out` flips one leg's arrow to point AWAY from the centre, which is the whole difference between "reads from" and "writes to", never a second colour. Keep labels short, a leg is 12em wide. NINE items or more is a tree, not a hub: the ring holds eight. `hub tree` is the same markup plus `tree` on the wrapper, and a branch may nest its own <div class="s"> children, which render as a connected group inside it: <div class="hub tree"><div class="c">root</div><div class="s">branch<span>note</span><div class="s">leaf</div><div class="s">leaf</div></div><div class="s">branch</div></div>:
+.rc .hub{--f:1;--o:0;display:grid;grid-template-columns:repeat(3,minmax(0,12em));justify-content:center;gap:44px;margin:.9em 0;text-align:center}
+.rc .hub:dir(rtl){--f:-1;--o:100%}
+.rc .hub div{position:relative;align-content:center;background:var(--surface-2);border:.5px solid var(--border);border-radius:9px;padding:5px 9px}
+.rc .hub .c{grid-area:2/2;background:var(--bg-accent);border-color:var(--ca);font-weight:700}
+.rc .hub span{display:block;font-size:.86em;color:var(--text-secondary)}
+.rc .hub .s{--x:50%;--y:50%;--r:0deg;--l:44px;--a:45deg;--d:calc(var(--l) - 4px)}
+.rc .hub .s::before,.rc .hub .s::after,.rc .tree>.c::after{content:'';position:absolute;inset-inline-start:var(--x);top:var(--y);border-top:1.5px solid var(--cb)}
+.rc .hub .s::before{width:var(--l);margin-top:-.75px;transform-origin:var(--o) 50%;transform:rotate(calc(var(--r)*var(--f)))}
+.rc .hub:not(.tree) .s::after{width:5px;height:5px;margin:-2.5px;border-right:1.5px solid var(--cb);transform:scaleX(var(--f)) rotate(var(--r)) translateX(var(--d)) rotate(var(--a))}
+.rc .hub .out{--a:225deg;--d:4px}
+.rc .hub>:nth-child(2){--x:100%;--y:100%;--r:45deg;--l:66px}
+.rc .hub>:nth-child(3){--y:100%;--r:90deg}
+.rc .hub>:nth-child(4){--x:0;--y:100%;--r:135deg;--l:66px}
+.rc .hub>:nth-child(5){--x:100%}
+.rc .hub>:nth-child(6){--x:0;--r:180deg}
+.rc .hub>:nth-child(7){--x:100%;--y:0;--r:-45deg;--l:66px}
+.rc .hub>:nth-child(8){--y:0;--r:-90deg}
+.rc .hub>:nth-child(9){--x:0;--y:0;--r:-135deg;--l:66px}
+@media(max-width:520px){.rc .hub{grid-template-columns:1fr;gap:6px}.rc .hub .c{grid-area:auto}.rc .hub .s{--x:0;--y:50%;--r:180deg;--l:16px;margin-inline-start:16px}}
+.rc .tree{grid-template-columns:minmax(0,12em) auto;grid-template-rows:repeat(20,auto);gap:0 26px;text-align:start}
+.rc .tree>.c{grid-area:1/1/-1/2;align-self:center;--x:100%;--y:50%}
+.rc .tree>.c::after{width:13px;margin-top:-.75px}
+.rc .tree .s{--x:-13px;--y:50%;--r:0deg;--l:13px;margin-block:4px}
+.rc .tree .s::after{top:-5px;bottom:-5px;border-top:0;border-inline-start:1.5px solid var(--cb)}
+.rc .tree .c+.s::after,.rc .tree .s:first-of-type::after{top:50%}
+.rc .tree .s:last-of-type::after{bottom:50%}
+.rc .tree .s .s{margin-inline-start:13px}
+
 FOLD — collapsible block <details class="fold"><summary>label</summary>…blocks…</details>, closed by default, native and JS-free; for long content the reader wants on demand (a full run log, a raw payload, a long quote), never as a substitute for sections or tables. Content is normal blocks (<p>, <pre>, <ul>, <table>); one level of nesting is fine:
 .rc .fold{margin:.8em 0;border:.5px solid var(--border);border-radius:11px;overflow:hidden}
 .rc .fold>summary{display:flex;align-items:center;gap:9px;padding:6px 12px;background:var(--surface-2);color:var(--text-accent);font-weight:700;cursor:pointer;unicode-bidi:plaintext}

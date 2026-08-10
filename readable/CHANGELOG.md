@@ -1,5 +1,72 @@
 # readable changelog
 
+## 5.5.0
+
+Two diagram components: `hub` and `hub tree`. The kit could draw a sequence
+(`flow`), a chronology (`tl`) and a comparison (`cards`). One thing connected to
+many had no component, so authors faked it with a bullet list.
+
+`hub` is a centre with up to eight legs, each leg an arrow that carries
+direction of flow. `hub tree` is a root, branches and leaves with no arrows,
+for items that group. Authoring is flat and wrapper-free, the same shape as
+`flow`: one `.c` first, then any number of `.s`, with an optional `<span>`
+inside either for a second line, and for the tree an optional nested group of
+`.s` under a branch. CSS only, no JS, no SVG, no image.
+
+```html
+<div class="hub">
+  <div class="c">باقرزاده<span>پلاگین جامع شرکت</span></div>
+  <div class="s">نوشن<span>هاب ایجنت‌ها</span></div>
+  <div class="s out">دیسکورد<span>با کران خبر می‌دهد</span></div>
+</div>
+```
+
+1. **A 3x3 grid, not angle maths.** `.c` takes the middle cell and the eight
+   `.s` auto-flow into the ring around it, so a slot needs no `grid-area` of its
+   own and nothing is measured at runtime. Each slot declares only where its leg
+   starts on its own box, which way it runs, and how long.
+
+2. **The row gap equals the column gap, and that is load-bearing.** A corner
+   cell's inner corner is then exactly the same distance across in both axes, so
+   a 45 degree leg lands on the centre cell's corner with no maths. Anchoring on
+   the BOX rather than on the hub centre is what makes it exact: cells are wide
+   and short, so a 45 degree ray from the middle misses the corner cells
+   completely. A numeric check over all sixteen legs (eight slots, both
+   directions) puts every one of them on both boxes within 0.23px.
+
+3. **`out` turns a leg's arrow around instead of buying a second colour.** The
+   agreed visual target used gold for "writes to" and blue for "reads from";
+   direction says the same thing and keeps the component on one hue.
+
+4. **RTL is one sign flip, not a second slot table.** Every angle is read in the
+   inline frame, from the inline-end axis toward block-end, so a slot's angle is
+   identical in both directions and only the frame mirrors. The arrowhead is a
+   border corner, so it must use PHYSICAL `border-top`/`border-right` and let
+   `scaleX(-1)` mirror it: a logical `border-inline-end` mirrors twice and
+   leaves the arrow pointing up.
+
+5. **Connectors are borders, never backgrounds.** `print-color-adjust` drops
+   backgrounds, and a hub that prints as boxes with no legs is not a hub. The
+   print block also refuses to split a hub across a page break.
+
+6. **Below 520px the ring becomes one column, and deliberately not a chain.**
+   The obvious reflow (stack the boxes, point every leg at the box above) draws
+   an arrow from HRIS to Jira and claims a relationship that does not exist.
+   Each box gets one direction tick on its inline-start edge instead, all of
+   them aligned on a rail.
+
+Nine items or more is a tree, not a hub, and the rule files say so: the ring
+holds eight. Both components nest inside `card` and `box`, both reflow rather
+than scroll sideways, and both are delivered per card by `read_kit` like every
+other component.
+
+**Known cost.** The pair is 2168 bytes minified, against a 900 byte target. The
+eight-slot ring is about 470 of that and cannot be folded: with wide, short
+cells each slot genuinely needs its own anchor, and deriving the anchors from
+the angle with `round(cos())` saves under 40 bytes while making the geometry
+unreadable. For comparison the sheet already carries `card` at 1021 and `fold`
+at 1002. Nothing pays for it on a card that has no hub.
+
 ## 5.4.1
 
 5.4.0 shipped a card server that could not start.
