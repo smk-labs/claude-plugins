@@ -6,13 +6,59 @@ Persian and RTL are first-class here, not an afterthought.
 
 ## Install
 
+Most people use these in the **Claude desktop app**, not the terminal, so that comes first. Adding the marketplace and installing a plugin are two separate steps: the first one only registers the catalog, it installs nothing.
+
+### 1. Add the marketplace, once
+
+```
+Customize → Plugins → Personal plugins → +  →  Add marketplace → Add from a repository
+```
+
+Paste this as the repository:
+
+```
+smk-labs/claude-plugins
+```
+
+### 2. Install the plugins you want
+
+```
+Customize → Plugins → Browse plugins → readable → Install
+```
+
+Repeat per plugin. When it asks for a scope: **User** for every project, **Project** to share with everyone on the repo, **Local** for this repo only.
+
+Quicker, without leaving the chat: the **+** button next to the prompt box → **Plugins** → **Add plugin**.
+
+### 3. Keep them current
+
+The marketplace is called **`smk`**, not `claude-plugins`. You need that name here.
+
+Third-party marketplaces do not auto-update by default, so nothing arrives on its own. Either update when you feel like it:
+
+```
+/plugin marketplace update smk
+/reload-plugins
+```
+
+Or switch it on once and stop thinking about it:
+
+```
+/plugin → Marketplaces → smk → Enable auto-update
+```
+
+### Enable, disable, remove
+
+```
++ → Plugins → Manage plugins
+```
+
+Removing the marketplace uninstalls every plugin that came from it.
+
+### If you do live in the terminal
+
 ```
 /plugin marketplace add smk-labs/claude-plugins
-```
-
-Then install any plugin by name:
-
-```
 /plugin install readable@smk
 ```
 
