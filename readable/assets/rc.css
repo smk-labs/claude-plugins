@@ -174,22 +174,22 @@
 .rc .hub .c{grid-area:2/2;background:var(--bg-accent);border-color:var(--ca);font-weight:700}
 .rc .hub span{display:block;font-size:.86em;color:var(--text-secondary)}
 .rc .hub .s{--x:50%;--y:50%;--r:0deg;--l:44px;--a:45deg;--d:calc(var(--l) - 4px)}
-.rc .hub .s::before,.rc .hub .s::after{content:'';position:absolute;inset-inline-start:var(--x);top:var(--y);border-top:1.5px solid var(--cb)}
+.rc .hub .s::before,.rc .hub .s::after,.rc .tree>.c::after{content:'';position:absolute;inset-inline-start:var(--x);top:var(--y);border-top:1.5px solid var(--cb)}
 .rc .hub .s::before{width:var(--l);margin-top:-.75px;transform-origin:var(--o) 50%;transform:rotate(calc(var(--r)*var(--f)))}
-.rc .hub:not(.tree) .s::after{width:5px;height:5px;margin-top:-2.5px;margin-inline-start:-2.5px;border-right:1.5px solid var(--cb);transform:scaleX(var(--f)) rotate(var(--r)) translateX(var(--d)) rotate(var(--a))}
+.rc .hub:not(.tree) .s::after{width:5px;height:5px;margin:-2.5px;border-right:1.5px solid var(--cb);transform:scaleX(var(--f)) rotate(var(--r)) translateX(var(--d)) rotate(var(--a))}
 .rc .hub .out{--a:225deg;--d:4px}
-.rc .hub>:nth-child(2){--x:100%;--y:100%;--r:45deg;--l:62px}
+.rc .hub>:nth-child(2){--x:100%;--y:100%;--r:45deg;--l:66px}
 .rc .hub>:nth-child(3){--y:100%;--r:90deg}
-.rc .hub>:nth-child(4){--x:0;--y:100%;--r:135deg;--l:62px}
+.rc .hub>:nth-child(4){--x:0;--y:100%;--r:135deg;--l:66px}
 .rc .hub>:nth-child(5){--x:100%}
 .rc .hub>:nth-child(6){--x:0;--r:180deg}
-.rc .hub>:nth-child(7){--x:100%;--y:0;--r:-45deg;--l:62px}
+.rc .hub>:nth-child(7){--x:100%;--y:0;--r:-45deg;--l:66px}
 .rc .hub>:nth-child(8){--y:0;--r:-90deg}
-.rc .hub>:nth-child(9){--x:0;--y:0;--r:-135deg;--l:62px}
-@media (max-width:520px){.rc .hub{grid-template-columns:1fr;gap:6px}.rc .hub .c{grid-area:auto}.rc .hub .s{--x:0;--y:50%;--r:180deg;--l:16px;margin-inline-start:16px}}
-.rc .tree{grid-template-columns:minmax(0,12em) auto;grid-template-rows:repeat(20,auto);justify-content:start;gap:0 26px;text-align:start}
-.rc .tree>.c{grid-area:1/1/-1/2;align-self:center}
-.rc .tree>.c::after{content:'';position:absolute;inset-inline-start:100%;top:50%;width:13px;border-top:1.5px solid var(--cb)}
+.rc .hub>:nth-child(9){--x:0;--y:0;--r:-135deg;--l:66px}
+@media(max-width:520px){.rc .hub{grid-template-columns:1fr;gap:6px}.rc .hub .c{grid-area:auto}.rc .hub .s{--x:0;--y:50%;--r:180deg;--l:16px;margin-inline-start:16px}}
+.rc .tree{grid-template-columns:minmax(0,12em) auto;grid-template-rows:repeat(20,auto);gap:0 26px;text-align:start}
+.rc .tree>.c{grid-area:1/1/-1/2;align-self:center;--x:100%;--y:50%}
+.rc .tree>.c::after{width:13px;margin-top:-.75px}
 .rc .tree .s{--x:-13px;--y:50%;--r:0deg;--l:13px;margin-block:4px}
 .rc .tree .s::after{top:-5px;bottom:-5px;border-top:0;border-inline-start:1.5px solid var(--cb)}
 .rc .tree .c+.s::after,.rc .tree .s:first-of-type::after{top:50%}
