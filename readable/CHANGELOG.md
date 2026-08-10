@@ -56,7 +56,9 @@ inside either for a second line, and for the tree an optional nested group of
    them aligned on a rail.
 
 Nine items or more is a tree, not a hub, and the rule files say so: the ring
-holds eight. Both components nest inside `card` and `box`, both reflow rather
+holds eight. A ninth leg is switched off rather than drawn, because with no slot
+of its own it defaulted to a stub through its own label pointing nowhere; the
+box still renders, just unconnected. The tree has no such cap. Both components nest inside `card` and `box`, both reflow rather
 than scroll sideways, and both are delivered per card by `read_kit` like every
 other component.
 

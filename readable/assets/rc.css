@@ -142,7 +142,9 @@
    a chronology, @CARD a comparison, and a hub is none of those, so authors faked it with a
    bullet list. `hub` is a centre with up to eight arrowed legs; `hub tree` is a root with
    branches and leaves and NO arrows, because a branch means "groups", not "moves toward".
-   Past eight items the ring runs out - that is what the tree is for.
+   Past eight items the ring runs out - that is what the tree is for, and a ninth leg is
+   switched OFF rather than drawn: with no slot of its own it defaulted to a stub through
+   its own label, pointing nowhere. `content` reads --k so one rule kills both pseudos.
    A 3x3 GRID, not angle maths: .c takes the middle cell and the eight .s AUTO-FLOW into the
    ring row by row, so a slot needs no grid-area of its own. Each slot declares only where on
    its own box the leg starts (--x/--y), which way it runs (--r) and how long (--l). The corner
@@ -165,6 +167,11 @@
    ORDER IS LOAD-BEARING: the .tree block sits AFTER the media query on purpose. The two tie on
    specificity, so the later block wins and the tree keeps its two columns at every width
    without repeating :not(.tree) inside the query.
+   The tree root spans `grid-row:1/-1`, and -1 means the last EXPLICIT line - with no
+   grid-template-rows it collapses to a single row and the root lands in the wrong column, so
+   40 auto rows are declared. They cost nothing: an empty auto track is 0 tall and row-gap is
+   0 (the branches space themselves with margins, or every empty track would add a gutter).
+   Past 40 branches the root simply stops being centred against the tail; nothing breaks.
    .c/.s carry their own background and border instead of joining BASE's shared panel rule,
    which lists only always-shipped panels - this snippet is delivered on its own. They are in
    @CARD's child inversion, so a hub nested in a card or a box still reads.*/
@@ -174,10 +181,11 @@
 .rc .hub .c{grid-area:2/2;background:var(--bg-accent);border-color:var(--ca);font-weight:700}
 .rc .hub span{display:block;font-size:.86em;color:var(--text-secondary)}
 .rc .hub .s{--x:50%;--y:50%;--r:0deg;--l:44px;--a:45deg;--d:calc(var(--l) - 4px)}
-.rc .hub .s::before,.rc .hub .s::after,.rc .tree>.c::after{content:'';position:absolute;inset-inline-start:var(--x);top:var(--y);border-top:1.5px solid var(--cb)}
+.rc .hub .s::before,.rc .hub .s::after,.rc .tree>.c::after{content:var(--k,'');position:absolute;inset-inline-start:var(--x);top:var(--y);border-top:1.5px solid var(--cb)}
 .rc .hub .s::before{width:var(--l);margin-top:-.75px;transform-origin:var(--o) 50%;transform:rotate(calc(var(--r)*var(--f)))}
 .rc .hub:not(.tree) .s::after{width:5px;height:5px;margin:-2.5px;border-right:1.5px solid var(--cb);transform:scaleX(var(--f)) rotate(var(--r)) translateX(var(--d)) rotate(var(--a))}
 .rc .hub .out{--a:225deg;--d:4px}
+.rc .hub:not(.tree)>:nth-child(n+10){--k:none}
 .rc .hub>:nth-child(2){--x:100%;--y:100%;--r:45deg;--l:66px}
 .rc .hub>:nth-child(3){--y:100%;--r:90deg}
 .rc .hub>:nth-child(4){--x:0;--y:100%;--r:135deg;--l:66px}
@@ -187,7 +195,7 @@
 .rc .hub>:nth-child(8){--y:0;--r:-90deg}
 .rc .hub>:nth-child(9){--x:0;--y:0;--r:-135deg;--l:66px}
 @media(max-width:520px){.rc .hub{grid-template-columns:1fr;gap:6px}.rc .hub .c{grid-area:auto}.rc .hub .s{--x:0;--y:50%;--r:180deg;--l:16px;margin-inline-start:16px}}
-.rc .tree{grid-template-columns:minmax(0,12em) auto;grid-template-rows:repeat(20,auto);gap:0 26px;text-align:start}
+.rc .tree{grid-template-columns:minmax(6em,12em) auto;grid-template-rows:repeat(40,auto);gap:0 26px;text-align:start}
 .rc .tree>.c{grid-area:1/1/-1/2;align-self:center;--x:100%;--y:50%}
 .rc .tree>.c::after{width:13px;margin-top:-.75px}
 .rc .tree .s{--x:-13px;--y:50%;--r:0deg;--l:13px;margin-block:4px}

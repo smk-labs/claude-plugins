@@ -221,7 +221,7 @@ function check(name, cond) {
   check('out only turns the arrow around; it never buys a second colour', /\.rc \.hub \.out\{--a:225deg;--d:4px\}/.test(hubCss) && !/\.out[^}]*(color|--cd)/.test(hubCss));
   // The tree root spans every row, and -1 needs EXPLICIT rows to mean the last line -
   // without them it collapses to one row and the root lands in the wrong column.
-  check('the tree root spans the explicit rows it needs, column pinned too (grid-area:2/2 pins column 2)', hubCss.includes('grid-template-rows:repeat(20,auto)') && hubCss.includes('.rc .tree>.c{grid-area:1/1/-1/2') && /gap:0 26px/.test(hubCss));
+  check('the tree root spans the explicit rows it needs, column pinned too (grid-area:2/2 pins column 2)', hubCss.includes('grid-template-rows:repeat(40,auto)') && hubCss.includes('.rc .tree>.c{grid-area:1/1/-1/2') && /gap:0 26px/.test(hubCss));
   check('the tree draws no arrowheads: the arrow rule is scoped out of it', hubCss.includes('.rc .hub:not(.tree) .s::after{'));
   // Below 520px the ring cannot hold. It must NOT become a chain of box-to-box arrows,
   // which would claim HRIS feeds Jira; every leg becomes the same tick off its own box.
