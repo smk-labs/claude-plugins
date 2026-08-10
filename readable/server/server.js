@@ -126,6 +126,7 @@ const KIT_DETECT = {
   SPARK: { cls: ['spark'], tags: ['polyline', 'polygon'] },
   FLOW: { cls: ['flow'], tags: [] },
   TL: { cls: ['tl'], tags: [] },
+  HUB: { cls: ['hub', 'tree'], tags: [] },
   BADGE: { cls: ['badge'], tags: [] },
   CTA: { cls: ['cta', 'btns'], tags: ['button'] },
   CARD: { cls: ['cards', 'card', 'pick'], tags: [] },
