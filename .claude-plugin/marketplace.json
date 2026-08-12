@@ -19,8 +19,8 @@
     {
       "name": "spring-clean",
       "source": "./spring-clean",
-      "description": "Deep-clean a repo and leave guardrails so it stays clean: delete dead surfaces, move dev docs out of the code tree, split oversized files, draw package boundaries, and write architecture tests that hold the line.",
-      "version": "1.4.0",
+      "description": "Deep-clean a repo, then give it rules the build enforces. Delete dead surfaces, move dev docs out of the code tree, split oversized files and draw package boundaries; then derive the repo's own clean-code rules from the defects its history keeps repeating and encode each one as a linter setting or a failing test.",
+      "version": "1.5.0",
       "category": "engineering"
     },
     {
