@@ -252,7 +252,7 @@
 .rc :is(.card,.box)>:first-child{margin-top:0}.rc :is(.card,.box)>:last-child{margin-bottom:0}
 .rc .card h4{margin:0 0 .4em;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .rc .card.pick{border-color:var(--text-accent);box-shadow:inset 0 0 0 1px var(--text-accent)}
-.rc :is(.card,.box) :is(.kpi,pre,code,.badge,.lbl,.flow .s,.hub .c,.hub .s,.bar .t,.scroll-table,.scroll-table thead th){background:var(--surface-1)}
+.rc :is(.card,.box) :is(.kpi,pre,code,.badge,.lbl,.flow .s,.hub .c,.hub .s,.bar .t,.scroll-table,.scroll-table thead th,.preview,.tabs){background:var(--surface-1)}
 .rc :is(.card,.box) tbody tr:hover td{background:var(--surface-1)}
 .rc :is(.card,.box) .tl>div::before{outline-color:var(--surface-2)}
 .rc :is(.card,.box) .hub .c{background:var(--bg-accent)}
@@ -288,6 +288,56 @@
 .rc figure{margin:.9em 0}
 .rc img,.rc figure svg{display:block;max-width:100%;height:auto;margin-inline:auto;border-radius:11px;border:.5px solid var(--border)}
 .rc figcaption{font-size:.8em;color:var(--text-secondary);margin-top:.4em}
+/*@PREVIEW - a link to ANOTHER DOCUMENT, drawn as something worth clicking. A `kv` row was
+   what authors reached for, and a kv row is a spreadsheet cell: the title of the thing is the
+   same size as the label beside it, and nothing says a whole document sits behind it.
+   Three parts, all optional after the first: <b> the title, <span> one line of context,
+   <small> the host. <small> and not <i>, because @ICON owns <i> and would fight over
+   display/width/mask if the two ever met inside one card.
+   The corner mark is a rotated border corner (the @FOLD chevron trick), pointing along the
+   reading direction so RTL flips with one sign. It is BORDERS, so print keeps the ink; an
+   @ICON glyph would have pulled a ~2KB sprite in for one decoration, which the icon rule
+   forbids. It is absolutely placed with padding reserved for it, so the three text parts stay
+   plain blocks and the component needs no wrapper element. It is also scoped to `a.preview`,
+   not to `.preview`: the live frame below carries its own ::after (its lid) and the two would
+   otherwise land on the same pseudo-element, leaving a 6px bordered corner as the lid.
+   BASE gives every <a> the accent colour and a 1px hover underline. Both are cancelled here at
+   higher specificity, and the hover uses the BORDER SHORTHAND on purpose: a bare border-color
+   would leave BASE's 1px bottom width in place and the card would grow 0.5px under the pointer.
+   LIVE, the risky half: `<div class="preview live"><iframe ...></iframe></div>` is a SIBLING of
+   the card, never a wrapper. That is what makes the fallback free - a target that refuses
+   framing loses the frame and the card is already there, so there is no hole to fill and
+   nothing to rebuild. Print is the same one rule. The pair is joined into one silhouette by
+   :has(+.live), and print puts the card's own radius back since the frame below it is gone.
+   The refusal is decided at BUILD time, not at runtime, because runtime CANNOT know: a frame
+   blocked by X-Frame-Options still fires `load`, its document is cross-origin either way, and a
+   file:// report cannot fetch the url to look. skills/report/build.py reads the headers itself
+   and drops the block, treating unreachable as refusing - an empty box is never readable, and a
+   plain card always is.
+   The frame renders at 1/--s of the container and is scaled back down by exactly --s, so a
+   desktop-width page reads at report width. Fixing the SCALE and letting the logical width
+   follow the container is deliberate: pinning the logical width instead would hold a desktop
+   layout at 0.24 on a phone, i.e. 4px text. This way the text is always 70% size and the target
+   answers with its own responsive layout. transform-origin follows the inline frame (--o on
+   :dir(rtl)), the @HUB idiom, or an RTL frame scales away from the edge it is pinned to.
+   ::after is a transparent lid over the frame: without it the wheel lands inside the iframe and
+   the report stops scrolling under the pointer. It also swallows clicks, which is correct - the
+   card above is the click target, and a nested scrollable page is not something to hand a
+   reader inside a document.*/
+.rc .preview{display:block;position:relative;background:var(--surface-2);border:.5px solid var(--border);border-radius:11px;margin:.9em 0}
+.rc a.preview{padding:9px 13px;padding-inline-end:30px;color:var(--text-primary)}
+.rc .preview b{display:block;font-weight:700;color:var(--text-accent)}
+.rc .preview span{display:block;font-size:.92em;color:var(--text-secondary)}
+.rc .preview small{display:block;font-size:.78em;color:var(--text-secondary);direction:ltr;unicode-bidi:isolate;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.15em}
+.rc a.preview::after{content:'';position:absolute;inset-inline-end:13px;top:calc(50% - 4px);width:6px;height:6px;border-top:1.5px solid var(--text-accent);border-inline-end:1.5px solid var(--text-accent);border-start-end-radius:1px;transform:rotate(45deg)}
+.rc a.preview:dir(rtl)::after{transform:rotate(-45deg)}
+.rc a.preview:hover{border:.5px solid var(--text-accent);background:var(--bg-accent)}
+.rc .preview.live{--s:.7;--o:0;overflow:hidden;height:15em}
+.rc .preview.live:dir(rtl){--o:100%}
+.rc .preview:has(+.preview.live){margin-bottom:0;border-end-start-radius:0;border-end-end-radius:0}
+.rc .preview+.preview.live{margin-top:0;border-top:none;border-start-start-radius:0;border-start-end-radius:0}
+.rc .preview.live iframe{position:absolute;inset-block-start:0;inset-inline-start:0;width:calc(100%/var(--s));height:calc(100%/var(--s));border:0;transform-origin:var(--o) 0;transform:scale(var(--s))}
+.rc .preview.live::after{content:'';position:absolute;inset:0}
 /*@NUMBERED - wrap a long document's body and h3 takes a section number in place of its
    square dot, h4 an N.M sub-number that resets per section. Authors NEVER type the numbers:
    they come from counters, so inserting a section renumbers the rest for free.
@@ -306,6 +356,60 @@
 .rc .numbered>h4::before{content:counter(sec,persian) '.' counter(sub,persian);color:var(--text-accent);font-weight:800;margin-inline-end:7px}
 .rc:dir(ltr) .numbered>h3::before{content:counter(sec) '.'}
 .rc:dir(ltr) .numbered>h4::before{content:counter(sec) '.' counter(sub)}
+/*@SECTIONS - wrap a long document's body and its DIRECT-CHILD h3 reads as a real section
+   break: a hairline rule above it, room to breathe, one size up (1.1em -> 1.25em, which lands
+   between h3 and the 1.35em h2 rather than competing with it). At 1.1em an h3 vanishes between
+   two long sections, and a reader scrolling a three-option document cannot tell where one
+   option ends and the next begins.
+   Same shape as @NUMBERED on purpose - one class on the wrapper, nothing per heading - and the
+   two COMPOSE with nothing to reconcile: the number lives on h3::before and this touches only
+   the box (size, margin, padding, border-top). `numbered sections` is the normal spelling for a
+   long decision document.
+   DIRECT CHILDREN ONLY (`>`), for @NUMBERED's reason: h3 is a section title here, but the same
+   element inside a component (a card body, a fold) is not, and a descendant selector would rule
+   a line across it.
+   :first-of-type, not :first-child: whatever precedes the first section - an intro paragraph, a
+   .box summary, a @TABS bar - the top of the document is already separated, and a rule there
+   reads as a second border under the one above it. It is keyed on TYPE so it holds no matter
+   what sits between the wrapper and its first heading.*/
+.rc .sections>h3{font-size:1.25em;margin-top:2.4em;padding-top:1.2em;border-top:.5px solid var(--border)}
+.rc .sections>h3:first-of-type{margin-top:1.4em;padding-top:0;border-top:none}
+/*@TABS - a pinned bar over a long report's main sections: click to jump, and it follows the
+   reader on scroll by lighting the section they are in. REPORT TIER, and not by taste: a chat
+   card has no scroll of its own, so there is nothing for a sticky bar to stick to and nothing
+   for a scrollspy to track.
+   It DEGRADES TO PLAIN ANCHORS. The bar, the jump and the landing offset are all CSS, and the
+   only thing script adds is the follow-on-scroll highlight (skills/report/assets/shell.html,
+   guarded so a report with no .tabs runs nothing at all). That is why scroll-margin-top lives
+   HERE with a fallback value and not only in the script: without it a script-less report jumps
+   a heading to the viewport top, i.e. underneath the bar that just moved it there.
+   --tabh is the bar's MEASURED height plus its sticky offset plus a gap, written onto .rc by
+   the shell script. Measured, never hardcoded, because the bar wraps: six tabs on a 375px
+   screen are three flex lines, and a hardcoded 86px then hides the heading behind the bar's
+   second and third rows. The script measures with a ResizeObserver rather than on resize, since
+   the webfont lands AFTER first paint and changes the bar's height with no resize event to hear.
+   h3[id] and not a class: the author writes an id because the tab links to it, so there is
+   nothing extra to remember. :has(.tabs) keeps the offset out of a report that has no bar.
+   The fill is --surface-2 on a hairline, which is what separates a floating rail from the
+   card's own --surface-1 in light AND dark with no colour invented. A drop shadow was the first
+   answer and it needed a literal rgba: --text-primary mixed into a shadow glows WHITE in dark
+   mode, and --border-strong sits lighter than the surface there, so neither variable can spell
+   a shadow that works both ways.
+   HOVER USES THE BORDER SHORTHAND, and the active rule sits AFTER hover: BASE gives every <a> a
+   1px bottom border on hover, so a bare border-color would leave that 1px in place and every
+   tab would grow half a pixel under the pointer; and at equal specificity the later rule wins,
+   which is what keeps the active tab accent-coloured while the pointer is on it.
+   Below 520px the sub-labels are HIDDEN, not ellipsed: at three tabs across a phone they
+   truncate to four characters of mush, and the row of primary labels reads perfectly without
+   them. min-width:0 is what lets a flex item shrink under its content at all, so nothing ever
+   scrolls sideways.*/
+.rc .tabs{position:sticky;top:10px;z-index:7;display:flex;flex-wrap:wrap;gap:6px;margin:1.2em 0 1.6em;padding:6px;background:var(--surface-2);border:.5px solid var(--border);border-radius:11px}
+.rc .tabs a{flex:1 1 7em;min-width:0;text-align:center;padding:6px 9px;border:.5px solid transparent;border-radius:9px;color:var(--text-secondary);font-weight:700;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc .tabs a span{display:block;font-size:.82em;font-weight:400;overflow:hidden;text-overflow:ellipsis}
+.rc .tabs a:hover{border:.5px solid var(--border);background:var(--surface-1);color:var(--text-primary)}
+.rc .tabs a[aria-current]{border:.5px solid var(--text-accent);background:var(--bg-accent);color:var(--text-accent)}
+.rc:has(.tabs) h3[id]{scroll-margin-top:var(--tabh,5.6em)}
+@media(max-width:520px){.rc .tabs a span{display:none}}
 /*@DONUT*/
 .rc .donut-w{display:flex;align-items:center;gap:20px;margin:.9em 0;flex-wrap:wrap}
 .rc .donut{width:92px;height:92px;border-radius:50%;flex:0 0 auto;background:conic-gradient(var(--ca) 0 calc(var(--a)*1%),var(--cb) 0 calc((var(--a) + var(--b))*1%),var(--cc) 0 100%);-webkit-mask:radial-gradient(circle,transparent 56%,#000 57%);mask:radial-gradient(circle,transparent 56%,#000 57%)}
@@ -351,5 +455,6 @@
 .rc h3:has(.ic):not(.numbered *)::before{display:none}
 .rc .ic.check{--p:0}.rc .ic.x{--p:-1em}.rc .ic.alert{--p:-2em}.rc .ic.info{--p:-3em}.rc .ic.clock{--p:-4em}.rc .ic.user{--p:-5em}.rc .ic.file{--p:-6em}.rc .ic.folder{--p:-7em}.rc .ic.code{--p:-8em}.rc .ic.terminal{--p:-9em}.rc .ic.git{--p:-10em}.rc .ic.db{--p:-11em}.rc .ic.zap{--p:-12em}.rc .ic.shield{--p:-13em}.rc .ic.search{--p:-14em}.rc .ic.link{--p:-15em}
 /*@PRINT*/
-/* Print STAYS LAST in the sheet: these rules override component rules of equal specificity, so anything added below them silently wins over print (that is exactly how the fold's pre cap survived print until it was moved here). A closed fold must never hide content from a PDF: ::details-content is forced visible (author sheet beats the UA's content-visibility:hidden), the chevron shows the open angle, and the pre height cap is lifted. */
-@media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}.rc .scroll-table.wide table{width:100%;white-space:normal}.rc .fold::details-content{content-visibility:visible;display:block}.rc .fold>summary::before{transform:rotate(135deg);transition:none}.rc .fold>summary:dir(rtl)::before{transform:rotate(-135deg)}.rc .fold pre{max-height:none;overflow:visible}.rc :is(.card,.box){background:none;border-color:var(--border)}.rc :is(.card,.box) :is(.kpi,.flow .s,.hub .c,.hub .s,.scroll-table thead th,.lbl){background:none}.rc .card,.rc .cols>div,.rc .hub{break-inside:avoid}}
+/* Print STAYS LAST in the sheet: these rules override component rules of equal specificity, so anything added below them silently wins over print (that is exactly how the fold's pre cap survived print until it was moved here). A closed fold must never hide content from a PDF: ::details-content is forced visible (author sheet beats the UA's content-visibility:hidden), the chevron shows the open angle, and the pre height cap is lifted.
+   @TABS leaves the page: a pinned bar is a screen affordance, its jumps do nothing on paper, and a sticky element can repeat itself on every sheet. @PREVIEW's live frame goes with it - an iframe prints as an empty box at best - and the plain card takes ITS OWN RADIUS BACK, because the square bottom edge it wears on screen only makes sense while the frame is joined underneath it. That restore has to tie the :has() rule on specificity, which is exactly what print being last buys. */
+@media print{.rc .scroll-table{max-height:none;overflow:visible;border:none}.rc .scroll-table thead th{position:static;box-shadow:none}.rc .scroll-table.wide table{width:100%;white-space:normal}.rc .fold::details-content{content-visibility:visible;display:block}.rc .fold>summary::before{transform:rotate(135deg);transition:none}.rc .fold>summary:dir(rtl)::before{transform:rotate(-135deg)}.rc .fold pre{max-height:none;overflow:visible}.rc .tabs,.rc .preview.live{display:none}.rc .preview:has(+.preview.live){margin-bottom:.9em;border-end-start-radius:11px;border-end-end-radius:11px}.rc :is(.card,.box){background:none;border-color:var(--border)}.rc :is(.card,.box) :is(.kpi,.flow .s,.hub .c,.hub .s,.scroll-table thead th,.lbl,.preview){background:none}.rc .card,.rc .cols>div,.rc .hub,.rc .preview{break-inside:avoid}}

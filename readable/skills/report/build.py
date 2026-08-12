@@ -27,6 +27,15 @@ Signature (5.2.0): one muted line, appended as the last child of .rc from the
 kit's own @sig marker (assets/rc.css). A project opts out with
 "signature": false in .readable/brand.json.
 
+Live previews are verified, not hoped for (5.6.0): a <div class="preview live">
+holds an <iframe> of another page, and a target that refuses framing renders an
+empty box. Runtime cannot tell - a blocked frame still fires load, its document
+is cross-origin either way, and a file:// report cannot fetch the url to look -
+so THIS script reads the headers at build time and drops the block when framing
+is refused or the target cannot be reached. The plain card above it stays, which
+is the whole point of the two being siblings. --no-preview-probe skips the
+network entirely and keeps every frame.
+
 Inlined figures are their own document (5.2.1): once base64'd into an
 <img src="data:image/svg+xml">, the lifted svg is parsed as strict XML, runs no
 script, and inherits nothing from the report page. So the build validates the
@@ -706,6 +715,98 @@ def inline_media(content: str, base: pathlib.Path, max_kb: int, lang: str,
     return out
 
 
+# @PREVIEW (5.6.0). Previews never nest an anchor or a div, so a non-greedy
+# element match is safe and no parser is needed.
+PREVIEW_A_RE = re.compile(r"(?is)(<a\b[^>]*>)(.*?)(</a\s*>)")
+# The live block is matched by its OWN class pair, in either order, and never by
+# a generic <div>: re.sub consumes what it matches, so a generic div pattern
+# would swallow a `cards` wrapper whole and never see a live block nested in it.
+PREVIEW_LIVE_RE = re.compile(
+    r"""(?is)<div\b[^>]*\bclass\s*=\s*["'][^"']*"""
+    r"""\b(?:preview[^"']*\blive|live[^"']*\bpreview)\b[^"']*["'][^>]*>.*?</div\s*>""")
+CLASS_RE = re.compile(r"""(?is)\bclass\s*=\s*["']([^"']*)["']""")
+HREF_RE = re.compile(r"""(?is)\bhref\s*=\s*["']([^"']*)["']""")
+IFRAME_SRC_RE = re.compile(r"""(?is)<iframe\b[^>]*\bsrc\s*=\s*["']([^"']*)["']""")
+XFO_DENY = ("deny", "sameorigin", "allow-from")
+
+
+def has_class(tag: str, want: str) -> bool:
+    """True when the tag's class attribute carries `want` as a whole token."""
+    m = CLASS_RE.search(tag)
+    return bool(m) and want in m.group(1).split()
+
+
+def frames_ok(url: str, timeout: float):
+    """(True, note) when `url` can be framed by a standalone report, else (False, why).
+
+    A report is opened from disk, so its origin is `null`: it can never satisfy a
+    host allowlist, and only `frame-ancestors *` or no policy at all lets it
+    through. Unreachable counts as refusing, because the failure it prevents (an
+    empty box in a finished document) is worse than the one it causes (a card
+    without its picture, which still reads)."""
+    req = urllib.request.Request(url, headers={"User-Agent": FONT_UA})
+    try:
+        # Headers arrive before the body and the body is never read: the probe
+        # costs one round trip, not the page. A 4xx/5xx still carries the
+        # framing headers (the portal answers 405 to a HEAD and 200 to a GET),
+        # so HTTPError is inspected rather than treated as a failure.
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            headers = r.headers
+    except urllib.error.HTTPError as e:
+        headers = e.headers
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        return False, "unreachable (%s)" % (getattr(e, "reason", None) or e,)
+    xfo = (headers.get("x-frame-options") or "").strip().lower()
+    if xfo.split()[0:1] and xfo.split()[0] in XFO_DENY:
+        return False, "x-frame-options: %s" % xfo
+    for policy in headers.get_all("content-security-policy") or []:
+        for directive in policy.split(";"):
+            parts = directive.split()
+            if parts[0:1] and parts[0].lower() == "frame-ancestors":
+                if [p for p in parts[1:] if p != "*"]:
+                    return False, "csp frame-ancestors: %s" % " ".join(parts[1:])
+    return True, ""
+
+
+def preview_pass(content: str, probe: bool, timeout: float) -> str:
+    """Fill in each preview card's host, and drop live frames that cannot load.
+
+    The host comes off the href for the same reason section numbers come off a
+    counter: the document already holds the fact, so nobody has to type it and
+    nobody can mistype it."""
+    def card(m):
+        open_tag, inner, close = m.groups()
+        if not has_class(open_tag, "preview") or "<small" in inner.lower():
+            return m.group(0)
+        href = HREF_RE.search(open_tag)
+        host = urlparse(href.group(1)).hostname if href else None
+        if not host:
+            return m.group(0)
+        return open_tag + inner + "<small>" + host + "</small>" + close
+
+    content = PREVIEW_A_RE.sub(card, content)
+
+    def live(m):
+        block = m.group(0)
+        src = IFRAME_SRC_RE.search(block)
+        if not src:
+            print("preview: live block with no iframe src, dropped", file=sys.stderr)
+            return ""
+        url = src.group(1)
+        if "title=" not in block.lower():
+            print("preview: <iframe> without a title, %s" % url, file=sys.stderr)
+        if not probe or not url.lower().startswith(("http://", "https://")):
+            return block
+        ok, why = frames_ok(url, timeout)
+        if ok:
+            return block
+        print("preview: %s refuses framing (%s), kept the plain card"
+              % (url, why), file=sys.stderr)
+        return ""
+
+    return PREVIEW_LIVE_RE.sub(live, content)
+
+
 def kit_css(brand_css: str) -> str:
     """KIT_REMOTE_IMPORT: a report is a standalone document that gets printed and
     emailed, so it must not depend on a font host. When the brand layer inlines
@@ -734,6 +835,9 @@ def main():
                          "survives a CSP without data: and a sanitiser that strips <style>")
     ap.add_argument("--no-figure-font", action="store_true",
                     help="do not embed the report font into figures")
+    ap.add_argument("--no-preview-probe", action="store_true",
+                    help="keep every live preview frame without checking whether "
+                         "its target allows framing (skips the network)")
     ap.add_argument("--font-timeout", type=float, default=12.0,
                     help="seconds per font request before giving up (default 12)")
     a = ap.parse_args()
@@ -755,6 +859,11 @@ def main():
     font = None if a.no_figure_font else report_font(brand_dir, a.no_brand, a.lang)
     content = inline_media(content, src.parent, a.max_image_kb, a.lang,
                            font, a.font_timeout, a.inline_figures)
+
+    # Previews: fill each card's host in from its own href, and drop any live
+    # frame whose target refuses to be framed. Runs before the signature is
+    # appended so a dropped frame cannot take it with it.
+    content = preview_pass(content, not a.no_preview_probe, a.font_timeout)
 
     # SIGNATURE: the last child of .rc, exactly where the card template mounts it,
     # so the report's own menu exports (html / png / markdown / text / email all

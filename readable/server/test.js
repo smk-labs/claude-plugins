@@ -100,7 +100,7 @@ function check(name, cond) {
   // 4.20.0: the template carries BASE only. Every component, chat-tier or
   // report-tier, is delivered per card by read_kit, so the old "which tier fits
   // in 30KB" question is gone and this asserts the new shape instead.
-  check('template is BASE only: no component CSS inlined at all (4.20.0)', ['.rc .spark', '.rc .kpi{', '.rc table{', '.rc .badge', '.rc .cta', '.rc .kv{', '.rc .bars', '.rc .flow{', '.rc .tl{', '.rc .card', '.rc .box', '.rc .cols', '.rc blockquote', '.rc .numbered', '.donut', '.rc .fold'].every((sel) => !html.includes(sel)));
+  check('template is BASE only: no component CSS inlined at all (4.20.0)', ['.rc .spark', '.rc .kpi{', '.rc table{', '.rc .badge', '.rc .cta', '.rc .kv{', '.rc .bars', '.rc .flow{', '.rc .tl{', '.rc .card', '.rc .box', '.rc .cols', '.rc blockquote', '.rc .numbered', '.rc .sections', '.rc .tabs', '.rc .preview', '.donut', '.rc .fold'].every((sel) => !html.includes(sel)));
   check('template still carries all of BASE (frame, text, lists, callouts, code, bidi)', html.includes('.rc{') && html.includes('unicode-bidi:plaintext') && html.includes('.rc .cal') && html.includes('.rc code{') && html.includes('.rc ul>li::before'));
   check('print rules never ship to an iframe', !html.includes('@media print'));
   check('bridge mounts the lazy kit before first paint, with a deadline so a silent host still paints (4.20.0)', html.includes("name:'read_kit'") && html.includes("id='rckit'") && html.includes('kApply(html,') && html.includes('setTimeout(go,1500)'));
@@ -178,6 +178,20 @@ function check(name, cond) {
   check('a bare img is styled too, not only one inside a figure', kFig.includes('.rc img,'));
   check('no figure CSS for a card without one', !kKpi.includes('.rc figure{'));
 
+  // @SECTIONS / @TABS / @PREVIEW (5.6.0). All three came out of one real report:
+  // a long decision document with three parallel options.
+  const kSec = await kitOf('<div class="numbered sections"><h3>یک</h3><h4>زیر</h4><h3>دو</h3></div>');
+  check('read_kit delivers sections, and numbered alongside it when both are on the wrapper', kSec.includes('.rc .sections>h3{') && kSec.includes('.rc .numbered{counter-reset:sec}'));
+  check('no sections CSS for a card without the wrapper', !kNum.includes('.rc .sections>h3{'));
+
+  const kTabs = await kitOf('<div class="tabs"><a href="#p1">م ۱<span>الف</span></a><a href="#p2">م ۲<span>ب</span></a></div><h3 id="p1">الف</h3>');
+  check('read_kit delivers the tab bar for a .tabs card', kTabs.includes('.rc .tabs{') && kTabs.includes('position:sticky'));
+  check('no tab CSS for a card without a bar', !kKpi.includes('.rc .tabs{'));
+
+  const kPrev = await kitOf('<a class="preview" href="https://x.test/p"><b>t</b><span>c</span><small>x.test</small></a><div class="preview live"><iframe src="https://x.test/p" title="t"></iframe></div>');
+  check('read_kit delivers the preview card and its live frame together', kPrev.includes('.rc .preview{') && kPrev.includes('.rc .preview.live{') && kPrev.includes('.rc a.preview::after{'));
+  check('no preview CSS for a card without one', !kKpi.includes('.rc .preview{'));
+
   // COMPLETENESS. A new @TAG with no detector would silently render unstyled.
   // This is the guard that makes adding a component fail loudly instead.
   const srvSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
@@ -215,7 +229,7 @@ function check(name, cond) {
   // Connectors are BORDERS. print-color-adjust drops backgrounds, and a hub that prints
   // as boxes with no legs is not a hub.
   check('every connector is drawn with a border, never a background', hubCss.split('\n').filter((l) => /::(before|after)/.test(l)).every((l) => !/background/.test(l)) && (hubCss.match(/border-top:1\.5px|border-left:8px|border-inline-start:1\.5px/g) || []).length >= 3);
-  check('print keeps the hub whole and un-inks its panels inside a card', kit.includes('.rc .card,.rc .cols>div,.rc .hub{break-inside:avoid}') && /@media print\{[^]*:is\(\.kpi,\.flow \.s,\.hub \.c,\.hub \.s,/.test(kit));
+  check('print keeps the hub whole and un-inks its panels inside a card', kit.includes('.rc .card,.rc .cols>div,.rc .hub,.rc .preview{break-inside:avoid}') && /@media print\{[^]*:is\(\.kpi,\.flow \.s,\.hub \.c,\.hub \.s,/.test(kit));
   // RTL is one sign flip, not a second slot table: --r is read in the INLINE frame, so a
   // slot's angle is identical both ways and only the frame mirrors.
   check('rtl mirrors the frame, not the table: one :dir(rtl) rule flips --f/--o', hubCss.includes('.rc .hub:dir(rtl){--f:-1;--o:100%}') && !/:dir\(rtl\)[^}]*--r:/.test(hubCss));
@@ -241,6 +255,85 @@ function check(name, cond) {
   // every width without repeating :not(.tree) inside the query.
   check('the tree block follows the media query, so it survives the narrow override', hubCss.lastIndexOf('.rc .tree{') > hubCss.lastIndexOf('@media(max-width:520px)'));
   check('a hub nested in a card or box still reads (child inversion lists .c and .s)', kit.includes('.hub .c,.hub .s,.bar .t'));
+
+  // RULES ONLY. Every block below is heavily commented and the comments name the very things
+  // the checks forbid (`::before`, `:first-child`, `requestAnimationFrame`), so a regex over the
+  // raw text walks straight into prose and 'finds' the bug it was written to catch. The split
+  // ate the opening `/*`, so the doc comment has no opener left to match: drop everything up to
+  // the first `*/`, then any later comment.
+  const rules = (s) => s.replace(/^[^]*?\*\//, '').replace(/\/\*[^]*?\*\//g, '');
+
+  // @SECTIONS (5.6.0): same shape as @NUMBERED, and the two must compose.
+  const secCss = rules(kit.split('/*@SECTIONS')[1].split('/*@TABS')[0]);
+  check('a section break is DIRECT CHILDREN only, so an h3 inside a card or a fold keeps its size', /\.rc \.sections>h3\{/.test(secCss) && !/\.rc \.sections h3\{/.test(secCss));
+  // The number lives on h3::before and this touches only the box, which is the whole reason
+  // `numbered sections` needs nothing reconciled. A ::before here would eat the numbering the
+  // same way the icon rule once did.
+  check('sections never touches ::before, so a numbered document keeps its section numbers', !secCss.includes('::before'));
+  check('one size up, landing between h3 and h2 rather than competing with the title', /font-size:1\.25em/.test(secCss) && /border-top:\.5px solid var\(--border\)/.test(secCss));
+  // Keyed on TYPE: whatever sits between the wrapper and its first heading (an intro, a .box
+  // summary, a tab bar), the first section must not wear a rule under the one already above it.
+  check('the first section carries no rule, keyed on :first-of-type and not :first-child', secCss.includes('.rc .sections>h3:first-of-type{') && /:first-of-type\{[^}]*border-top:none/.test(secCss) && !secCss.includes(':first-child'));
+
+  // @TABS (5.6.0): report tier. The bar, the jump and the landing offset are CSS; only the
+  // follow-on-scroll highlight is script. Both traps below cost a field debugging round.
+  const tabCss = rules(kit.split('/*@TABS')[1].split('/*@DONUT')[0]);
+  const shellSrc = fs.readFileSync(path.join(__dirname, '..', 'skills', 'report', 'assets', 'shell.html'), 'utf8');
+  check('the bar is sticky, wraps instead of scrolling sideways, and every flex item can shrink under its content', /position:sticky/.test(tabCss) && /flex-wrap:wrap/.test(tabCss) && /min-width:0/.test(tabCss));
+  // THE degrade: with the script stripped the bar is still plain anchors, so the landing offset
+  // has to live in the stylesheet with a fallback, or a jump parks the heading under the bar.
+  check('scroll-margin-top lives in the CSS with a fallback, so a script-less report still lands clear of the bar', tabCss.includes('.rc:has(.tabs) h3[id]{scroll-margin-top:var(--tabh,'));
+  check('the target is h3[id], so the author writes nothing the tab link did not already need', !tabCss.includes('tabtarget'));
+  // BASE hands every <a> a 1px bottom border on hover. A bare border-color leaves that width in
+  // place and every tab grows half a pixel under the pointer; and the two rules tie on
+  // specificity, so the active rule has to come LAST or hovering the active tab greys it out.
+  check('hover re-declares the whole border, and the active rule follows it so the active tab survives the pointer', /\.rc \.tabs a:hover\{border:\.5px solid/.test(tabCss) && tabCss.indexOf('a[aria-current]') > tabCss.indexOf('a:hover'));
+  check('the active tab is an aria state, not a class, so the highlight is announced as well as drawn', tabCss.includes('.rc .tabs a[aria-current]{') && shellSrc.includes("setAttribute('aria-current'"));
+  // Sub-labels at three tabs across a phone truncate to four characters of mush.
+  check('below 520px the sub-labels are hidden rather than ellipsed to mush', /@media\(max-width:520px\)\{\.rc \.tabs a span\{display:none\}\}/.test(tabCss));
+  check('the bar leaves the page in print', /@media print\{[^]*\.rc \.tabs,\.rc \.preview\.live\{display:none\}/.test(kit));
+  // TRAP 1, paid for once already: rAF is throttled to zero in a hidden tab, so the bar freezes
+  // on whatever was active when the tab lost focus and is wrong when the reader comes back.
+  const spy = rules(shellSrc.split('@TABS scrollspy')[1].split('/* PNG export')[0]);
+  check('the scrollspy runs straight off the scroll event, never through requestAnimationFrame', /addEventListener\('scroll', sync/.test(spy) && !/requestAnimationFrame/.test(spy));
+  // TRAP 2: the bar WRAPS. Six tabs on a phone are three flex lines, and a hardcoded offset
+  // parks the heading behind rows two and three. Both consumers read one measured number.
+  check('the bar height is measured, and its sticky offset is read off the bar instead of spelled twice', /getBoundingClientRect\(\)\.height/.test(spy) && /getComputedStyle\(bar\)\.top/.test(spy) && /setProperty\('--tabh'/.test(spy));
+  // The webfont lands AFTER first paint and changes the bar's height with no resize event.
+  check('re-measured by ResizeObserver, so the webfont reflow is caught too', /new ResizeObserver\(hold\)\.observe\(bar\)/.test(spy));
+  check('a report with no bar runs no scrollspy at all', /querySelector\('\.tabs'\);\s*\n?\s*if \(!bar\) return;/.test(spy.replace(/\r/g, '')));
+  check('the jump animates from the stylesheet, and honours reduced motion (scroll-behavior does not on its own)', shellSrc.includes('html{scroll-behavior:smooth}') && shellSrc.includes('@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}'));
+
+  // @PREVIEW (5.6.0): a link to another document, drawn as a document.
+  const prevCss = rules(kit.split('/*@PREVIEW')[1].split('/*@NUMBERED')[0]);
+  const buildSrc = fs.readFileSync(path.join(__dirname, '..', 'skills', 'report', 'build.py'), 'utf8');
+  // The live frame is a SIBLING, never a wrapper: that is what makes the fallback free, because
+  // the card it falls back to is already on the page and nothing has to be rebuilt.
+  check('the frame joins the card above it into one silhouette, and neither owns the other', prevCss.includes('.rc .preview:has(+.preview.live){') && prevCss.includes('.rc .preview+.preview.live{margin-top:0;border-top:none'));
+  check('print drops the frame and gives the card its own radius back (tying the :has rule, which only print being last can do)', /@media print\{[^]*\.rc \.preview:has\(\+\.preview\.live\)\{margin-bottom:\.9em;border-end-start-radius:11px/.test(kit));
+  // Fixed SCALE, and the logical width follows the container. Pinning the logical width instead
+  // would hold a desktop layout at 0.24 on a phone, i.e. 4px text.
+  check('the frame renders at 1/--s and is scaled back by exactly --s, so a desktop page reads at report width', /width:calc\(100%\/var\(--s\)\);height:calc\(100%\/var\(--s\)\)/.test(prevCss) && /transform:scale\(var\(--s\)\)/.test(prevCss) && /--s:\.7/.test(prevCss));
+  // Same one-sign idiom as @HUB: an RTL frame must not scale away from the edge it is pinned to.
+  check('rtl flips the transform origin only, via one :dir(rtl) rule', prevCss.includes('.rc .preview.live:dir(rtl){--o:100%}') && /transform-origin:var\(--o\) 0/.test(prevCss));
+  check('a transparent lid covers the frame, so the wheel scrolls the report instead of the target', /\.rc \.preview\.live::after\{content:'';position:absolute;inset:0\}/.test(prevCss));
+  // The lid and the corner mark would otherwise land on the same pseudo-element, and the lid
+  // would come out as a 6px bordered corner.
+  check('the corner mark is scoped to a.preview so it can never become the frame lid', prevCss.includes('.rc a.preview::after{') && !/\.rc \.preview::after/.test(prevCss));
+  check('the corner mark is borders, not an icon glyph, and flips with the reading direction', /border-top:1\.5px solid var\(--text-accent\)/.test(prevCss) && prevCss.includes('.rc a.preview:dir(rtl)::after{transform:rotate(-45deg)}') && !prevCss.includes('class="ic'));
+  check('the card cancels BASE\'s link colour and its hover underline with the border shorthand', /\.rc a\.preview:hover\{border:\.5px solid var\(--text-accent\)/.test(prevCss) && /\.rc \.preview\{[^}]*color:var\(--text-primary\)|\.rc a\.preview\{[^}]*color:var\(--text-primary\)/.test(prevCss));
+  // RUNTIME CANNOT KNOW: a frame blocked by X-Frame-Options still fires load, its document is
+  // cross-origin either way, and a file:// report cannot fetch the url to look. So the probe is
+  // build.py's, and both refusal headers are read - CSP frame-ancestors is the modern spelling.
+  check('build.py probes framing at build time and reads BOTH refusal headers', buildSrc.includes('def frames_ok(') && buildSrc.includes('x-frame-options') && buildSrc.includes('frame-ancestors'));
+  // A report is opened from disk, so its origin is null: only `*` or no policy lets it through.
+  check('a host allowlist counts as a refusal, because a file:// report has a null origin', buildSrc.includes('if [p for p in parts[1:] if p != "*"]'));
+  check('unreachable counts as refusing: an empty box in a finished document is worse than a card with no picture', buildSrc.includes('return False, "unreachable'));
+  check('the refusal drops the block and says so, keeping the plain card', buildSrc.includes('kept the plain card') && buildSrc.includes('PREVIEW_LIVE_RE.sub(live, content)'));
+  // Same reason section numbers come off a counter: the document already holds the fact.
+  check('the host comes off the href, so nobody types it and nobody can mistype it', buildSrc.includes('urlparse(href.group(1)).hostname') && buildSrc.includes('"<small>" + host + "</small>"'));
+  check('a live block is matched by its own class pair, never by a generic div (re.sub consumes what it matches)', buildSrc.includes('PREVIEW_LIVE_RE = re.compile(') && !/PREVIEW_LIVE_RE = re\.compile\(r"\(\?is\)<div\\b\[\^>\]\*>/.test(buildSrc));
+  check('the probe is skippable without touching the markup', buildSrc.includes('--no-preview-probe'));
 
   // Judged on the kit source, not the template: menu.js carries its own chrome
   // radii (7/8/12px) which are not on the kit's scale and never should be.

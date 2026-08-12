@@ -12,6 +12,12 @@
 :root[data-theme="dark"]{color-scheme:dark;--page-bg:#1b1b19;--text-primary:#ececea;--text-secondary:#9f9f98;--text-accent:#82abec;--surface-1:#262624;--surface-2:#302f2c;--border:#3e3e3a;--border-strong:#55554f;--bg-success:#143122;--bg-accent:#16283f;--bg-warning:#382c13;--bg-danger:#3a1d19}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--page-bg:#1b1b19;--text-primary:#ececea;--text-secondary:#9f9f98;--text-accent:#82abec;--surface-1:#262624;--surface-2:#302f2c;--border:#3e3e3a;--border-strong:#55554f;--bg-success:#143122;--bg-accent:#16283f;--bg-warning:#382c13;--bg-danger:#3a1d19}}
 html,body{margin:0;background:var(--page-bg)}
+/* A @TABS bar jumps as a plain anchor, so the animation that says "you moved inside this same
+   document" is one stylesheet line instead of a click handler — nothing to wire, and it still
+   works with the scrollspy script stripped out. scroll-behavior does not honour reduced motion
+   on its own, so that is spelled here. */
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 .wrap{max-width:860px;margin:0 auto;padding:34px 16px 20px}
 .rc{font-size:13.5px;padding:2rem 2.4rem;border-radius:16px;margin:0}
 .meta{color:var(--text-secondary);font-family:inherit;font-size:11.5px;margin:10px 4px 0;text-align:end;font-family:Vazirmatn,Inter,Tahoma,sans-serif}
@@ -146,6 +152,63 @@ window.__rcEmail = function (cb) {
     });
   });
   if (pdf) pdf.addEventListener('click', function () { window.print() });
+})();
+/* @TABS scrollspy — the ONLY script the component needs. The bar, the jump and
+   the landing offset are all CSS, so a report keeps working with this file
+   stripped; this adds the follow-on-scroll highlight and nothing else. Guarded
+   on the bar existing, so a report without one runs no code at all. */
+(function () {
+  var card = document.getElementById('card');
+  var bar = card && card.querySelector('.tabs');
+  if (!bar) return;
+  var items = [];
+  bar.querySelectorAll('a[href^="#"]').forEach(function (a) {
+    var el = document.getElementById(a.getAttribute('href').slice(1));
+    if (el) items.push({ a: a, el: el });
+  });
+  if (items.length < 2) return;
+
+  /* The bar's own height is the offset for everything else: the line the
+     scrollspy compares against, and how far a heading has to clear itself when
+     it is jumped to (--tabh, which the kit reads for scroll-margin-top).
+     MEASURED, never hardcoded. The bar wraps — six tabs on a phone are three
+     flex lines — and a fixed offset then parks the heading behind rows two and
+     three of the bar that just moved it there. The sticky offset is read off the
+     bar too, so the 10px in the stylesheet is not spelled a second time here.
+     A ResizeObserver and not a resize listener: the webfont lands AFTER first
+     paint and changes the bar's height with no resize event to hear. */
+  var line = 0;
+  function measure() {
+    var top = parseFloat(getComputedStyle(bar).top) || 0;
+    var h = bar.getBoundingClientRect().height + top;
+    card.style.setProperty('--tabh', Math.round(h + 22) + 'px');
+    line = h + 24;
+  }
+
+  /* The active tab is the LAST section whose heading has passed the line just
+     under the bar. Comparing against that line rather than the viewport top is
+     what keeps a tab lit while its own body is still on screen.
+     Called STRAIGHT from the scroll handler, never through
+     requestAnimationFrame: rAF is throttled to zero in a background or hidden
+     tab, so the bar freezes on whatever was active when the tab lost focus and
+     is wrong the moment the reader comes back. A handful of rects per event is
+     cheap enough not to want the throttle. */
+  function sync() {
+    var on = 0;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].el.getBoundingClientRect().top <= line) on = i;
+    }
+    items.forEach(function (it, i) {
+      if (i === on) it.a.setAttribute('aria-current', 'location');
+      else it.a.removeAttribute('aria-current');
+    });
+  }
+
+  function hold() { measure(); sync(); }
+  window.addEventListener('scroll', sync, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(hold).observe(bar);
+  else window.addEventListener('resize', hold, { passive: true });
+  hold();
 })();
 /* PNG export inlines the font bytes (an SVG-as-image can't load an external
    @import font, so it would otherwise rasterize in a system fallback). The

@@ -135,10 +135,16 @@ const KIT_DETECT = {
   QUOTE: { cls: [], tags: ['blockquote', 'cite'] },
   SRC: { cls: ['src'], tags: [] },
   NUMBERED: { cls: ['numbered'], tags: [] },
+  SECTIONS: { cls: ['sections'], tags: [] },
+  TABS: { cls: ['tabs'], tags: [] },
   DONUT: { cls: ['donut', 'donut-w', 'leg'], tags: [] },
   FOLD: { cls: ['fold'], tags: ['details', 'summary'] },
   ICON: { cls: ['ic'], tags: [] },
   FIG: { cls: [], tags: ['figure', 'figcaption', 'img'] },
+  /* `live` is listed next to `preview` deliberately: it never appears without it
+   * today, but a miss on either renders the frame at full desktop width, with no
+   * lid over it and no radius joining it to the card above. */
+  PREVIEW: { cls: ['preview', 'live'], tags: [] },
 };
 /* A snippet may lean on BASE and on what it declares here, never on a sibling
  * happening to be present: @BOX takes its panel + child inversion from @CARD,
