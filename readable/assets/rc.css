@@ -252,7 +252,7 @@
 .rc :is(.card,.box)>:first-child{margin-top:0}.rc :is(.card,.box)>:last-child{margin-bottom:0}
 .rc .card h4{margin:0 0 .4em;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .rc .card.pick{border-color:var(--text-accent);box-shadow:inset 0 0 0 1px var(--text-accent)}
-.rc :is(.card,.box) :is(.kpi,pre,code,.badge,.lbl,.flow .s,.hub .c,.hub .s,.bar .t,.scroll-table,.scroll-table thead th,.preview,.tabs){background:var(--surface-1)}
+.rc :is(.card,.box) :is(.kpi,pre,code,.badge,.lbl,.flow .s,.hub .c,.hub .s,.bar .t,.scroll-table,.scroll-table thead th,.preview){background:var(--surface-1)}
 .rc :is(.card,.box) tbody tr:hover td{background:var(--surface-1)}
 .rc :is(.card,.box) .tl>div::before{outline-color:var(--surface-2)}
 .rc :is(.card,.box) .hub .c{background:var(--bg-accent)}
@@ -323,12 +323,21 @@
    ::after is a transparent lid over the frame: without it the wheel lands inside the iframe and
    the report stops scrolling under the pointer. It also swallows clicks, which is correct - the
    card above is the click target, and a nested scrollable page is not something to hand a
-   reader inside a document.*/
+   reader inside a document.
+   Below 520px --s becomes 1 and the frame stops being a scaled-down desktop page: at a 264px
+   container, 0.7 asks the target for a 377px layout and 0.24 would ask for a desktop one at 4px
+   text. Scale 1 shows the target's OWN narrow layout at full size, which is the only legible
+   answer on a phone.
+   A white target page in a dark report is a bright slab, and nothing can be done about that
+   without misrepresenting someone else's page - so it is the same answer @FIG gives a
+   screenshot: the border is what stops it floating with no edge. The bottom edge is left as a
+   crisp crop rather than a mask fade, which reads well over a light surface and turns into a
+   white-to-charcoal smudge over a dark one.*/
 .rc .preview{display:block;position:relative;background:var(--surface-2);border:.5px solid var(--border);border-radius:11px;margin:.9em 0}
 .rc a.preview{padding:9px 13px;padding-inline-end:30px;color:var(--text-primary)}
 .rc .preview b{display:block;font-weight:700;color:var(--text-accent)}
 .rc .preview span{display:block;font-size:.92em;color:var(--text-secondary)}
-.rc .preview small{display:block;font-size:.78em;color:var(--text-secondary);direction:ltr;unicode-bidi:isolate;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.15em}
+.rc .preview small{display:block;font-size:.78em;color:var(--text-secondary);unicode-bidi:isolate;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.15em}
 .rc a.preview::after{content:'';position:absolute;inset-inline-end:13px;top:calc(50% - 4px);width:6px;height:6px;border-top:1.5px solid var(--text-accent);border-inline-end:1.5px solid var(--text-accent);border-start-end-radius:1px;transform:rotate(45deg)}
 .rc a.preview:dir(rtl)::after{transform:rotate(-45deg)}
 .rc a.preview:hover{border:.5px solid var(--text-accent);background:var(--bg-accent)}
@@ -338,6 +347,7 @@
 .rc .preview+.preview.live{margin-top:0;border-top:none;border-start-start-radius:0;border-start-end-radius:0}
 .rc .preview.live iframe{position:absolute;inset-block-start:0;inset-inline-start:0;width:calc(100%/var(--s));height:calc(100%/var(--s));border:0;transform-origin:var(--o) 0;transform:scale(var(--s))}
 .rc .preview.live::after{content:'';position:absolute;inset:0}
+@media(max-width:520px){.rc .preview.live{--s:1}}
 /*@NUMBERED - wrap a long document's body and h3 takes a section number in place of its
    square dot, h4 an N.M sub-number that resets per section. Authors NEVER type the numbers:
    they come from counters, so inserting a section renumbers the rest for free.
@@ -390,11 +400,20 @@
    the webfont lands AFTER first paint and changes the bar's height with no resize event to hear.
    h3[id] and not a class: the author writes an id because the tab links to it, so there is
    nothing extra to remember. :has(.tabs) keeps the offset out of a report that has no bar.
-   The fill is --surface-2 on a hairline, which is what separates a floating rail from the
-   card's own --surface-1 in light AND dark with no colour invented. A drop shadow was the first
-   answer and it needed a literal rgba: --text-primary mixed into a shadow glows WHITE in dark
-   mode, and --border-strong sits lighter than the surface there, so neither variable can spell
-   a shadow that works both ways.
+   The fill is the card's OWN --surface-1 on a hairline, so the bar reads as a control rather
+   than as content: a long document opens with an executive .box, which is --surface-2, and a
+   surface-2 bar directly under it came out as a second grey slab instead of a rail. Hover takes
+   surface-2 and the active tab takes --bg-accent, so all three states are one step apart in
+   both themes. A drop shadow was the first answer and it needed a literal rgba: --text-primary
+   mixed into a shadow glows WHITE in dark mode, and --border-strong sits lighter than the
+   surface there, so neither variable can spell a shadow that works both ways. The fill is
+   opaque, which is the only thing the stuck state actually needs.
+   top:56px is the REPORT SHELL's geometry, not a taste: the shell floats the theme toggle, the
+   Copy/PDF pair and the ... menu at top:16px in 34px circles, so anything pinned above 50px
+   shares that band. At top:10px they sat on the first and last tab of a 375px bar and a phone
+   reader could not press either. 56 clears the band at every width with no breakpoint, and the
+   band of document that scrolls above the bar reads as intentional float where a 10px sliver of
+   half-cut text read as clipping. server/test.js pins the two numbers together.
    HOVER USES THE BORDER SHORTHAND, and the active rule sits AFTER hover: BASE gives every <a> a
    1px bottom border on hover, so a bare border-color would leave that 1px in place and every
    tab would grow half a pixel under the pointer; and at equal specificity the later rule wins,
@@ -402,11 +421,25 @@
    Below 520px the sub-labels are HIDDEN, not ellipsed: at three tabs across a phone they
    truncate to four characters of mush, and the row of primary labels reads perfectly without
    them. min-width:0 is what lets a flex item shrink under its content at all, so nothing ever
-   scrolls sideways.*/
-.rc .tabs{position:sticky;top:10px;z-index:7;display:flex;flex-wrap:wrap;gap:6px;margin:1.2em 0 1.6em;padding:6px;background:var(--surface-2);border:.5px solid var(--border);border-radius:11px}
-.rc .tabs a{flex:1 1 7em;min-width:0;text-align:center;padding:6px 9px;border:.5px solid transparent;border-radius:9px;color:var(--text-secondary);font-weight:700;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+   scrolls sideways.
+   The 5.5em flex BASIS is what decides how many tabs a line holds, and it was tuned down from
+   7em by measuring: at 7em three tabs broke to two lines on a 375px screen and the bar took 89px
+   of a phone viewport for three short words. At 5.5em three fit one line and six break to two,
+   which is the wrap the measured offset exists for. Wide screens are unaffected - flex-grow
+   stretches the line to fill either way. box-sizing is the ONE place the kit sets it, and it is
+   load-bearing here: the sheet is content-box, so under the default the basis meant 5.5em PLUS
+   19px of padding and border, three tabs measured 292px against 252px of room, and the bar broke
+   to two lines anyway. Border-box makes the number mean the tab's real width.
+   ONE COLLISION IS KNOWN AND NOT FIXED HERE: the report shell floats its own chrome (theme
+   toggle, Copy/PDF, the ... menu) at top:16px, and below roughly 935px the card reaches under
+   it, so a STUCK bar shares that band. It is the shell's furniture, it already floats over
+   ordinary paragraphs at those widths, and the ... menu glides to the reader's pointer in use;
+   re-seating it for bar-carrying reports would mean a second seating rule for a control whose
+   first one took two releases to get right (see 4.17.0).*/
+.rc .tabs{position:sticky;top:56px;z-index:7;display:flex;flex-wrap:wrap;gap:6px;margin:1.2em 0 1.6em;padding:6px;background:var(--surface-1);border:.5px solid var(--border);border-radius:11px}
+.rc .tabs a{box-sizing:border-box;flex:1 1 5.5em;min-width:0;text-align:center;padding:6px 9px;border:.5px solid transparent;border-radius:9px;color:var(--text-secondary);font-weight:700;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rc .tabs a span{display:block;font-size:.82em;font-weight:400;overflow:hidden;text-overflow:ellipsis}
-.rc .tabs a:hover{border:.5px solid var(--border);background:var(--surface-1);color:var(--text-primary)}
+.rc .tabs a:hover{border:.5px solid var(--border);background:var(--surface-2);color:var(--text-primary)}
 .rc .tabs a[aria-current]{border:.5px solid var(--text-accent);background:var(--bg-accent);color:var(--text-accent)}
 .rc:has(.tabs) h3[id]{scroll-margin-top:var(--tabh,5.6em)}
 @media(max-width:520px){.rc .tabs a span{display:none}}

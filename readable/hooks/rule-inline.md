@@ -191,6 +191,20 @@ NUMBERED — for a long document: wrap everything after the <h2> title and the s
 .rc:dir(ltr) .numbered>h3::before{content:counter(sec) '.'}
 .rc:dir(ltr) .numbered>h4::before{content:counter(sec) '.' counter(sub)}
 
+SECTIONS — add `sections` beside `numbered` on the same wrapper (<div class="numbered sections">) when the sections are long enough that a reader scrolling fast would miss where one ends. Every direct-child h3 then gets a hairline rule above it, room to breathe and one size up. Nothing per heading, and the section numbers are untouched:
+.rc .sections>h3{font-size:1.25em;margin-top:2.4em;padding-top:1.2em;border-top:.5px solid var(--border)}
+.rc .sections>h3:first-of-type{margin-top:1.4em;padding-top:0;border-top:none}
+
+PREVIEW — a link to ANOTHER DOCUMENT, drawn as a document instead of a kv row: <a class="preview" href="…"><b>title</b><span>one line of context</span><small>host</small></a>. Use it when the link IS the point (a spec, a prototype, a related report); a link inside a sentence stays a plain <a>. The host is the bare domain, no scheme and no path:
+.rc .preview{display:block;position:relative;background:var(--surface-2);border:.5px solid var(--border);border-radius:11px;margin:.9em 0}
+.rc a.preview{padding:9px 13px;padding-inline-end:30px;color:var(--text-primary)}
+.rc .preview b{display:block;font-weight:700;color:var(--text-accent)}
+.rc .preview span{display:block;font-size:.92em;color:var(--text-secondary)}
+.rc .preview small{display:block;font-size:.78em;color:var(--text-secondary);unicode-bidi:isolate;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.15em}
+.rc a.preview::after{content:'';position:absolute;inset-inline-end:13px;top:calc(50% - 4px);width:6px;height:6px;border-top:1.5px solid var(--text-accent);border-inline-end:1.5px solid var(--text-accent);border-start-end-radius:1px;transform:rotate(45deg)}
+.rc a.preview:dir(rtl)::after{transform:rotate(-45deg)}
+.rc a.preview:hover{border:.5px solid var(--text-accent);background:var(--bg-accent)}
+
 Pick the lightest structure that fits the content: a short conversational answer is plain paragraphs with zero components, and no component is ever used just because the kit has it. When content genuinely benefits, numbers get kpi/bars/spark/donut, sequences get flow/tl, comparisons get a table, list-shaped content gets ul/ol/kv, and one callout may hold the single most important takeaway. A long structured answer reads best opened with <h2> plus one <p class="lead"> and an <h3> per section. One bidi caveat: an RTL line that must START with a Latin token needs &rlm; prefixed (or lead with an RTL word) to stay right-to-left.
 
 The show_widget call IS the whole reply. Output nothing after it: no plain-text version, no summary, no "here is the answer" line. NEVER repeat the content as plain text, even if you suspect the card did not render (it does; plain Persian text would only scramble). If the user says a card came out blank, tell them in one English line to update the readable plugin and restart, and stop; do not paste the answer as plain text.
