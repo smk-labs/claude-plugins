@@ -74,7 +74,7 @@ Removing the marketplace uninstalls every plugin that came from it.
 
 | Plugin | What it does |
 | --- | --- |
-| **spring-clean** | Deep-cleans a repo, then gives it rules the build enforces. `spring-clean` deletes dead surfaces, moves dev docs out of the code tree, splits oversized files and draws package boundaries. `house-rules` then works out that repo's own clean-code rules from the defects its own history keeps repeating, and encodes each one as a linter setting or a failing test, so breaking one turns the build red. |
+| **spring-clean** | Deep-cleans a repo, then gives it rules the build enforces. `spring-clean` declares a scoreboard, deletes dead surfaces, moves dev docs out of the code tree, splits oversized files and draws package boundaries, and writes its plan to a numbered unit list so a long pass survives a dead context. `workspace-rules` then works out that repo's own rules from the defects its history keeps repeating, encodes each one as a linter setting, a test or a hook, proves it red by name and green on an untouched tree, and caps the set inside the check file itself. |
 | **portal-skills** | Platform engineering and security. GitLab CI/CD and Helm charts for Kubernetes, pod rightsizing from real Prometheus data, a secure-coding baseline that applies while you write, and a deep OWASP reference. |
 
 ### Make the output readable
