@@ -1,7 +1,7 @@
 {
   "name": "spring-clean",
-  "description": "Two passes over a repo. spring-clean measures against a declared scoreboard, deletes or gitignores what does not belong, relocates dev docs, notes, clones and dumps to a <project>-workspace repo, splits oversized files, draws package boundaries and writes its plan to a numbered unit list that survives a dead context. workspace-rules then derives that repo's own rules from its defect history, encodes each as a linter setting, an architecture test or a hook, proves each one red by name and green on an untouched tree, and writes the cap, the displacement clause and the dated judged-out list into the check file itself.",
-  "version": "2.1.0",
+  "description": "Two passes over a repo. spring-clean measures against a declared scoreboard, deletes or gitignores what does not belong, relocates dev docs, notes, clones and dumps to a <project>-workspace repo, splits oversized files, draws package boundaries and writes its plan to a numbered unit list that survives a dead context. workspace-rules then gives that repo its rules at both layers, sorting each by what it hands the model: information it cannot infer is told where a session starts, anything a script could count is counted as a linter setting, an architecture test or a hook proved red by name and green on an untouched tree, and the cap, the displacement clause and the dated judged-out list go inside the check file itself.",
+  "version": "3.0.0",
   "author": {
     "name": "Seyed M. Keramati",
     "url": "https://github.com/SMKeramati"
