@@ -9,6 +9,8 @@ A clean repo with rules in a document will be dirty again. This pass leaves rule
 
 A check that can go red on its own and names itself when it does: one `describe` title, one linter key at `error`. Count the set by grepping your own check files. A count no machine can take cannot be asserted, and an unasserted cap is the prose this skill exists to replace. Every cap and every displacement below means this and nothing else.
 
+Its failure message names the offender too, not just the rule. An assertion that prints `expected <= 16, received 17` has told you a rule broke and left you to find out where by hand.
+
 ## Derive from this repo, never from a list
 
 - **The `fix:` and revert log, whole history.** A revert outranks a fix: it got past every gate already there. Cluster by defect class and date every cluster.
