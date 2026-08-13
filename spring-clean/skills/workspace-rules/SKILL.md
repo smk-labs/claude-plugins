@@ -7,7 +7,7 @@ A clean repo with rules in a document will be dirty again. This pass leaves rule
 
 ## One rule is one named detector
 
-A check that can go red on its own and names itself when it does: one `describe` title, one linter key at `error`, one function in a gate script. Count standing rules only, the ones that scan the tree, and count what already exists before your own. Where a gate is one long script, count the failures it can print, not the files it lives in, or the same set measures eight times larger by how someone split their functions. Its failure message is an instruction rather than a diagnosis: name the offender, then the command that fixes it, because the reader is someone about to finish a turn.
+A check that can go red on its own and names itself when it does. **The unit is the name printed when it fails**: one `describe` title rather than each assertion inside it, one named check in a gate script rather than the file it shares, one linter key at `error`. Anything else and the same set measures twice or eight times larger depending on how someone split their functions. Count standing rules only, the ones that scan the tree, and count what already exists before your own. The message itself is an instruction rather than a diagnosis: name the offender, then the command that fixes it, because the reader is someone about to finish a turn, and one failure names one cause rather than offering a reader two.
 
 ## Derive from this repo, never from a list
 
@@ -18,7 +18,7 @@ A check that can go red on its own and names itself when it does: one `describe`
 - **Your own session transcripts.** A whole class of defect costs real time and never appears in a diff.
 - **What already runs**, so you subtract rather than re-encode, and **what nothing sees**: a directory that is production for one rule and invisible to another is where the violations live.
 
-Each rule carries the incident that bought it: what happened, the date, and what the miss cost in this repo's own units. Not a commit sha, which no shallow clone can resolve. **No incident, no slot** is what actually bounds a set. Generic is not the disqualifier, unpaid is: run the generic sweep if you like, and let the tree win every tie.
+Each rule carries the incident that bought it: what happened, the date, and what the miss cost in this repo's own units, plus the sha where the history is deep enough to resolve one. A sha alone is not the receipt, and on a shallow clone it is not even a pointer. **No incident, no slot** is what actually bounds a set. Generic is not the disqualifier, unpaid is: run the generic sweep if you like, and let the tree win every tie.
 
 ## Calibrate the scope, before choosing a mechanism
 
@@ -26,9 +26,9 @@ Run each detector over the whole tree with the code you will ship, not a grep st
 
 ## Four rules about the rule set
 
-**1. A rule the tree already breaks ships in one of three shapes.** Pin every current violator at its measured value, with no unpinned violator, no pinned non-violator, and the ledger's own length capped. Or set the limit at the target and **warn** until the slack closes, which is how you install a limit you cannot meet yet without lying. Or scope the detector to added lines only, which needs no ledger at all. What it never does is ship as a block that has to be bypassed on day one. Pin only where the repair is a project; a pinned typo is a certified lie, and a pin that just records today's tree rubber-stamps the drift.
+**1. A rule the tree already satisfies just ships. One it breaks takes one of three shapes.** Pin every current violator at its measured value, with no unpinned violator, no pinned non-violator, and the ledger's own length capped. Or set the limit at the target and **warn** until the slack closes, which is how you install a limit you cannot meet yet without lying. Or scope the detector to added lines only, which needs no ledger at all. What it never does is ship as a block that has to be bypassed on day one. Pin only where the repair is a project; a pinned typo is a certified lie, and a pin that just records today's tree rubber-stamps the drift.
 
-**2. Seen red by name, and green on an untouched tree.** Break it on purpose, watch it fail by name in the real gate, and prove it **once per file class the gate claims to cover**, because a gate that runs, exits 0 and silently covers the wrong file set is the common failure. Then assert the other half: the gate exits 0 on unmodified HEAD, measured where CI measures it. Keep the probe and date it. Every detector needs a third outcome, could-not-run, distinct from pass and fail; never write a failure message containing "or".
+**2. Seen red by name, and green on an untouched tree.** Break it on purpose, watch it fail by name in the real gate, and prove it **once per file class the gate claims to cover**, because a gate that runs, exits 0 and silently covers the wrong file set is the common failure. Then assert the other half: the gate exits 0 on unmodified HEAD, measured where CI measures it. Keep the probe and date it. Every detector needs a third outcome, could-not-run, distinct from pass and fail, and a scan that read nothing reports that rather than green.
 
 **3. One gate, already running, and reachable.** Rules land in the command that already runs, triggered on the edit rather than the commit where the harness allows it, since that is sooner and it catches an agent that never commits. Scope the trigger to the paths that changed, which is what lets a heavy guard exist at all. Then assert the reverse: **every executable gate in the tree is reachable from a trigger.** The dominant failure here is not a wrong check, it is a correct one that nothing invokes. Deny the bypass at the layer above, or the flag that skips the gate is the gate. Where there is no build to land in, the edit and the turn are the build.
 
@@ -42,7 +42,7 @@ Otherwise: a linter setting, a linter rule pinned to what exists, an architectur
 
 Block only where the detector reaches near-zero false positives on this tree; otherwise warn, and name in its header which layer does block. A check that fires on correct code trains everyone to ignore red, and the fix is to delete it and write the deleted scope and its reason into the gate's header, so nobody improves it back.
 
-Where only a person can judge the violation, do not leave it prose: **make the declaration mandatory and grep for the declaration.** No declaration is the violation. What stays genuinely un-mechanised says so, states its adoption rate, and names the exact config key that would upgrade it, because a rule that knows whether it is checked is worth three that do not. And add the cheapest device in any rule set, which needs no tooling at all: **a list of what this repo does not have.** Every entry is a plausible thing somebody confidently referenced, and it stops the invention in one direction and the phantom violation in the other.
+Where only a person can judge the violation, do not leave it prose: **make the declaration mandatory and grep for the declaration.** No declaration is the violation. What stays genuinely un-mechanised says so, states its adoption rate, and names the exact config key that would upgrade it, because a rule that knows whether it is checked is worth three that do not. And add the cheapest device in any rule set: **a list of what this repo does not have**, each entry a plausible thing somebody once confidently referenced. It stops the invention in one direction and the phantom violation in the other. Keep it out of prose by asserting that none of its entries has appeared, so the day one does, the list fails instead of going quietly stale.
 
 ## The cap is a measurement, and the set must shrink
 
