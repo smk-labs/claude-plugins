@@ -10,7 +10,7 @@ A `SessionStart` hook injects one short rule: reply in Persian as a single self-
 
 Since 4.0.0 the default delivery is the bundled MCP Apps card server (section 3): the `SessionStart` hook injects a ~2 KB dispatch rule instead of an 11 KB CSS kit, the model sends content-only HTML to the `card` tool, and styling lives once in the server template. Persian/RTL always; English conversational and structured answers by default too (code-heavy replies stay plain text; the extra cost of an English card is just HTML tags vs markdown, roughly 10-20% of content). The 3.2.0 self-contained widget path (pay-per-use inline kit) remains available as [hooks/rule-inline.md](hooks/rule-inline.md) for setups without the card tool: point `hooks/hooks.json` at it.
 
-The inline kit is pay-per-use since 3.2.0. Every widget card carries a small BASE block (~2.5 KB: card frame, headings, text, lists, callouts, code). Components (table, badge, kv, kpi, bars, spark, donut, flow, timeline, cta, and since 4.19.0 card/box, cols, blockquote, src, numbered) each have their own snippet the model appends only when the reply actually uses them. A prose answer costs about a quarter of the old fixed kit; a full dashboard still costs less than the old kit did.
+The inline kit is pay-per-use since 3.2.0. Every widget card carries a small BASE block (~2.5 KB: card frame, headings, text, lists, callouts, code). Components (table, badge, kv, kpi, bars, spark, donut, flow, timeline, cta, since 4.19.0 card/box, cols, blockquote, src, numbered, and since 5.5.0 hub/hub tree) each have their own snippet the model appends only when the reply actually uses them. A prose answer costs about a quarter of the old fixed kit; a full dashboard still costs less than the old kit did.
 
 Since 4.20.0 the card template is pay-per-use too, and by a different mechanism. The template cannot be tailored per card — a `ui://` resource is predeclared and served static, before any card content exists — so the tailoring moved off the template: it now carries BASE only (25.9 KB of the 30 KB ceiling, flat forever), and the app asks the server for the component snippets a given card's HTML actually needs. `server.js` parses the `@TAG` markers into a tag map with per-component detectors and dependencies, and the app-only `read_kit` tool returns just those snippets, which the bridge mounts as `<style id="rckit">` before the first paint. A prose card gets 0 bytes of component CSS; a kv+badge card gets 592; a full dashboard gets ~2.5 KB — all on the tool-result channel, like the base64 font bytes `read_fonts` already returns, so none of it counts against the resource ceiling.
 
@@ -19,6 +19,26 @@ Three consequences. The 30 KB ceiling is off the critical path for good, so a ne
 The card is self-contained by default: components degrade to plain readable text if their CSS is missing, and nothing depends on the network except the font import, which falls back to system fonts. Note: a live probe (2026-07) showed the widget sandbox is an `https://*.claudemcpcontent.com` iframe that DOES run inline scripts and CAN load external stylesheets, fonts, and `fetch()`. Self-contained stays the default for offline safety, but that finding enables the hosted variant below. (`PreToolUse` hook rewrites of `widget_code` are still ignored by the renderer; only what the model itself emits counts.)
 
 Everything adapts to light and dark mode through the host's CSS variables.
+
+### Diagrams: hub and hub tree (5.5.0)
+
+The kit could draw a sequence (`flow`), a chronology (`tl`) and a comparison (`cards`), but not one thing connected to many, so authors faked that with a bullet list. Two components close it, and both are CSS only: no JS, no SVG, no image.
+
+`hub` is a centre with up to eight legs, each leg an arrow that carries direction of flow. `out` on a leg turns its arrow around, which is the whole difference between "reads from" and "writes to", so the diagram keeps one hue instead of buying a second colour to say the same thing. Markup stays flat, the same shape as `flow`:
+
+```html
+<div class="hub">
+  <div class="c">باقرزاده<span>پلاگین جامع شرکت</span></div>
+  <div class="s">نوشن<span>هاب ایجنت‌ها</span></div>
+  <div class="s out">دیسکورد<span>با کران خبر می‌دهد</span></div>
+</div>
+```
+
+It is a 3x3 grid. `.c` takes the middle cell, the eight `.s` auto-flow into the ring around it, and each slot declares only where its leg starts on its own box, which way it runs and how long. The corner legs are 45 degrees because the row gap equals the column gap, so a corner cell's inner corner sits the same distance across in both axes and the leg lands on the centre cell's corner with nothing measured. Anchoring on the box rather than on the hub centre is what makes that exact: cells are wide and short, so a 45 degree ray from the middle misses the corner cells completely. RTL costs one sign flip, because every angle is read in the inline frame rather than in physical left/right.
+
+`hub tree` is the same markup plus `tree`: a root, branches and leaves, no arrows, because a branch means "groups", not "moves toward". A branch may nest its own `.s` children, which render as a connected group inside it. Nine items or more wants the tree, not the hub, because the ring holds eight.
+
+Both reflow to one column below 520px and never scroll sideways, both nest inside `card` and `box`, and both print with their connectors intact, because every connector is a border and `print-color-adjust` keeps borders when it drops backgrounds.
 
 ### Token cost
 

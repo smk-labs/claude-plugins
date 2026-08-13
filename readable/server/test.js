@@ -191,6 +191,57 @@ function check(name, cond) {
 
   // 3b. kit source invariants that the chat template cannot see (report tier).
   const kit = fs.readFileSync(path.join(__dirname, '..', 'assets', 'rc.css'), 'utf8').replace(/\r\n/g, '\n');
+  // @HUB (5.5.0): one thing connected to many. Eight rotated legs on a 3x3 grid, so the
+  // invariants worth pinning are the ones a render cannot show at a glance.
+  const kHub = await kitOf('<div class="hub"><div class="c">c</div><div class="s">a</div><div class="s out">b</div></div>');
+  check('read_kit delivers the hub for a hub or a tree', kHub.includes('.rc .hub{') && (await kitOf('<div class="hub tree"><div class="c">r</div></div>')).includes('.rc .tree{'));
+  check('no hub CSS for a card without one', !kKpi.includes('.rc .hub{'));
+  const hubCss = kit.split('/*@HUB')[1].split('/*@BADGE')[0];
+  // Rules only. The block's comment mentions both `.out` and `print-color-adjust`, so a
+  // regex over the raw text can walk from one to the other and 'find' a colour that is prose.
+  // The split ate the opening `/*@HUB`, so the doc comment has no opener left to match: drop
+  // everything up to the first `*/` first, then any later comment.
+  const hubRules = hubCss.replace(/^[^]*?\*\//, '').replace(/\/\*[^]*?\*\//g, '');
+  // The centre owns the middle cell and the eight legs auto-flow around it, so a slot
+  // carries only its own geometry. A missing slot leaves a leg pointing nowhere.
+  check('all eight ring slots are declared, and only eight', (() => {
+    const n = (hubCss.match(/\.rc \.hub>:nth-child\(\d\)/g) || []).map((m) => +m.match(/\d/)[0]);
+    return n.length === 8 && n.join() === '2,3,4,5,6,7,8,9';
+  })());
+  // The row gap MUST equal the column gap: a corner cell's inner corner is then the same
+  // distance across in both axes, which is the whole reason a 45deg leg lands on the
+  // centre's corner with nothing measured. gap:44px 30px would break every diagonal.
+  check('one gap for both axes, and the corner legs are that gap x 1.41 (+ the 9px radius)', /\.rc \.hub\{[^}]*gap:44px[;}]/.test(hubCss) && (hubCss.match(/--l:66px/g) || []).length === 4 && /--l:44px/.test(hubCss));
+  // Connectors are BORDERS. print-color-adjust drops backgrounds, and a hub that prints
+  // as boxes with no legs is not a hub.
+  check('every connector is drawn with a border, never a background', hubCss.split('\n').filter((l) => /::(before|after)/.test(l)).every((l) => !/background/.test(l)) && (hubCss.match(/border-top:1\.5px|border-left:8px|border-inline-start:1\.5px/g) || []).length >= 3);
+  check('print keeps the hub whole and un-inks its panels inside a card', kit.includes('.rc .card,.rc .cols>div,.rc .hub{break-inside:avoid}') && /@media print\{[^]*:is\(\.kpi,\.flow \.s,\.hub \.c,\.hub \.s,/.test(kit));
+  // RTL is one sign flip, not a second slot table: --r is read in the INLINE frame, so a
+  // slot's angle is identical both ways and only the frame mirrors.
+  check('rtl mirrors the frame, not the table: one :dir(rtl) rule flips --f/--o', hubCss.includes('.rc .hub:dir(rtl){--f:-1;--o:100%}') && !/:dir\(rtl\)[^}]*--r:/.test(hubCss));
+  // The head is a SOLID triangle (one thick border-left between transparent caps), and it
+  // must use a PHYSICAL border so scaleX(-1) mirrors it exactly once; a logical
+  // border-inline-start mirrors twice and turns the arrow back on its own box.
+  check('the head is a solid border triangle, mirrored by scaleX exactly once', /\.s::after\{[^}]*border:3px solid transparent;border-right:0;border-left:8px solid var\(--cb\)[^}]*transform:scaleX\(var\(--f\)\)/.test(hubCss));
+  // A triangle is narrower than a 1.5px line for the last 2px before its point, so a line
+  // run all the way to the tip pokes a blunt nub through it. The line stops at the head's
+  // CENTRE (--w) and the head covers the rest, which is what makes them one silhouette.
+  check('the line stops at the head centre, so no nub pokes through the point', /--w:calc\(var\(--l\) - 4px\);--d:var\(--w\)/.test(hubCss) && /\.s::before\{width:var\(--w\)/.test(hubCss));
+  check('an out head keeps the full line and sits its tip 2px inside its own box', /\.rc \.hub \.out\{--a:180deg;--w:var\(--l\);--d:2px\}/.test(hubCss));
+  // Direction, not a second hue: the whole component speaks one accent ramp.
+  check('out only turns the arrow around; it never buys a second colour', /\.rc \.hub \.out\{--a:180deg/.test(hubRules) && !/\.out[^}]*(color|--cd)/.test(hubRules));
+  // The tree root spans every row, and -1 needs EXPLICIT rows to mean the last line -
+  // without them it collapses to one row and the root lands in the wrong column.
+  check('the tree root spans the explicit rows it needs, column pinned too (grid-area:2/2 pins column 2)', hubCss.includes('grid-template-rows:repeat(40,auto)') && hubCss.includes('.rc .tree>.c{grid-area:1/1/-1/2') && /gap:0 26px/.test(hubCss));
+  check('the tree draws no arrowheads: the arrow rule is scoped out of it', hubCss.includes('.rc .hub:not(.tree) .s::after{'));
+  // Below 520px the ring cannot hold. It must NOT become a chain of box-to-box arrows,
+  // which would claim HRIS feeds Jira; every leg becomes the same tick off its own box.
+  check('narrow reflow is one column with one shared leg, never a box-to-box chain', /@media\(max-width:520px\)\{[^]*grid-template-columns:1fr[^]*\.rc \.hub \.s\{--x:0;--y:50%;--r:180deg/.test(hubCss));
+  // Order is load-bearing: .tree sits AFTER the media query so it keeps two columns at
+  // every width without repeating :not(.tree) inside the query.
+  check('the tree block follows the media query, so it survives the narrow override', hubCss.lastIndexOf('.rc .tree{') > hubCss.lastIndexOf('@media(max-width:520px)'));
+  check('a hub nested in a card or box still reads (child inversion lists .c and .s)', kit.includes('.hub .c,.hub .s,.bar .t'));
+
   // Judged on the kit source, not the template: menu.js carries its own chrome
   // radii (7/8/12px) which are not on the kit's scale and never should be.
   // Hairlines under 5px on 4-9px decorations (dots, tracks, rules) are off-scale
