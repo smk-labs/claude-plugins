@@ -20,7 +20,7 @@
       "name": "spring-clean",
       "source": "./spring-clean",
       "description": "Deep-clean a repo against a declared scoreboard, then give it rules the build enforces. Delete dead surfaces, move dev docs out of the code tree, split oversized files and draw package boundaries, with the plan written down so a long pass survives a dead context; then derive the repo's own rules from the defects its history repeats, encode each as a linter setting, a test or a hook, and cap the set in the check file itself.",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "category": "engineering"
     },
     {
