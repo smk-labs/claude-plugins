@@ -41,7 +41,7 @@
       "name": "decode",
       "source": "./decode",
       "description": "A narrated tour of a codebase for people who do not read code: a two-minute story, a browsable file tree, one clean canvas per file, and pull requests translated into product language. Persian first.",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "category": "writing"
     },
     {
