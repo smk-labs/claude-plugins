@@ -1,5 +1,80 @@
 # readable changelog
 
+## 5.6.0
+
+Three components, all out of one real report: a long decision document with
+three parallel options. Each closes a gap that document hit.
+
+1. **`sections`.** At `1.1em` an `h3` disappears between two long sections, and
+   a reader scrolling a three-option document cannot tell where one option ends.
+   Add `sections` to the wrapper and every DIRECT-child `h3` gets a hairline
+   rule above it, room to breathe and one size up (`1.25em`, between `h3` and
+   the `1.35em` title rather than competing with it). Same shape as `numbered`,
+   one class and nothing per heading, and `numbered sections` needs nothing
+   reconciled: the number lives on `h3::before` and this touches only the box.
+   The first section carries no rule, keyed on `:first-of-type` so it holds
+   whatever sits between the wrapper and its first heading.
+
+2. **`preview`.** A link to another document, drawn as a document instead of a
+   `kv` row, which gives a whole document the same weight as the label beside
+   it: `<a class="preview" href><b>title</b><span>context</span><small>host</small></a>`.
+   The host is written in by `build.py` off the href, for the reason section
+   numbers come off a counter. The corner mark is a rotated border corner, so
+   print keeps the ink and RTL costs one sign.
+
+   `<div class="preview live"><iframe></div>` adds a live scaled-down frame of
+   the target, and it is the risky half. It is a SIBLING of the card, never a
+   wrapper, which is what makes the fallback free: a target that refuses framing
+   loses the frame and the card is already there, with no hole to fill and
+   nothing to rebuild. Print is the same one rule, plus giving the card its own
+   radius back.
+
+   The refusal is decided at BUILD time, because runtime cannot know: a frame
+   blocked by `X-Frame-Options` still fires `load`, its document is cross-origin
+   either way, and a `file://` report cannot fetch the url to look. `build.py`
+   reads the headers itself, treats an unreachable target as refusing (an empty
+   box in a finished document is worse than a card with no picture) and says on
+   stderr what it dropped. A host allowlist in `frame-ancestors` counts as a
+   refusal too: a report opened from disk has a null origin and can never
+   satisfy one. `--no-preview-probe` skips the network.
+
+   The frame renders at `1/--s` of the container and is scaled back by exactly
+   `--s`, so a desktop-width page reads at report width. Fixing the SCALE and
+   letting the logical width follow the container is deliberate: pinning the
+   logical width instead would hold a desktop layout at 0.24 on a phone, i.e.
+   4px text. Below 520px `--s` becomes 1 and the frame shows the target's own
+   narrow layout at full size. A transparent lid over it keeps the wheel on the
+   report instead of inside the frame.
+
+3. **`tabs`.** A pinned bar over a long report's sections: click to jump, and it
+   follows the reader on scroll by lighting the section they are in. Report tier
+   — a chat card has no scroll of its own, so there is nothing for a sticky bar
+   to stick to. The bar, the jump and the landing offset are all CSS, so it
+   degrades to plain anchors; the only script is the follow-on-scroll highlight,
+   in the report shell, guarded so a report with no bar runs nothing at all.
+
+   Both traps a hand-patched version hit are kept and now tested. The scrollspy
+   runs straight off the scroll event and never through `requestAnimationFrame`,
+   which is throttled to zero in a hidden tab and freezes the bar on whatever was
+   active when the tab lost focus. And the bar's height is MEASURED, never
+   hardcoded, for both the scrollspy's comparison line and each heading's
+   `scroll-margin-top`: the bar wraps, six tabs on a phone are two flex lines,
+   and a fixed offset parks the heading behind the second one. It is measured
+   with a `ResizeObserver` rather than on resize, because the webfont lands after
+   first paint and changes the bar's height with no resize event to hear.
+
+   Two things the screenshots caught. The sticky offset was 10px, which put the
+   bar inside the report shell's own fixed chrome band (`top:16px`, 34px
+   circles): at 375px the print button clipped the first tab's label and the
+   `⋯` menu covered the last one, so a phone reader could not press either. It
+   is 56px now, which clears that band at every width with no breakpoint, and a
+   test reads both numbers so moving one fails loudly. And the fill was
+   `--surface-2`, the same as the executive `.box` a long document opens with,
+   so the two stacked as grey slabs; the bar takes the card's own `--surface-1`
+   on a hairline instead and reads as a rail.
+
+`preview` and `sections` are offered in the chat rules too; `tabs` is not.
+
 ## 5.5.1
 
 The hub's arrowheads were an open two-border chevron floating at the end of each

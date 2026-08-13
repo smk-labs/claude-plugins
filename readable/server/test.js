@@ -280,6 +280,19 @@ function check(name, cond) {
   const tabCss = rules(kit.split('/*@TABS')[1].split('/*@DONUT')[0]);
   const shellSrc = fs.readFileSync(path.join(__dirname, '..', 'skills', 'report', 'assets', 'shell.html'), 'utf8');
   check('the bar is sticky, wraps instead of scrolling sideways, and every flex item can shrink under its content', /position:sticky/.test(tabCss) && /flex-wrap:wrap/.test(tabCss) && /min-width:0/.test(tabCss));
+  // The sticky offset is the SHELL's geometry: the report floats a theme toggle, a Copy/PDF pair
+  // and the ... menu in 34px circles at top:16px, and at top:10px the bar shared that band — at
+  // 375px the print button clipped the first tab's label and the menu covered the last one, so a
+  // phone reader could not press either. Both numbers are read here so moving one fails loudly.
+  check('the bar pins below the report shell\'s own fixed chrome, read off both files', (() => {
+    const top = +(tabCss.match(/\.rc \.tabs\{position:sticky;top:(\d+)px/) || [])[1];
+    const seat = +(shellSrc.match(/\.theme-toggle\{position:fixed;top:(\d+)px/) || [])[1];
+    const size = +(shellSrc.match(/\.theme-toggle\{[^}]*height:(\d+)px/) || [])[1];
+    return top >= seat + size && seat > 0 && size > 0;
+  })());
+  // The basis decides how many tabs a line holds, and the sheet is content-box everywhere else:
+  // at 7em content-box, three tabs measured 292px against 252px of room on a phone.
+  check('the flex basis means the tab\'s real width, which is the one place the kit sets box-sizing', /box-sizing:border-box;flex:1 1 5\.5em/.test(tabCss) && (rules(kit).match(/box-sizing/g) || []).length === 1);
   // THE degrade: with the script stripped the bar is still plain anchors, so the landing offset
   // has to live in the stylesheet with a fallback, or a jump parks the heading under the bar.
   check('scroll-margin-top lives in the CSS with a fallback, so a script-less report still lands clear of the bar', tabCss.includes('.rc:has(.tabs) h3[id]{scroll-margin-top:var(--tabh,'));

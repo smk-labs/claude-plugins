@@ -40,6 +40,16 @@ It is a 3x3 grid. `.c` takes the middle cell, the eight `.s` auto-flow into the 
 
 Both reflow to one column below 520px and never scroll sideways, both nest inside `card` and `box`, and both print with their connectors intact, because every connector is a border and `print-color-adjust` keeps borders when it drops backgrounds.
 
+### Long documents: tabs, preview, sections (5.6.0)
+
+Three components out of one real report, a long decision document with three parallel options. A reader could not move between the options, the links out to related documents looked like a spreadsheet row, and the sections did not read as separate.
+
+`sections` is one class on the same wrapper `numbered` already takes: `<div class="numbered sections">`. Every direct-child `h3` then gets a hairline rule above it, room to breathe and one size up. The two compose with nothing reconciled, because the section number lives on `h3::before` and `sections` touches only the box.
+
+`preview` is a link to another document drawn as a document: `<a class="preview" href><b>title</b><span>context</span><small>host</small></a>`, with `build.py` writing the host in off the href. Optionally a live scaled-down frame goes under it, `<div class="preview live"><iframe></div>`, as a SIBLING rather than a wrapper — which is what makes the fallback free, since a target that refuses framing simply loses the frame and the card is already there. That refusal is decided at build time because runtime cannot know: a frame blocked by `X-Frame-Options` still fires `load`, its document is cross-origin either way, and a `file://` report cannot fetch the url to look. `build.py` reads the headers, treats unreachable as refusing, and names what it dropped. The frame renders at `1/--s` of the container and scales back by exactly `--s`, so a desktop page reads at report width; below 520px `--s` is 1 and the target shows its own narrow layout at full size. A transparent lid keeps the wheel on the report.
+
+`tabs` is a pinned bar over the sections: `<div class="tabs"><a href="#p1">label<span>sub</span></a>…</div>` against `<h3 id="p1">`. Report tier, because a chat card has no scroll of its own. The bar, the jump and the landing offset are CSS, so it degrades to plain anchors; only the follow-on-scroll highlight is script, in the report shell and guarded so a report without a bar runs nothing. Two traps are pinned by tests: the scrollspy never runs through `requestAnimationFrame` (throttled to zero in a hidden tab, which freezes the bar), and the bar's height is measured rather than hardcoded — it wraps, and a fixed offset then parks the jumped-to heading behind the bar's second row. It is measured with a `ResizeObserver`, since the webfont lands after first paint with no resize event to hear.
+
 ### Token cost
 
 The style kit used to ship in full with every reply; now replies pay only for what they use.
