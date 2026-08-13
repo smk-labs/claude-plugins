@@ -1,56 +1,56 @@
 ---
 name: workspace-rules
-description: Give a repo its own rules and make the build enforce them, then keep the set small enough to hold in one head. Work out the rules from this repo's evidence (its defect log, its prose, its suppressions, its linter), encode each as a linter setting, an architecture test or a hook so breaking it turns the build red, and write the cap, the displacement clause and the dated judged-out list into the check file itself. Runs after a cleanup, spring-clean or otherwise. Use when the user asks to set house rules, lock in conventions, stop a bug class from coming back, make the linter enforce the style guide, turn a CLAUDE.md or README rule into a test, add architecture tests or guardrails, prune a rule set that has sprawled, wants a codebase standard that holds, or says "house rules", "workspace rules", "قانون بذار", "قوانین پروژه", "استاندارد کد", "این قانون رو تست کن", or complains that a rule everyone agreed on keeps getting broken.
+description: Give a repo its own rules and make the build enforce them, then keep the set small enough to hold in one head. Work out the rules from this repo's evidence (the headers of the gates it already runs, its defect log, its prose, its suppressions, its linter), encode each as a linter setting, an architecture test or a hook so breaking it turns the build red, and write the cap, the displacement clause and the dated judged-out list into the check file itself. Runs after a cleanup, spring-clean or otherwise. Use when the user asks to set house rules, lock in conventions, stop a bug class from coming back, make the linter enforce the style guide, turn a CLAUDE.md or README rule into a test, add architecture tests or guardrails, prune a rule set that has sprawled, wants a codebase standard that holds, or says "house rules", "workspace rules", "قانون بذار", "قوانین پروژه", "استاندارد کد", "این قانون رو تست کن", or complains that a rule everyone agreed on keeps getting broken.
 ---
 
-A clean repo with rules in a document will be dirty again. This pass leaves rules the build enforces, and puts the governance that keeps the set small inside the check file, where a reader of the check hits it. A rule that cannot fail is a comment.
+A clean repo with rules in a document will be dirty again. This pass leaves rules the build enforces, and puts the governance that keeps the set small inside the check file, where a reader of the check hits it. A rule that cannot fail is a comment, and a rule that admits it is at least an honest one.
 
 ## One rule is one named detector
 
-A check that can go red on its own and names itself when it does: one `describe` title, one linter key at `error`. Count only standing rules, the ones that scan the tree; a behaviour test exercising one unit is not one. Count what already exists before you count your own, or the cap governs your additions and leaves the rest free to multiply. Where rules sit in several files, one of them greps the others and asserts the total.
-
-Its failure message names the offender too, not just the rule. An assertion printing `expected <= 16, received 17` says a rule broke and leaves you to find out where by hand.
+A check that can go red on its own and names itself when it does: one `describe` title, one linter key at `error`, one function in a gate script. Count standing rules only, the ones that scan the tree, and count what already exists before your own. Where a gate is one long script, count the failures it can print, not the files it lives in, or the same set measures eight times larger by how someone split their functions. Its failure message is an instruction rather than a diagnosis: name the offender, then the command that fixes it, because the reader is someone about to finish a turn.
 
 ## Derive from this repo, never from a list
 
-- **The `fix:` and revert log, whole history.** A revert outranks a fix: it got past every gate already there. Cluster by defect class, date every cluster, and dedupe first, because a rebase leaves the same subject in the log twice and inflates every cluster.
-- **The shape of the repairing diff.** It names the mechanism. A one-line guard added in five files is a scan; a corrected config value is a contract test.
-- **Prose already in the tree**, plus every comment carrying never, always, careful. Pre-agreed, so it needs a gate, not a debate.
-- **Suppressions and waivers.** Each is a rule somebody started writing and abandoned.
-- **The linter's off switches**, crossed against the log. Cheapest wins.
-- **What already runs.** On a repo with guards this is most of the work and it is subtraction: find which standing detector already covers each candidate, and drop the candidate rather than re-encoding it. Then **what nothing sees**: a directory that is production for one rule and invisible to another is itself a finding, and it is where the violations live.
+- **The headers of the gates that already run.** Where a repo has machinery, this is the richest source in it: the scripts carry the rule and their comments carry the why, including the scope somebody already deleted and the reason.
+- **The `fix:` and revert log**, deduped, because a rebase leaves the same subject twice. Cluster by defect class and date every cluster.
+- **The decision log.** A decision that changed a count becomes an equality assertion on that count.
+- **Prose in the tree**, every comment carrying never or always, and the **suppressions**, each of which is a rule somebody started writing and abandoned.
+- **Your own session transcripts.** A whole class of defect costs real time and never appears in a diff.
+- **What already runs**, so you subtract rather than re-encode, and **what nothing sees**: a directory that is production for one rule and invisible to another is where the violations live.
 
-Each rule carries its evidence in a comment on the check: the shas, the date of the last occurrence, what the miss cost. A defect class last seen in code since rewritten is history, not a rule, and a rule that would fit any repo in this language came from training rather than this tree. Only if the log runs dry, use these as a lookup and never as a starting list: unread exports, calls with no deadline, a dangerous capability copied without its guard, a hand-maintained index that drifted, output bypassing the one sink that scrubs, an applied migration edited in place.
-
-## Four rules about the rule set
-
-**1. Pin what exists, or fix it.** Pin when the repair is a project; fix when the repair is cheaper than the ledger entry, because a pinned typo is a certified lie. What you pin ships at its measured value, never a round number above it, with three assertions beside it: no unpinned violator, no pinned non-violator, and the ledger's own length capped. The middle one is what burns debt down, and it holds for a set of names as well as a column of numbers. Without the last one the ledger is a place to put new debt.
-
-**2. Seen red by name, and green on an untouched tree.** No rule enters until it has been broken on purpose and watched to fail *by name* in the real gate, not in a harness. Then assert the other half: the gate exits 0 on unmodified HEAD, measured where CI measures it. A tree-walking detector dies on path separators, a missing install or a case-blind filesystem, and a baseline taken on your own machine hides all three. A check that can only fail spuriously is worse than no check, and it is the failure nobody notices, because it looks like rigour.
-
-**3. One gate, already running, and cheap.** Rules land in the command CI already runs. No new job, no step anyone must remember. Where the whole gate is slow, scope the per-commit run to the paths that changed and run the tree whole once; the guard on the rules themselves fires only when the rules change, which costs nothing on the commits that are not about rules and is impossible to forget on the ones that are.
-
-**4. Every name resolves, and is written once.** A path in a comment, a doc or an error message must exist; a command a doc names must exist in the manifest. Scan for it. Then write each rule exactly once, in the check, and make every other mention a pointer, because the duplicate is what drifts: across four workspaces the file under test is the only one that stayed true.
+Each rule carries the incident that bought it: what happened, the date, and what the miss cost in this repo's own units. Not a commit sha, which no shallow clone can resolve. **No incident, no slot** is what actually bounds a set. Generic is not the disqualifier, unpaid is: run the generic sweep if you like, and let the tree win every tie.
 
 ## Calibrate the scope, before choosing a mechanism
 
-Run each detector over the whole tree and read the count, using the code you will actually ship rather than a quick grep standing in for it, or the count belongs to a different rule than the one you land. A handful of hits is a ledger you can pin. Hundreds means you aimed at the wrong files, and the rule you meant is the narrow one underneath. The count is also where blind spots show: a directory returning nothing is either clean or unseen, and those look identical until you check.
+Run each detector over the whole tree with the code you will ship, not a grep standing in for it, and read the count. A handful is a ledger. Hundreds means you aimed at the wrong files. **Prove the search path exists before you believe an empty result**: a scan of a directory that is not there exits clean and reads exactly like no hits, and a second reviewer inherits the same bad path and confirms it.
+
+## Four rules about the rule set
+
+**1. A rule the tree already breaks ships in one of three shapes.** Pin every current violator at its measured value, with no unpinned violator, no pinned non-violator, and the ledger's own length capped. Or set the limit at the target and **warn** until the slack closes, which is how you install a limit you cannot meet yet without lying. Or scope the detector to added lines only, which needs no ledger at all. What it never does is ship as a block that has to be bypassed on day one. Pin only where the repair is a project; a pinned typo is a certified lie, and a pin that just records today's tree rubber-stamps the drift.
+
+**2. Seen red by name, and green on an untouched tree.** Break it on purpose, watch it fail by name in the real gate, and prove it **once per file class the gate claims to cover**, because a gate that runs, exits 0 and silently covers the wrong file set is the common failure. Then assert the other half: the gate exits 0 on unmodified HEAD, measured where CI measures it. Keep the probe and date it. Every detector needs a third outcome, could-not-run, distinct from pass and fail; never write a failure message containing "or".
+
+**3. One gate, already running, and reachable.** Rules land in the command that already runs, triggered on the edit rather than the commit where the harness allows it, since that is sooner and it catches an agent that never commits. Scope the trigger to the paths that changed, which is what lets a heavy guard exist at all. Then assert the reverse: **every executable gate in the tree is reachable from a trigger.** The dominant failure here is not a wrong check, it is a correct one that nothing invokes. Deny the bypass at the layer above, or the flag that skips the gate is the gate. Where there is no build to land in, the edit and the turn are the build.
+
+**4. Every name resolves, in both directions, and is written once.** A path or a command in a doc, a comment or an error message must exist, commands checked against the target's manifest. Assert correspondence, not presence: a declared name must equal the thing it names, or a rename passes green. Scan prose cross-references too, which is how a corpus rots. Then write each rule once and make every other mention a pointer, because the duplicate is what drifts; where a copy is unavoidable, generate it and byte-compare it.
 
 ## Encode with the cheapest thing that turns red
 
-Before scanning for a misuse, try removing the capability: delete the export, narrow the visibility, drop the dependency, take the tool away. A thing that cannot be reached needs no rule. Otherwise take the first that fits: a linter setting, then a linter rule pinned to what exists, then an architecture test, then a hook that refuses the edit at the tool boundary, then a CI job for what the test runner cannot see. Skip the second rung unless the linter can baseline one violation at a time: if its only offers are a glob override or scattered inline suppressions, it is handing you the two ledgers this skill forbids, and the architecture test is the honest rung.
+Remove the capability before scanning for its misuse: delete the export, narrow the visibility, drop the dependency, take the tool away, cap the timeout. Then assert the inverse, that whoever needs the capability still has it. Check the default posture first, because omission from an allow list is not removal.
 
-Then tier it. Block only where the detector reaches near-zero false positives on this tree; otherwise warn, and name in its header which layer does block, so no class is gated twice. A check that fires on correct code trains everyone to ignore red, and that costs more than the defect it catches.
+Otherwise: a linter setting, a linter rule pinned to what exists, an architecture test, a hook that refuses the edit, a CI job. A detector written into a document is not on this ladder at all; it is a comment until something runs it, and it looks exactly like enforcement. When a rule keeps getting broken, move it down a rung and record which rung it came from.
 
-## The cap is a measurement, and the set must be able to shrink
+Block only where the detector reaches near-zero false positives on this tree; otherwise warn, and name in its header which layer does block. A check that fires on correct code trains everyone to ignore red, and the fix is to delete it and write the deleted scope and its reason into the gate's header, so nobody improves it back.
 
-Count the detectors today, assert that number, and add the displacement clause: a rule that wants in pushes one out. Retire one when the surface it guarded is gone, when a linter version or another rule now covers it, when its scope matches zero files, or when it has never caught anything and no new evidence has appeared. A retired rule is never quietly deleted: it goes to a dated judged-out list at the top of the check file it left, with the reason, so nobody re-derives it next quarter. Cap, clause and list live in the check, not in a scheduled audit nobody will run.
+Where only a person can judge the violation, do not leave it prose: **make the declaration mandatory and grep for the declaration.** No declaration is the violation. What stays genuinely un-mechanised says so, states its adoption rate, and names the exact config key that would upgrade it, because a rule that knows whether it is checked is worth three that do not. And add the cheapest device in any rule set, which needs no tooling at all: **a list of what this repo does not have.** Every entry is a plausible thing somebody confidently referenced, and it stops the invention in one direction and the phantom violation in the other.
 
-## What stays prose
+## The cap is a measurement, and the set must shrink
 
-Only what no machine can judge: how a surface looks, what someone else's binary does with your flags, where a thing belongs. Each ships a runnable tool, in the repo, inside the gate, named by a path the citation scan checks. "We agreed on it" is not a reason to leave a rule in prose; it is the reason to encode it.
+Count the detectors today, assert that number, and add the displacement clause: a rule that wants in pushes one out. An unasserted cap is the wish this skill exists to replace. Retire a rule when its surface is gone, when another rule covers it, when its scope matches zero files, or when it never caught anything. Say which rules you deliberately do not check and why, beside the ones you do. A rule found wrong is retracted where it sits, with the date, and a rule naming a library is checked against the manifest.
 
 ## Red flags
 
-- A gate whose exit code dies in a pipe, or that reports pass when it could not run.
-- An escape hatch whose convention is "justify it in the commit message". Nothing reads commit messages.
+- An exception whose receipt is a commit message. Make it a token on the line, in the file the check already scans.
+- A detector whose coverage is set by an optional field, measuring its own opt-in rate and printing green.
+- A gate whose exit code dies in a pipe, that reports pass when it could not run, or that read a stale tree.
+- A rule with no stated boundary, or none saying whether it or the surrounding code wins. Both get resolved by every reader differently, and the ones who take a rule most seriously are the ones who over-apply it.
