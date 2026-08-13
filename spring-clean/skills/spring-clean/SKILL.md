@@ -7,7 +7,7 @@ Spring-clean a repository the way خونه تکونی cleans a house before the 
 
 ## Phase 0: frame it, before any edit
 
-**Declare the scoreboard.** Pick the numbers this pass will be judged on, measure them now, re-measure at the end. A worked set: files over the cap, worst complexity ceiling, linter warnings, test count, architecture test files, root non-code files. **Two scoreboards, not one.** What got cleaner in the code repo is the score. What got relocated (workspace file counts, disk freed) is reported separately and is not cleaning, because a score that rewards moving files is gameable by shuffling.
+**Declare the scoreboard.** Pick the numbers this pass will be judged on, measure them now, re-measure at the end. A worked set: files over the cap, worst complexity ceiling, linter warnings, test count, architecture test files, root non-code files. **Each metric ships the command that produces it**, or it is not re-measurable: scope and off-by-one will differ, and the second measurement quietly answers a different question. **Two scoreboards, not one.** What got cleaner in the code repo is the score. What got relocated (workspace file counts, disk freed) is reported separately and is not cleaning, because a score that rewards moving files is gameable by shuffling.
 
 **Write the red lines**, now, not when you hit them. What must not change, each with its reason: vendored slices that stay diffable against upstream, guards whose branches only run under attack, a public surface that is a contract, byte budgets you must measure rather than quote, anything the repo declares law. Also: behaviour does not change, so a change that reddens an existing test is wrong and the test is right.
 
