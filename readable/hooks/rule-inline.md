@@ -192,7 +192,7 @@ NUMBERED — for a long document: wrap everything after the <h2> title and the s
 .rc:dir(ltr) .numbered>h4::before{content:counter(sec) '.' counter(sub)}
 
 SECTIONS — add `sections` beside `numbered` on the same wrapper (<div class="numbered sections">) when the sections are long enough that a reader scrolling fast would miss where one ends. Every direct-child h3 then gets a hairline rule above it, room to breathe and one size up. Nothing per heading, and the section numbers are untouched:
-.rc .sections>h3{font-size:1.25em;margin-top:2.4em;padding-top:1.2em;border-top:.5px solid var(--border)}
+.rc .sections>h3{font-size:1.25em;margin-top:2.4em;padding-top:1.2em;border-top:1px solid var(--border-strong)}
 .rc .sections>h3:first-of-type{margin-top:1.4em;padding-top:0;border-top:none}
 
 PREVIEW — a link to ANOTHER DOCUMENT, drawn as a document instead of a kv row: <a class="preview" href="…"><b>title</b><span>one line of context</span><small>host</small></a>. Use it when the link IS the point (a spec, a prototype, a related report); a link inside a sentence stays a plain <a>. The host is the bare domain, no scheme and no path:

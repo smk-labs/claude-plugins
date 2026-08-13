@@ -270,7 +270,13 @@ function check(name, cond) {
   // `numbered sections` needs nothing reconciled. A ::before here would eat the numbering the
   // same way the icon rule once did.
   check('sections never touches ::before, so a numbered document keeps its section numbers', !secCss.includes('::before'));
-  check('one size up, landing between h3 and h2 rather than competing with the title', /font-size:1\.25em/.test(secCss) && /border-top:\.5px solid var\(--border\)/.test(secCss));
+  check('one size up, landing between h3 and h2 rather than competing with the title', /font-size:1\.25em/.test(secCss));
+  // The rule has to land for a reader scrolling PAST at speed, which is the only reason the
+  // component exists. At the kit's .5px/--border hairline (what an hr and a kv row use, for
+  // things a reader is already looking at) it was the faintest mark the sheet can draw and
+  // still needed looking for on a light theme. --border-strong at 1px, which is also how the
+  // kit pairs that token everywhere else: 1.5px on a thead, 2.5px on a blockquote, 3px on a cal.
+  check('the section rule is the STRONG border, not the faintest hairline in the kit', /border-top:1px solid var\(--border-strong\)/.test(secCss) && !/border-top:\.5px solid var\(--border\)/.test(secCss));
   // Keyed on TYPE: whatever sits between the wrapper and its first heading (an intro, a .box
   // summary, a tab bar), the first section must not wear a rule under the one already above it.
   check('the first section carries no rule, keyed on :first-of-type and not :first-child', secCss.includes('.rc .sections>h3:first-of-type{') && /:first-of-type\{[^}]*border-top:none/.test(secCss) && !secCss.includes(':first-child'));

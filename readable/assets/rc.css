@@ -381,8 +381,16 @@
    :first-of-type, not :first-child: whatever precedes the first section - an intro paragraph, a
    .box summary, a @TABS bar - the top of the document is already separated, and a rule there
    reads as a second border under the one above it. It is keyed on TYPE so it holds no matter
-   what sits between the wrapper and its first heading.*/
-.rc .sections>h3{font-size:1.25em;margin-top:2.4em;padding-top:1.2em;border-top:.5px solid var(--border)}
+   what sits between the wrapper and its first heading.
+   THE RULE IS --border-strong AT 1px, not the .5px --border hairline every other divider in the
+   kit uses, and that is the point rather than an inconsistency. A hairline divider separates
+   things a reader is already looking at (a kv row, an hr, a table row); this one has to land for
+   a reader scrolling PAST at speed, which is the only reason the component exists. At
+   .5px/--border it was the faintest mark the kit can draw and still needed looking for on a
+   light theme. Nothing gets busy, because it lands on top-level h3 only - the same `>` that
+   keeps a card title out of it. It follows the kit's own pairing too: --border-strong carries
+   weight everywhere it appears (1.5px on a thead, 2.5px on a blockquote, 3px on a callout).*/
+.rc .sections>h3{font-size:1.25em;margin-top:2.4em;padding-top:1.2em;border-top:1px solid var(--border-strong)}
 .rc .sections>h3:first-of-type{margin-top:1.4em;padding-top:0;border-top:none}
 /*@TABS - a pinned bar over a long report's main sections: click to jump, and it follows the
    reader on scroll by lighting the section they are in. REPORT TIER, and not by taste: a chat

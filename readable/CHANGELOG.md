@@ -1,5 +1,20 @@
 # readable changelog
 
+## 5.6.1
+
+`sections` drew its rule with `--border` at `.5px`, the faintest hairline the kit
+can produce, which undercut the only reason the component exists: the rule has to
+land for a reader scrolling PAST at speed, and on a light theme it still had to be
+looked for. It is `--border-strong` at `1px` now.
+
+That is not an inconsistency with the rest of the sheet, it is the distinction the
+sheet already draws. A `.5px --border` hairline separates things a reader is
+looking at right now: an `hr`, a `kv` row, a table row. `--border-strong` carries
+weight everywhere it appears - `1.5px` on a `thead`, `2.5px` on a `blockquote`,
+`3px` on a callout - and a section break belongs in that group. Nothing gets
+busy, because the rule lands on top-level `h3` only, which is what the `>` in the
+selector was already for.
+
 ## 5.6.0
 
 Three components, all out of one real report: a long decision document with
