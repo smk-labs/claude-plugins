@@ -30,6 +30,10 @@ Each rule carries its evidence in a comment on the check: the shas, the date of 
 
 **4. Every name resolves, and is written once.** A path in a comment, a doc or an error message must exist; a command a doc names must exist in the manifest. Scan for it. Then write each rule exactly once, in the check, and make every other mention a pointer, because the duplicate is what drifts: across four workspaces the file under test is the only one that stayed true.
 
+## Calibrate the scope, before choosing a mechanism
+
+Run each detector over the whole tree and read the count. A handful of hits is a ledger you can pin. Hundreds means you aimed at the wrong files, and the rule you actually meant is the narrow one underneath. The count is also where the blind spots show: a directory that returns nothing is either clean or unseen, and those look identical until you check.
+
 ## Encode with the cheapest thing that turns red
 
 Before scanning for a misuse, try removing the capability: delete the export, narrow the visibility, drop the dependency, take the tool away. A thing that cannot be reached needs no rule. Otherwise take the first that fits: a linter setting, then a linter rule pinned to what exists, then an architecture test, then a hook that refuses the edit at the tool boundary, then a CI job for what the test runner cannot see.
