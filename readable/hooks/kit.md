@@ -1,11 +1,15 @@
 <!-- TIER 2 KIT. Read on demand by hooks/rule.md when the host has a widget tool but no `card` tool; never injected at SessionStart, because most sessions never reach tier 2 and this file is 10KB. Component CSS comes from a jsDelivr tag, so EVERY RELEASE BUMPS THAT TAG below. BASE stays inline as the offline floor. If a card paints unstyled, the CDN is unreachable: use kit-inline.md, which needs no network. -->
 <readable-widget-kit>
+The kit draws NO frame of its own: no border, no radius, no background. The widget host
+already draws one, and a card inside it was rendering as a box inside a box. Do not add
+them back; if a card ever needs to stand alone, that is the tier 1 template's job.
+
 Deliver the reply as ONE mcp__visualize__show_widget call. Do NOT call read_me; there is no design work to do. widget_code is EXACTLY this skeleton (copy the BASE style block verbatim, never edit it), then your reply as HTML in place of CONTENT, then </div>:
 
 <div class="rc" dir="rtl">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
-.rc{--ca:var(--text-accent);--cb:color-mix(in srgb,var(--text-accent) 55%,var(--surface-1));--cc:color-mix(in srgb,var(--text-accent) 28%,var(--surface-1));--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);border:.5px solid var(--border);border-radius:14px;padding:1.2rem 1.4rem;text-align:start;margin:.5rem 0}
+.rc{--ca:var(--text-accent);--cb:color-mix(in srgb,var(--text-accent) 55%,var(--surface-1));--cc:color-mix(in srgb,var(--text-accent) 28%,var(--surface-1));--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);padding:.2rem .1rem;text-align:start;margin:.5rem 0}
 .rc>:first-child{margin-top:0}.rc>:last-child{margin-bottom:0}
 .rc h2{font-weight:800;font-size:1.35em;margin:0 0 .15em}
 .rc h2::after{content:'';display:block;width:28px;height:2.5px;border-radius:2px;background:var(--text-accent);margin-top:.45em}
@@ -37,7 +41,7 @@ CONTENT always ENDS with this exact line, last thing inside the card, copied ver
 BASE already styles all text content: <h2> once as the title; <h3> per section; <p>; <p class="lead"> for a muted intro line; <ul>/<ol>; status items <li class="ok">/<li class="no">; callouts <div class="cal tip|note|warn|danger"><div>text</div></div>; <a>; <strong>; <hr> sparingly; and <code> wrapped around every path, command, URL, and code token (it renders LTR-isolated).
 
 If CONTENT uses ANY component below, add exactly this one line right before </style> (it loads all component CSS from CDN; BASE keeps the card readable if the CDN is unreachable):
-@import url('https://cdn.jsdelivr.net/gh/smk-labs/claude-plugins@readable-v6.1.0/readable/assets/rc.css');
+@import url('https://cdn.jsdelivr.net/gh/smk-labs/claude-plugins@readable-v6.4.1/readable/assets/rc.css');
 
 Components (HTML shapes only; their CSS comes from that import):
 - Table: plain <table><thead><tbody>; status chips inside cells: <span class="badge ok|warn|info">. 10+ row stat tables: <table class="zebra dense"> (striped rows + tight padding, combinable). Long tables (100+ rows): wrap as <div class="scroll-table"><table>...</table></div> (scrollbox with pinned header; expands fully in print). Very wide tables: <div class="scroll-table wide"> keeps cells on one line and scrolls sideways (wraps again in print).

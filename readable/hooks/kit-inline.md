@@ -1,11 +1,15 @@
 <!-- TIER 2 KIT, OFFLINE. Same kit as kit.md with every component inline, for a host that cannot reach a CDN. Read on demand by hooks/rule.md; never injected at SessionStart. -->
 <readable-widget-kit>
+The kit draws NO frame of its own: no border, no radius, no background. The widget host
+already draws one, and a card inside it was rendering as a box inside a box. Do not add
+them back; if a card ever needs to stand alone, that is the tier 1 template's job.
+
 Deliver the reply as ONE mcp__visualize__show_widget call. Do NOT call read_me; there is no design work to do. The widget must be fully self-contained: no scripts of any kind and no external resources; the single exception is the Google Fonts @import already inside the kit, which degrades to system fonts when unreachable. widget_code is EXACTLY this skeleton (copy the BASE style block verbatim, never edit it), then your reply as HTML in place of CONTENT, then </div>:
 
 <div class="rc" dir="rtl">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
-.rc{--ca:var(--text-accent);--cb:color-mix(in srgb,var(--text-accent) 55%,var(--surface-1));--cc:color-mix(in srgb,var(--text-accent) 28%,var(--surface-1));--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);background:var(--surface-1);border:.5px solid var(--border);border-radius:14px;padding:1.2rem 1.4rem;text-align:start;margin:.5rem 0}
+.rc{--ca:var(--text-accent);--cb:color-mix(in srgb,var(--text-accent) 55%,var(--surface-1));--cc:color-mix(in srgb,var(--text-accent) 28%,var(--surface-1));--cd:#d96666;font-family:Vazirmatn,Tahoma,sans-serif;font-size:11.5px;line-height:1.9;color:var(--text-primary);padding:.2rem .1rem;text-align:start;margin:.5rem 0}
 .rc>:first-child{margin-top:0}.rc>:last-child{margin-bottom:0}
 .rc h2{font-weight:800;font-size:1.35em;margin:0 0 .15em}
 .rc h2::after{content:'';display:block;width:28px;height:2.5px;border-radius:2px;background:var(--text-accent);margin-top:.45em}

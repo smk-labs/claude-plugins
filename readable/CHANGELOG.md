@@ -1,5 +1,20 @@
 # readable changelog
 
+## 6.4.1
+
+Tier 2 was drawing a box inside a box. The widget host frames what it renders,
+and the kit was framing it again: border, radius and its own surface colour, all
+nested one inside the other. The kit now draws no frame at all, keeps a hair of
+padding, and lets the host's frame be the only one. A note sits next to the rule
+saying why, because the obvious "fix" is to put them back.
+
+For the record, since tier 2 is where a managed 3p deployment lands and it is
+not free: reading `kit.md` costs about 2,500 tokens once per session, and the
+BASE block the model copies into every tier 2 reply costs about 690. Tier 1
+costs neither, because the template and the component CSS live in the server.
+That is the price of a host that cannot paint an MCP Apps widget, and it buys a
+Persian reply that reads correctly instead of one that scrambles.
+
 ## 6.4.0
 
 6.0.0 reintroduced the exact defect it was written to kill, and it took until now
