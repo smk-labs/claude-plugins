@@ -1,6 +1,6 @@
 # claude-plugins
 
-The marketplace repo for my plugins. One plugin per folder under `plugins/`, listed once in `.claude-plugin/marketplace.json`.
+The marketplace repo for my plugins. One plugin per folder at the repo **root**, listed once in `.claude-plugin/marketplace.json`. There is no `plugins/` directory, and a path that assumes one 404s silently: readable's CDN line carried `@main/plugins/readable/assets/rc.css` for a year and only ever showed up as an unstyled card.
 
 ## One source, always the remote
 
@@ -13,13 +13,15 @@ So never leave any of these behind:
 - `claude plugin install` from a local path
 - a dev override in the Claude desktop config (for readable, an `mcpServers.readable-card` entry whose path points into this checkout instead of `~/.claude/plugins/data/readable/server/server.js`)
 
+Since readable 6.0.0 nothing in this repo writes a Claude config on its own. If a plugin here needs to be registered with the desktop app, that is one explicit command a human runs (`hooks/connect.sh`), it covers every profile on the machine in one pass, and it has a `disconnect` that undoes all of it. A `SessionStart` hook that registers something silently looks like convenience and behaves like a leak: it knows one profile path, so the other profiles diverge, and each write leaves a backup of a config full of live tokens.
+
 ## Test from the checkout, then clean up
 
 Run a plugin's own tests in place, for example `node readable/server/test.js`. For a visual check, render a scratch HTML file somewhere outside the repo and open it. If a check needed a local install or a dev override, delete it in the same session that created it. Nothing test-related stays on the machine, and nothing test-related gets committed.
 
 ## Shipping is a push
 
-1. Bump the version in `plugins/<name>/.claude-plugin/plugin.json`.
+1. Bump the version in `<name>/.claude-plugin/plugin.json`.
 2. Bump the same version in `.claude-plugin/marketplace.json`. The two must match; a stale listing is why an update silently never arrives.
 3. Commit and push to `origin/main`.
 

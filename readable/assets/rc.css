@@ -3,7 +3,7 @@
    signature. Always shipped, on every path. The signature's markup lives on the @sig line
    at the end of BASE and is the single source every path reads.
    Everything below is a @TAG component snippet, and @TAG is now load-bearing on ALL paths:
-     - hooks/rule-inline.md   the model copies the snippets a reply uses
+     - hooks/kit-inline.md   the model copies the snippets a reply uses
      - the MCP card template  ships BASE only; server/server.js parses these markers into a
                               tag map and the read_kit tool returns just the snippets a
                               given card's HTML actually needs (4.20.0)
@@ -88,8 +88,8 @@
    flip the block to the wrong corner in Persian.
    The @sig line below is THE literal, and the only one. server/server.js freezes it into
    the card template at assembly time; skills/report/build.py appends it to a report;
-   decode's build.py fills its own footer slot from it. hooks/rule-inline.md and
-   hooks/rule-hosted.md hold the only copy, because on those paths the MODEL is the
+   decode's build.py fills its own footer slot from it. hooks/kit-inline.md and
+   hooks/kit.md hold the only copy, because on those paths the MODEL is the
    assembler and there is no build step to read this file - server/test.js asserts that
    copy stays byte-identical, so it cannot drift. The comment terminator sits on its own
    line below, so the marker line IS the markup, byte for byte, with nothing to trim.

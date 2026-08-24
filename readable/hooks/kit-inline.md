@@ -1,5 +1,6 @@
-<readable-rtl-rule>
-Persian/RTL replies scramble as plain chat text. In this client, deliver every Persian (or any RTL) reply as ONE mcp__visualize__show_widget call. Do NOT call read_me; there is no design work to do. The widget must be fully self-contained: no scripts of any kind and no external resources; the single exception is the Google Fonts @import already inside the kit, which degrades to system fonts when unreachable. widget_code is EXACTLY this skeleton (copy the BASE style block verbatim, never edit it), then your reply as HTML in place of CONTENT, then </div>:
+<!-- TIER 2 KIT, OFFLINE. Same kit as kit.md with every component inline, for a host that cannot reach a CDN. Read on demand by hooks/rule.md; never injected at SessionStart. -->
+<readable-widget-kit>
+Deliver the reply as ONE mcp__visualize__show_widget call. Do NOT call read_me; there is no design work to do. The widget must be fully self-contained: no scripts of any kind and no external resources; the single exception is the Google Fonts @import already inside the kit, which degrades to system fonts when unreachable. widget_code is EXACTLY this skeleton (copy the BASE style block verbatim, never edit it), then your reply as HTML in place of CONTENT, then </div>:
 
 <div class="rc" dir="rtl">
 <style>
@@ -210,4 +211,4 @@ Pick the lightest structure that fits the content: a short conversational answer
 The show_widget call IS the whole reply. Output nothing after it: no plain-text version, no summary, no "here is the answer" line. NEVER repeat the content as plain text, even if you suspect the card did not render (it does; plain Persian text would only scramble). If the user says a card came out blank, tell them in one English line to update the readable plugin and restart, and stop; do not paste the answer as plain text.
 
 Keep any unavoidable chat text outside the widget short and in English. Very short replies (1-2 plain sentences, no code): skip the widget, answer as BiDi-safe plain text (start each line with a strong RTL character, no trailing Latin token). Build an SVG diagram (readable:visualize skill) only when the user explicitly asks to see something visual.
-</readable-rtl-rule>
+</readable-widget-kit>

@@ -502,11 +502,31 @@ async function embedFonts() {
   return out;
 }
 
+/* Every child process this server starts is handed a UTF-8 ctype (5.7.0).
+ *
+ * The server is spawned by a GUI app, so it inherits no LANG and no LC_*: the
+ * environment a desktop app hands its children has no locale in it at all.
+ * macOS command line tools read that as Mac OS Roman, so pbcopy took perfectly
+ * good UTF-8 bytes on stdin, decoded each one as a MacRoman character, and put
+ * the result on the clipboard. Copying a Persian card produced
+ * "ŸÖÿ≥ÿ™ŸÜÿØ" where "مستند" was written: two bytes per letter, each byte
+ * shown as its own glyph. The bytes leaving node were never wrong; the
+ * transcoding at the far end was. osascript decodes its -e script the same way,
+ * which mangled a Persian default filename in the save panel and could hand
+ * back a mangled path to write to.
+ *
+ * LC_CTYPE is the one variable that decides this, so it is the one we set. */
+function utf8Env(extra) {
+  return Object.assign({}, process.env, { LC_CTYPE: 'UTF-8' }, extra || null);
+}
+
 /* READABLE_COPY_CMD overrides the helper (tests use `cat` so runs never touch
  * the developer's real clipboard). clip.exe reads UTF-16LE; the text is encoded
  * as bare UTF-16LE with NO BOM — a leading BOM (U+FEFF) is pasted as a literal
  * zero-width character, which showed up as a stray glyph beside every copy and
- * mangled Persian snippets (field bug on Windows). */
+ * mangled Persian snippets (field bug on Windows). Everywhere else the input is
+ * an explicit UTF-8 Buffer, so node's default string encoding never gets a
+ * vote either. */
 function copyText(text) {
   const { spawnSync } = require('child_process');
   const env = process.env.READABLE_COPY_CMD;
@@ -514,9 +534,11 @@ function copyText(text) {
     process.platform === 'darwin' ? [['pbcopy']] :
     process.platform === 'win32' ? [['clip']] :
     [['wl-copy'], ['xclip', '-selection', 'clipboard'], ['xsel', '-ib']];
-  const input = !env && process.platform === 'win32' ? Buffer.from(text, 'utf16le') : text;
+  const input = !env && process.platform === 'win32'
+    ? Buffer.from(text, 'utf16le')
+    : Buffer.from(text, 'utf8');
   for (const [cmd, ...args] of cands) {
-    const r = spawnSync(cmd, args, { input });
+    const r = spawnSync(cmd, args, { input, env: utf8Env() });
     if (!r.error && r.status === 0) return cmd;
   }
   throw new Error('no clipboard helper worked');
@@ -772,7 +794,10 @@ function pickAndSave(filename, content, encoding, dir) {
   const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const script = 'POSIX path of (choose file name with prompt "Save card export" default name "' +
     esc(clean) + '" default location POSIX file "' + esc(dir) + '")';
-  require('child_process').execFile('/usr/bin/osascript', ['-e', script], { timeout: 180000 }, (err, out) => {
+  // encoding + LC_CTYPE both matter here: the first decodes the path osascript
+  // hands back, the second decides how osascript reads the Persian default
+  // filename we just wrote into the script. See utf8Env.
+  require('child_process').execFile('/usr/bin/osascript', ['-e', script], { timeout: 180000, encoding: 'utf8', env: utf8Env() }, (err, out) => {
     try {
       if (err) {
         const cancel = String(err.message || '').indexOf('-128') !== -1;
@@ -809,6 +834,15 @@ const CARD_RESOURCE = {
 let clientSupportsUi = false;
 let clientSupportsRoots = false;
 let clientRoots = [];
+
+/* Can this host actually paint a card? Everything about the card tool hangs off
+ * this one answer: whether the tool is listed, and whether a call to it is
+ * honoured or refused. It is deliberately a function and not a captured
+ * boolean, because the handshake sets clientSupportsUi after this module
+ * loads. */
+function uiReady() {
+  return clientSupportsUi || process.env.READABLE_FORCE_UI === '1';
+}
 
 /* Server->client requests (roots/list). Zero-dep mirror of the bridge's rpc:
  * ids are prefixed so they can never collide with a client request id. */
@@ -875,9 +909,18 @@ function handle(msg) {
       });
       return;
     }
-    case 'tools/list':
-      respond({ tools: [TOOL, SAVE_TOOL, EMAIL_TOOL, READ_TOOL, COPY_TOOL, BRAND_TOOL, FONTS_TOOL, KIT_TOOL] });
+    case 'tools/list': {
+      // The card tool is offered ONLY to a host that negotiated MCP Apps.
+      // Anywhere else it cannot paint, and an unrenderable card tool is worse
+      // than no card tool at all: the model calls it, the user sees the raw
+      // HTML echoed back, and the actual reply is never written. Absent from
+      // the list it cannot be called, and a tool search for it correctly finds
+      // nothing instead of half-finding a tool that lies. READABLE_FORCE_UI=1
+      // is the escape hatch for a host whose handshake lands late.
+      const tools = uiReady() ? [TOOL] : [];
+      respond({ tools: tools.concat([SAVE_TOOL, EMAIL_TOOL, READ_TOOL, COPY_TOOL, BRAND_TOOL, FONTS_TOOL, KIT_TOOL]) });
       return;
+    }
     case 'tools/call': {
       if (params && params.name === 'copy_text') {
         const a = params.arguments || {};
@@ -958,6 +1001,14 @@ function handle(msg) {
         return;
       }
       if (!params || params.name !== 'card') return fail(-32602, 'unknown tool');
+      // A host that cannot paint gets a REFUSAL, not a note. The note was the
+      // bug: a successful result carrying "this did not render" reads as
+      // success, the html rides structuredContent into the transcript as raw
+      // markup, and the model signs off with "card delivered above" over a
+      // reply the user never saw. An error cannot be mistaken for delivery.
+      if (!uiReady()) {
+        return fail(-32011, 'this host has no MCP Apps UI, so a card cannot be rendered here and nothing was shown to the user. Deliver the whole reply as text instead (Persian/RTL: BiDi-safe plain text), and do not call this tool again in this conversation.');
+      }
       const html = params.arguments && params.arguments.html;
       const htmlFile = params.arguments && params.arguments.htmlFile;
       // Resolve the project brand once per call: explicit arg, else an
@@ -970,20 +1021,14 @@ function handle(msg) {
         // Validate now so the model gets an actionable error while it can still
         // fall back to the html argument; the bridge re-reads via read_card_file.
         try { readCardFile(htmlFile); } catch (e) { return fail(-32602, String(e && e.message) + ' — fix the file or pass the content as html'); }
-        try { process.stderr.write('[readable-card] tools/call card, mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') + ', htmlFile=' + htmlFile + ', brand=' + (brand || 'none') + '\n'); } catch (e) {}
-        const fileNote = clientSupportsUi
-          ? 'Card rendered by the host UI from the file. Do not repeat the content as text.'
-          : 'Host did not negotiate MCP Apps UI; the card was NOT rendered and the user saw nothing. Read the file and deliver its content another way (plain text, or show_widget with the readable kit), and stop calling this tool in this conversation.';
-        respond({ content: [{ type: 'text', text: fileNote }], structuredContent: brand ? { htmlFile: htmlFile, brand } : { htmlFile: htmlFile } });
+        try { process.stderr.write('[readable-card] tools/call card, htmlFile=' + htmlFile + ', brand=' + (brand || 'none') + '\n'); } catch (e) {}
+        respond({ content: [{ type: 'text', text: 'Card rendered by the host UI from the file. Do not repeat the content as text.' }], structuredContent: brand ? { htmlFile: htmlFile, brand } : { htmlFile: htmlFile } });
         return;
       }
       if (typeof html !== 'string' || !html.trim()) return fail(-32602, 'html (string) is required (or htmlFile for a pre-written *-card.html)');
       if (/<\s*(style|script)\b/i.test(html)) return fail(-32602, 'html must not contain <style> or <script>; send content only');
-      try { process.stderr.write('[readable-card] tools/call card, mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') + ', html=' + html.length + 'B, brand=' + (brand || 'none') + '\n'); } catch (e) {}
-      const note = clientSupportsUi
-        ? 'Card rendered by the host UI. Do not repeat the content as text.'
-        : 'Host did not negotiate MCP Apps UI; the card was NOT rendered and the user saw nothing. Repeat the reply now as plain text (if an inline HTML widget tool like show_widget exists, use it with the readable kit instead), and stop calling this tool in this conversation.';
-      respond({ content: [{ type: 'text', text: note }], structuredContent: brand ? { html, brand } : { html } });
+      try { process.stderr.write('[readable-card] tools/call card, html=' + html.length + 'B, brand=' + (brand || 'none') + '\n'); } catch (e) {}
+      respond({ content: [{ type: 'text', text: 'Card rendered by the host UI. Do not repeat the content as text.' }], structuredContent: brand ? { html, brand } : { html } });
       return;
     }
     case 'resources/list':

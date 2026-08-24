@@ -1,5 +1,89 @@
 # readable changelog
 
+## 6.0.0
+
+readable could not tell a host that renders cards from a host that only says
+yes. Both got the `card` tool, and the difference only showed up at the end,
+after the reply had already been spent on it.
+
+What that looked like in the field: a Persian answer arrives in the chat as its
+own HTML source, then the same HTML again as a JSON blob, then the line "Card
+delivered above" under an empty space where the answer should be. Nothing had
+crashed. The server had correctly detected that the host negotiated no MCP Apps
+UI and had correctly said so, in the one place a model reads as success: the
+`result` of a tool call. A result carrying "this did not render" reads as
+delivery. The `html` rode `structuredContent` into the transcript, the host had
+no widget to bind it to and printed it, and the model, holding a
+`SessionStart` rule that says *always* deliver Persian through the card tool and
+never repeat it as text, did exactly that and signed off.
+
+Three things had to change, because any one alone leaves the failure reachable.
+
+1. **The tool is gone where it cannot paint.** `tools/list` offers `card` only
+   to a client that negotiated the MCP Apps extension. Absent from the list it
+   cannot be called, and a tool search for it finds nothing instead of
+   half-finding a tool that lies. The export tools stay on every host: they
+   touch the filesystem, not the screen. `READABLE_FORCE_UI=1` is the escape
+   hatch for a host whose handshake lands late.
+2. **A call is refused, not answered.** If one arrives anyway, the response is
+   an error that says nothing was shown to the user, deliver the reply as text,
+   and stop calling this tool. An error cannot be mistaken for delivery.
+3. **The rule leads with the choice instead of the instruction.** It now names
+   three tiers and tells the model to pick by what is already in its tool list:
+   card, else widget (the kit is a path it reads on demand, not 10 KB injected
+   into every session), else BiDi-safe plain text, which is stated as the
+   correct output rather than a failure. Two lines outrank the rest: an error
+   or a not-rendered result drops you to text for the rest of the conversation,
+   and never tell the user a card was delivered.
+
+**Registration is opt-in, and it covers every profile.** Since 4.15.0 a
+`SessionStart` hook wrote an `mcpServers.readable-card` entry into the desktop
+config unasked. That is what spread readable across a machine. The hook knew
+exactly one profile path, so the default profile got the entry and the other
+profiles never did; the entry then travelled to those profiles inside
+hand-copied configs, live API tokens and all; and every write left a
+`.readable-bak` beside the config. Meanwhile registration and capability were
+never the same question, which is how a host with no renderer still ended up
+holding the card tool.
+
+`hooks/setup.sh` is deleted. `hooks/connect.sh` (skill: `/readable:connect`)
+does the job once, when a human asks, across every Claude profile it finds, and
+`disconnect` reverses all of it. `hooks/refresh.sh` replaces the copy half: if
+the stable dir does not exist nobody opted in and it writes nothing, and if it
+does exist it keeps those four files in step with the installed version, so an
+update moves files under a path that never changes. A hand-made override
+pointing at a real file is still left alone.
+
+The plugin now also declares its own scoped MCP server, which 5.x explicitly
+warned against: a plugin-scoped copy cannot render widgets, so the model might
+call it and show raw HTML. 6.0.0 removes the hazard instead of the option. That
+copy cannot offer `card` at all, so it is incapable of being the one that
+paints, and what it does offer is the export tools in any Claude Code session
+with no setup.
+
+**Copying a Persian card no longer mangles it.** Inside the MCP Apps iframe
+every Copy goes through `copy_text` into `pbcopy`, and the server is started by
+a GUI app, which passes down no locale at all. macOS command line tools read a
+locale-less environment as Mac OS Roman, so `pbcopy` took correct UTF-8 bytes
+and transcoded each one into its own MacRoman glyph: `مستند` landed on the
+clipboard as `ŸÖÿ≥ÿ™ŸÜÿØ`, two bytes per letter, each byte its own character.
+The bytes leaving node were never wrong; the decoding at the far end was. Every
+child process now gets `LC_CTYPE=UTF-8` and an explicit UTF-8 buffer, which
+also fixes the save panel, where `osascript` was decoding a Persian default
+filename the same way and could hand back a mangled path to write to. The
+regression test stands a probe in for `pbcopy` and asserts both halves: exact
+UTF-8 bytes on stdin, and a UTF-8 `LC_CTYPE` in the environment that receives
+them.
+
+`hooks/rule-hosted.md` and `hooks/rule-inline.md` become `hooks/kit.md` and
+`hooks/kit-inline.md`: they are read on demand now, so they are kits, not
+session rules. `kit.md`'s CDN line was also wrong and had never been exercised.
+It pointed at `claude-plugins@main/plugins/readable/assets/rc.css`, but plugins
+sit at the repo root here, so the `plugins/` segment was a 404 that failed
+silently as an unstyled card; and `@main` means a push rewrites the stylesheet
+of every card already rendered on every machine. It is now
+`@readable-v6.0.0/readable/assets/rc.css`, and each release bumps the tag.
+
 ## 5.6.1
 
 `sections` drew its rule with `--border` at `.5px`, the faintest hairline the kit

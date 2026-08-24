@@ -742,13 +742,113 @@ function check(name, cond) {
         if (m.id === 13) { clearTimeout(t); resolve(got); }
       }
     });
-    srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: { roots: { listChanged: true } } } }) + '\n');
+    // The ui extension rides along because this block is about brand
+    // resolution, and since 6.0.0 a host without it gets the card tool refused
+    // outright rather than a result to inspect.
+    srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: { roots: { listChanged: true }, extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } } }) + '\n');
     srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }) + '\n');
   });
   check('multi-root: a brand-less call is never guessed (4.13.1)', mr[11].result.structuredContent.brand === undefined && mr[11].result.structuredContent.html === '<p>a</p>');
   check('multi-root: an explicit brand dir still wins', mr[12].result.structuredContent.brand === path.join(MR_B, '.readable'));
   check('lone root resumes auto-branding after roots/list_changed', mr[13].result.structuredContent.brand === path.join(MR_B, '.readable'));
   srv4.kill();
+
+  // 8c-bis. THE CAPABILITY GATE (6.0.0). A host with no MCP Apps extension
+  // cannot paint, so the card tool is not listed and a call to it is refused.
+  // Before this, such a host got the tool, got a successful result carrying
+  // "it did not render", and the html rode structuredContent into the
+  // transcript as raw markup while the model signed off with "card delivered
+  // above" over a reply nobody saw. The export tools stay: they touch the
+  // filesystem, not the screen, and are useful on any host.
+  const srv5 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'], env: env3, cwd: NEUTRAL_CWD });
+  const gate = await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout: capability gate')), 3000);
+    let b = '';
+    const got = {};
+    srv5.stdout.on('data', (d) => {
+      b += d;
+      let j;
+      while ((j = b.indexOf('\n')) !== -1) {
+        const l = b.slice(0, j); b = b.slice(j + 1);
+        if (!l.trim()) continue;
+        const m = JSON.parse(l);
+        if (m.id != null) got[m.id] = m;
+        if (m.id === 3) { clearTimeout(t); resolve(got); }
+      }
+    });
+    srv5.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'no-ui-host', version: '1' } } }) + '\n');
+    srv5.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }) + '\n');
+    srv5.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'card', arguments: { html: '<p>x</p>' } } }) + '\n');
+  });
+  const gateNames = gate[2].result.tools.map((t) => t.name);
+  check('no MCP Apps host: the card tool is not listed at all (6.0.0)', !gateNames.includes('card'));
+  check('no MCP Apps host: the export tools are still listed', ['save_card', 'render_email', 'read_card_file', 'copy_text', 'read_brand', 'read_fonts', 'read_kit'].every((n) => gateNames.includes(n)));
+  check('no MCP Apps host: a card call is an ERROR, never a result', Boolean(gate[3].error) && gate[3].result === undefined);
+  check('the refusal tells the model to deliver text and stop calling', /deliver the whole reply as text/i.test(gate[3].error.message) && /do not call this tool again/i.test(gate[3].error.message));
+  check('the refusal never echoes the html back into the transcript', !JSON.stringify(gate[3]).includes('<p>x</p>'));
+  srv5.kill();
+
+  // READABLE_FORCE_UI is the escape hatch for a host whose handshake lands
+  // late: same no-extension initialize, card tool back on the list.
+  const srv6 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'], env: Object.assign({}, env3, { READABLE_FORCE_UI: '1' }), cwd: NEUTRAL_CWD });
+  const forced = await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout: force-ui')), 3000);
+    let b = '';
+    srv6.stdout.on('data', (d) => {
+      b += d;
+      let j;
+      while ((j = b.indexOf('\n')) !== -1) {
+        const l = b.slice(0, j); b = b.slice(j + 1);
+        if (!l.trim()) continue;
+        const m = JSON.parse(l);
+        if (m.id === 2) { clearTimeout(t); resolve(m); }
+      }
+    });
+    srv6.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {} } }) + '\n');
+    srv6.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }) + '\n');
+  });
+  check('READABLE_FORCE_UI=1 puts the card tool back', forced.result.tools.map((t) => t.name).includes('card'));
+  srv6.kill();
+
+  // 8c-ter. CLIPBOARD ENCODING (5.7.0). Inside the MCP Apps iframe every Copy
+  // goes through copy_text into pbcopy, and the server is started by a GUI app
+  // that passes down no locale at all. macOS tools read a locale-less
+  // environment as Mac OS Roman, so pbcopy decoded each UTF-8 byte as its own
+  // MacRoman glyph and "مستند" landed on the clipboard as "ŸÖÿ≥ÿ™ŸÜÿØ". The
+  // bytes were always right; the far end's transcoding was not. This probe
+  // stands in for pbcopy and checks both halves: exact UTF-8 bytes on stdin,
+  // and an LC_CTYPE that makes the receiver read them as UTF-8.
+  const PROBE_DIR = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-copy-'));
+  const probeOut = path.join(PROBE_DIR, 'out.bin');
+  const probeCtype = path.join(PROBE_DIR, 'ctype.txt');
+  const probe = path.join(PROBE_DIR, 'copyprobe.sh');
+  fs.writeFileSync(probe, '#!/bin/sh\ncat > "' + probeOut + '"\nprintf %s "${LC_CTYPE-unset}" > "' + probeCtype + '"\n');
+  fs.chmodSync(probe, 0o755);
+  const FA = 'مستند شد و در حافظه هم رفت';
+  const srv7 = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
+    stdio: ['pipe', 'pipe', 'inherit'],
+    env: Object.assign({}, process.env, { READABLE_COPY_CMD: probe, LC_CTYPE: '', LANG: '' }),
+    cwd: NEUTRAL_CWD,
+  });
+  await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout: copy probe')), 3000);
+    let b = '';
+    srv7.stdout.on('data', (d) => {
+      b += d;
+      let j;
+      while ((j = b.indexOf('\n')) !== -1) {
+        const l = b.slice(0, j); b = b.slice(j + 1);
+        if (!l.trim()) continue;
+        if (JSON.parse(l).id === 2) { clearTimeout(t); resolve(); }
+      }
+    });
+    srv7.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {} } }) + '\n');
+    srv7.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'copy_text', arguments: { text: FA } } }) + '\n');
+  });
+  srv7.kill();
+  check('copy_text writes exact UTF-8 bytes, never a re-encoding (5.7.0)', fs.readFileSync(probeOut).equals(Buffer.from(FA, 'utf8')));
+  check('copy_text hands the clipboard helper a UTF-8 LC_CTYPE even when the app passed none', /UTF-8/i.test(fs.readFileSync(probeCtype, 'utf8')));
+  check('the round trip survives: bytes back out as the same Persian text', fs.readFileSync(probeOut, 'utf8') === FA);
 
   // 8d. report shell: the OTHER host of the same assets/menu.js. Its #card is
   // nested inside .wrap, so menu.js's #card[dir=rtl] sibling flip cannot reach
@@ -826,7 +926,7 @@ function check(name, cond) {
   // The model-side fallbacks are the ONLY other copy, because on those paths the
   // model IS the assembler and there is no build step to read rc.css. Byte
   // identity is asserted so the copy cannot drift.
-  for (const f of ['rule-inline.md', 'rule-hosted.md']) {
+  for (const f of ['kit-inline.md', 'kit.md']) {
     const r = fs.readFileSync(path.join(__dirname, '..', 'hooks', f), 'utf8').replace(/\r\n/g, '\n');
     check(f + ' carries the signature byte-identical to rc.css @sig, and nowhere twice', r.includes(sigLine) && !r.split(sigLine).join('').includes('github.com/smk-labs'));
     check(f + ' carries the .sig css in its verbatim BASE block', r.includes('.rc .sig{') && r.includes('.rc .sig a{color:inherit}'));
@@ -834,45 +934,33 @@ function check(name, cond) {
   const ruleMd = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'rule.md'), 'utf8');
   check('the ACTIVE card rule never mentions the signature: the model must not spend a token retyping it', !ruleMd.includes('smk-labs') && !ruleMd.includes('class="sig"'));
   // The real no-duplication guard: which files hold the markup literal at all.
-  const carriers = ['server/server.js', 'assets/menu.js', 'assets/rc.css', 'skills/report/build.py', 'skills/report/assets/shell.html', 'hooks/rule.md', 'hooks/rule-inline.md', 'hooks/rule-hosted.md']
+  const carriers = ['server/server.js', 'assets/menu.js', 'assets/rc.css', 'skills/report/build.py', 'skills/report/assets/shell.html', 'hooks/rule.md', 'hooks/kit-inline.md', 'hooks/kit.md']
     .filter((f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8').includes(sigLine));
-  check('exactly three files hold the literal: rc.css (the source) plus the two model-side fallbacks', carriers.join() === 'assets/rc.css,hooks/rule-inline.md,hooks/rule-hosted.md');
+  check('exactly three files hold the literal: rc.css (the source) plus the two model-side fallbacks', carriers.join() === 'assets/rc.css,hooks/kit-inline.md,hooks/kit.md');
 
-  // 7. fallback path: a second server WITHOUT ui capability gets the fallback note
-  const srv2 = spawn(process.execPath, [path.join(__dirname, 'server.js')], { stdio: ['pipe', 'pipe', 'inherit'] });
-  const out2 = new Promise((resolve) => {
-    let b = '';
-    const want = new Set([1, 2]);
-    const got = {};
-    srv2.stdout.on('data', (d) => {
-      b += d;
-      let j;
-      while ((j = b.indexOf('\n')) !== -1) {
-        const l = b.slice(0, j); b = b.slice(j + 1);
-        if (!l.trim()) continue;
-        const m = JSON.parse(l);
-        if (want.has(m.id)) { got[m.id] = m; want.delete(m.id); }
-        if (!want.size) resolve(got);
-      }
-    });
-  });
-  srv2.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {} } }) + '\n');
-  srv2.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'card', arguments: { html: '<p>x</p>' } } }) + '\n');
-  const got = await out2;
-  check('no-ui host gets fallback instruction', got[2].result.content[0].text.includes('show_widget'));
-  srv2.kill();
+  // 7. the no-ui host: covered by 8c-bis above, which asserts the 6.0.0
+  // contract (tool absent, call refused). The old test here asserted the
+  // opposite contract, a successful result carrying a fallback note, and that
+  // note is precisely what let a host with no renderer look like a host with
+  // one. Deleted rather than adapted: two tests for one behaviour is how a
+  // stale expectation survives a redesign.
 
-  /* The stable dir is a FLAT copy of the files hooks/setup.sh names, and every
-   * marketplace install runs from it. 5.4.0 added assets/email.js as a
+  /* The stable dir is a FLAT copy of the files hooks/refresh.sh names, and an
+   * opted-in desktop install runs from it. 5.4.0 added assets/email.js as a
    * module-load require and left the copy list alone, so that dir got a server
    * that threw before its first byte of protocol and every machine installing
    * from the marketplace lost the card tool. A checkout never notices: it
-   * resolves ../assets/. So build the flat dir exactly as setup.sh does and
-   * boot it — any future file the server needs and setup.sh forgets fails
-   * here, not on a user's machine. */
-  const setup = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'setup.sh'), 'utf8');
-  const copied = (setup.match(/^for f in (.+); do$/m) || [, ''])[1].trim().split(/\s+/);
-  check('setup.sh still declares a copy list', copied.length > 1 && copied.every((f) => f.includes('/')));
+   * resolves ../assets/. So build the flat dir exactly as refresh.sh does and
+   * boot it — any future file the server needs and refresh.sh forgets fails
+   * here, not on a user's machine. connect.sh copies the same list, so it is
+   * checked against refresh.sh rather than duplicated as a second source. */
+  const refresh = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'refresh.sh'), 'utf8');
+  const connect = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'connect.sh'), 'utf8');
+  const copied = (refresh.match(/^for f in (.+); do$/m) || [, ''])[1].trim().split(/\s+/);
+  check('refresh.sh still declares a copy list', copied.length > 1 && copied.every((f) => f.includes('/')));
+  check('connect.sh copies exactly the same files as refresh.sh', (connect.match(/^\s*for f in (.+); do$/m) || [, ''])[1].trim().split(/\s+/).join(' ') === copied.join(' '));
+  check('no hook writes a Claude desktop config any more except connect.sh (6.0.0)', !/claude_desktop_config/.test(refresh) && !/claude_desktop_config/.test(fs.readFileSync(path.join(__dirname, '..', 'hooks', 'rule.sh'), 'utf8')) && /claude_desktop_config/.test(connect));
+  check('setup.sh is gone, so nothing registers itself unasked', !fs.existsSync(path.join(__dirname, '..', 'hooks', 'setup.sh')));
   const flat = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-flat-'));
   for (const f of copied) fs.copyFileSync(path.join(__dirname, '..', f), path.join(flat, path.basename(f)));
   const srvFlat = spawn(process.execPath, [path.join(flat, 'server.js')], { stdio: ['pipe', 'pipe', 'ignore'], cwd: NEUTRAL_CWD });
