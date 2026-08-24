@@ -1,5 +1,32 @@
 # readable changelog
 
+## 6.3.0
+
+The handshake line now says WHICH surface opened the connection, as
+`spawnedBy=<app>/pid<n>`, read once from the parent process.
+
+Every client calls itself `claude-ai/0.1.0`, and the same name negotiates MCP
+Apps on one connection and not on the next: one machine's log held 163 `YES`
+against 45 `NO` in a single day, all under that one name. From the outside that
+reads as a coin flip, and an entire afternoon went into guessing which surface a
+given session had been. The parent process knows, so it is asked once and the
+answer sits beside `mcp-apps=` where the question is actually being asked.
+
+Best-effort by construction: no parent, no `ps`, or a slow `ps` all yield `?`,
+and the lookup can never block or break the handshake. Only the app or binary
+name is kept, not the full argv, because this line ends up pasted into chats.
+
+Also recorded here because it cost an afternoon and is not a readable bug: in a
+managed (3p) deployment, putting the card server in `managedMcpServers` is the
+wrong place for THIS server. A managed entry becomes an admin-managed
+direct-pool connector, the app then drops the user-added definition of the same
+name (`Dropping MCP server "readable-card" — name or key collides with an
+admin-managed direct-pool connector`), and that connector negotiates no MCP Apps
+UI, so the card tool is correctly withheld and the profile ends up with a
+readable that connects and can never paint. The user-added route in
+`claude_desktop_config.json` is the one that negotiates the UI. Never put this
+server in both, and if a deployment has it in the managed list, take it out.
+
 ## 6.2.0
 
 A profile can now opt itself out with a `.readable-skip` file in its directory,

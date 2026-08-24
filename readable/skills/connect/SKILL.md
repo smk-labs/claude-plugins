@@ -44,6 +44,12 @@ Seen in the field, twice within six minutes. Registered at 03:47; the user opene
 
 So the order matters, and registering must be the LAST thing done. Update the plugin first, leave the settings pane alone, register, then quit and reopen the app. Registering while the app is closed avoids all of it. If a user says "it worked and then stopped" or "it does not stick", check the config's modification time against the last time they were in Settings before assuming anything else. The session hook re-adds a missing entry on the next session, so the recovery is: open one Code session, then restart the app, in that order.
 
+## Never put this server in a managed (3p) list
+
+A managed (3p) deployment defines its local servers in `managedMcpServers`, and for most servers that is the right place. Not for this one. A managed entry becomes an admin-managed direct-pool connector; the app then drops the user-added definition of the same name, logging `Dropping MCP server "readable-card" — name or key collides with an admin-managed direct-pool connector`; and that connector negotiates no MCP Apps UI, so the card tool is correctly withheld. The result is a readable that connects, reports its export tools, and can never paint a card.
+
+The user-added route in `claude_desktop_config.json` is the one that negotiates the UI. So this server belongs there and nowhere else. If a deployment config lists it, remove it from there and let the session hook keep the user-added entry.
+
 ## A profile that manages itself
 
 A managed (3p) deployment takes its local servers from `managedMcpServers` in its own deployment config, which is the sanctioned route there, and a user-added entry in `claude_desktop_config.json` is both redundant and gated by an admin toggle called "Allow user-added MCP servers". For those profiles, put the server in the managed list and drop a `.readable-skip` file in the profile directory, optionally with a one-line reason. Every action then leaves that profile alone, and `status` reports it as skipped with the reason, so nobody has to rediscover why it looks unregistered.

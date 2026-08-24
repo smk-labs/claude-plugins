@@ -835,6 +835,39 @@ let clientSupportsUi = false;
 let clientSupportsRoots = false;
 let clientRoots = [];
 
+/* WHICH surface is on the other end (6.3.0)? Every client calls itself
+ * claude-ai/0.1.0, and the same name negotiates MCP Apps on one connection and
+ * not on the next: one machine's log held 163 YES against 45 NO in a day, all
+ * under that one name. From the outside that reads as a coin flip, and a whole
+ * afternoon can go into guessing which surface a given session was. The parent
+ * process knows, so ask it once and put it in the handshake line beside the
+ * answer. Cheap, best-effort, and it never blocks the handshake: no parent, no
+ * ps, or a slow ps, all just yield "?". */
+let spawnedByCache = null;
+function spawnedBy() {
+  if (spawnedByCache !== null) return spawnedByCache;
+  spawnedByCache = '?';
+  try {
+    const ppid = process.ppid;
+    if (!ppid) return spawnedByCache;
+    const r = require('child_process').spawnSync(
+      process.platform === 'win32' ? 'wmic' : 'ps',
+      process.platform === 'win32'
+        ? ['process', 'where', 'ProcessId=' + ppid, 'get', 'Name']
+        : ['-p', String(ppid), '-o', 'args='],
+      { encoding: 'utf8', timeout: 2000 }
+    );
+    const line = String((r && r.stdout) || '').trim().split('\n')[0] || '';
+    // The interesting part is which app/binary it is, not the full argv, and a
+    // full argv here would put the user's paths into a log they may paste.
+    const m = line.match(/([^\/\\ ]+)(?:\.app\/Contents\/[^ ]*)?\s*$/) ||
+              line.match(/([^\/\\]+)$/);
+    const app = (line.match(/\/([^\/]+)\.app\//) || [])[1];
+    spawnedByCache = (app || (m && m[1]) || '?').slice(0, 40) + '/pid' + ppid;
+  } catch (e) { /* diagnostics must never break the handshake */ }
+  return spawnedByCache;
+}
+
 /* Can this host actually paint a card? Everything about the card tool hangs off
  * this one answer: whether the tool is listed, and whether a call to it is
  * honoured or refused. It is deliberately a function and not a captured
@@ -896,6 +929,7 @@ function handle(msg) {
         process.stderr.write('[readable-card] client=' + (ci.name || '?') + '/' + (ci.version || '?') +
           ' mcp-apps=' + (clientSupportsUi ? 'YES' : 'NO') +
           ' roots=' + (clientSupportsRoots ? 'YES' : 'NO') +
+          ' spawnedBy=' + spawnedBy() +
           ' extensions=' + JSON.stringify(ext ? Object.keys(ext) : []) + '\n');
       } catch (e) { /* logging must never break the handshake */ }
       respond({
