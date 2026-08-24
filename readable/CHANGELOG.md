@@ -1,5 +1,34 @@
 # readable changelog
 
+## 6.6.0
+
+The session rule was paying for the same thing twice. `rule.md` is injected at
+every `SessionStart`, used or not, and it had grown to 9,021 bytes, about 2,255
+tokens. Roughly 4,800 of those bytes were the block vocabulary, written out in
+full, which the `card` tool already ships in its own description and the tier 2
+kit already ships in the kit file. Whichever channel a session ends up on has
+already been told the blocks.
+
+So the rule no longer repeats them. It keeps the tier decision, the two rules
+that outrank everything, when a card is the right shape at all, file mode, and
+the two judgement calls the tool description does not make: take the lightest
+structure that fits, and open with the substance rather than a cover page.
+
+`rule.md` is now 4,890 bytes, about 1,222 tokens, and a test holds it under 5KB.
+That saves roughly a thousand tokens in every session on every host, which is
+the cheapest kind of saving there is: nobody notices it is gone.
+
+While measuring, the honest comparison between the tiers, since it is the
+opposite of what people assume. Tier 1 sends content-only HTML and the server
+holds every byte of CSS, so a card costs the content and about 10 to 20 percent
+in tags over the same text as markdown. Tier 2 has no server to hold anything,
+so the model copies a 2,666-byte style block into every single reply, about 690
+tokens each, plus 2,500 once for the kit. readable's own card is not the
+expensive path. It is the cheap one, and it is the only one that can serve
+component CSS per card, run the copy/save/PDF/email menu through the bridge,
+resolve a project's brand layer server-side, and keep its look in one source of
+truth instead of asking a model to copy a stylesheet correctly every time.
+
 ## 6.5.1
 
 6.5.0 made a deferred card tool count as present, and the first Persian reply of

@@ -865,6 +865,15 @@ function check(name, cond) {
   check('the rule resolves the tier up front, not per reply (6.5.1)', /Resolve your tier ONCE, before your first reply/.test(ruleTxt));
   check('and forbids skipping the load for a short reply', /too small to be worth it/.test(ruleTxt));
 
+  // A byte budget, enforced rather than promised. rule.md is injected into EVERY
+  // session whether a card is used or not, so it is the one payload that must
+  // stay small. 6.5.1 had grown to 9,021 bytes, about 2,255 tokens a session,
+  // and roughly half of that was the block vocabulary repeated from the card
+  // tool's own description.
+  check('rule.md stays under 5KB, since every session pays for it (6.6.0)', Buffer.byteLength(ruleTxt) < 5120);
+  check('rule.md does not duplicate the block vocabulary the tool already ships',
+    !/Build the card content from these blocks only/.test(ruleTxt) && /ships it in its own description/.test(ruleTxt));
+
   // 8c-ter. CLIPBOARD ENCODING (5.7.0). Inside the MCP Apps iframe every Copy
   // goes through copy_text into pbcopy, and the server is started by a GUI app
   // that passes down no locale at all. macOS tools read a locale-less
