@@ -1,5 +1,20 @@
 # readable changelog
 
+## 6.1.1
+
+The connect skill could not diagnose the one case a user actually hits once
+registration works: status says every profile is fine and cards still do not
+appear. It now sends the reader to the server's own handshake log, which is the
+only record of whether a given host negotiated an MCP Apps UI at all.
+
+Worth knowing because it misleads: desktop chat and a Code session inside the
+desktop app are different hosts reporting the same client name, and one may
+negotiate the UI while the other does not. On the machine this was written on
+that log held 163 `mcp-apps=YES` handshakes and 44 `NO`, every one of them
+`claude-ai/0.1.0`, including two `NO` in the morning and a `YES` the same
+afternoon after an app update. So "it never renders here" is often a memory of a
+session from before an update, and the timestamp settles it.
+
 ## 6.1.0
 
 6.0.0 fixed the leak by removing the automation, and that was the wrong trade.

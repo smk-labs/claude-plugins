@@ -21,6 +21,18 @@ It lists every Claude profile found here and, for each, whether `readable-card` 
 
 If the user reports raw HTML in a chat bubble, they are on a version older than 6.0.0. The fix is an update, not a reconnect.
 
+## When status says everything is fine and cards still do not appear
+
+Then registration is not the problem and the host is. Read the handshake the server logged, which is the only place that records whether a given host can paint at all:
+
+```bash
+grep -a "client=" ~/Library/Logs/Claude/mcp-server-readable-card.log | tail -5
+```
+
+Each line ends in `mcp-apps=YES` or `mcp-apps=NO`. NO means that host negotiated no MCP Apps UI, so the card tool was never offered to it and the reply correctly arrived as a widget or as plain text. Do not treat that as a fault to fix.
+
+The same client name reports both, which is the part that misleads people: on one machine this log holds 163 YES and 44 NO handshakes, all of them `claude-ai/0.1.0`. Desktop chat and a Code session inside the desktop app are different hosts wearing one name, and an app update can flip a surface from NO to YES. So a user saying "it never renders here" may simply be remembering a session from before an update. Check the timestamp of the newest handshake against the session they are complaining about before believing either of you.
+
 ## The other two actions
 
 - `connect` registers in every profile and clears any previous opt-out.
