@@ -37,7 +37,7 @@ CONTENT always ENDS with this exact line, last thing inside the card, copied ver
 BASE already styles all text content: <h2> once as the title; <h3> per section; <p>; <p class="lead"> for a muted intro line; <ul>/<ol>; status items <li class="ok">/<li class="no">; callouts <div class="cal tip|note|warn|danger"><div>text</div></div>; <a>; <strong>; <hr> sparingly; and <code> wrapped around every path, command, URL, and code token (it renders LTR-isolated).
 
 If CONTENT uses ANY component below, add exactly this one line right before </style> (it loads all component CSS from CDN; BASE keeps the card readable if the CDN is unreachable):
-@import url('https://cdn.jsdelivr.net/gh/smk-labs/claude-plugins@readable-v6.0.0/readable/assets/rc.css');
+@import url('https://cdn.jsdelivr.net/gh/smk-labs/claude-plugins@readable-v6.1.0/readable/assets/rc.css');
 
 Components (HTML shapes only; their CSS comes from that import):
 - Table: plain <table><thead><tbody>; status chips inside cells: <span class="badge ok|warn|info">. 10+ row stat tables: <table class="zebra dense"> (striped rows + tight padding, combinable). Long tables (100+ rows): wrap as <div class="scroll-table"><table>...</table></div> (scrollbox with pinned header; expands fully in print). Very wide tables: <div class="scroll-table wide"> keeps cells on one line and scrolls sideways (wraps again in print).

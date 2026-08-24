@@ -1,31 +1,33 @@
 ---
 name: connect
-description: Turn the Claude desktop card server on or off for every profile on this machine, or report where it currently stands. Use when the user asks to "connect readable", "turn cards on", "register the card server", "readable isn't rendering", "cards show raw HTML", "disconnect readable", "کارت‌ها رندر نمی‌شن", "ریدبل رو وصل کن", "ریدبل رو قطع کن", or invokes /readable:connect. Also use before diagnosing any missing-card complaint, because status answers it in one command.
+description: Report or change where the readable card server is registered across this machine's Claude desktop profiles. Use FIRST when the user says cards are not rendering, show raw HTML, or stopped working, because status answers that in one command. Also use when they ask to "connect readable", "turn cards on", "disconnect readable", "stop readable writing my config", "کارت‌ها رندر نمی‌شن", "ریدبل رو وصل کن", "ریدبل رو قطع کن", or invoke /readable:connect.
 ---
 
 # readable connect
 
-Chat cards in the Claude desktop app come from an MCP server the app has to know about, and only a server listed in a desktop profile config renders MCP Apps widgets. A plugin cannot register itself there without writing into the user's config, and readable no longer does that on its own: through 5.x a session hook wrote the entry silently, knew a single profile path, and left a backup file behind each time, which is how one machine ended up with the entry in some profiles, stale paths in others, and secrets copied around inside hand-duplicated configs.
+Registration is automatic: the first session after install copies the server to a version-free stable path and registers it in every Claude desktop profile on the machine, then says so once. So this skill is not a setup step. It is the diagnostic, the opt-out, and the fallback for the one case automation cannot reach.
 
-So registration is one explicit command, and it covers every profile at once.
-
-## Run it
+## Start with status, always
 
 ```bash
 sh "$CLAUDE_PLUGIN_ROOT/hooks/connect.sh" status
 ```
 
-`status` lists every Claude profile found on this machine and, for each, whether `readable-card` is registered and whether the path it names still exists. Read it out to the user before doing anything else: a missing card is almost always one of three states, and status names which.
+It lists every Claude profile found here and, for each, whether `readable-card` is registered and whether the path it names still resolves. Read the result out to the user before doing anything else. A missing-card complaint is almost always one of these, and status tells you which:
 
-- `connect` copies the server to a version-free stable path and registers it in every profile. An existing entry that points at a real file is left alone, because someone set that deliberately.
-- `disconnect` removes the entry from every profile and deletes the copy.
+- **not registered anywhere** — no Claude Code session has run since install (desktop chat runs no hooks, so nothing had a chance to register). Run `connect`.
+- **registered, path does not exist** — a stale hand-made entry pointing into a versioned cache dir. Run `connect`; it replaces that with the stable path.
+- **registered and the path resolves** — registration is fine, so the problem is elsewhere. The app has not been restarted since the entry appeared, or the host simply cannot paint cards. Claude Code sessions are the second case and it is not a bug: those hosts negotiate no MCP Apps UI, so the card tool is not offered there at all and replies arrive as a widget or as BiDi-safe plain text instead.
 
-Both end with the same caveat, so pass it on: a running app keeps the server list it started with, so the user must quit and reopen the app once. Not a window, the app.
+If the user reports raw HTML in a chat bubble, they are on a version older than 6.0.0. The fix is an update, not a reconnect.
 
-## What to tell the user afterwards
+## The other two actions
 
-After `connect`, cards work in desktop chat. They do not appear inside Claude Code sessions and that is correct, not a bug: those hosts negotiate no MCP Apps UI, so the card tool is not offered there at all, and the reply arrives as a widget or as BiDi-safe plain text instead. If a user reports raw HTML in a chat bubble, they are on a version older than 6.0.0; the fix is an update, not a reconnect.
+- `connect` registers in every profile and clears any previous opt-out.
+- `disconnect` removes the entry from every profile, deletes the stable copy, and leaves a marker so no future session puts it back. Use this when someone objects to the plugin writing their config; it is the honest answer to that objection, and it holds.
+
+Both end with the same caveat, so pass it on: a running app keeps the server list it started with, so the user has to quit and reopen the app. Not a window, the app.
 
 ## Do not
 
-Do not hand-edit `claude_desktop_config.json` to fix a card problem. Do not point an entry into `~/.claude/plugins/cache/...`: that path carries a version number and dies on the next update, which is the whole reason the stable path exists.
+Do not hand-edit `claude_desktop_config.json` to fix a card problem; this script is the only thing that should touch it. Do not point an entry into `~/.claude/plugins/cache/...`, because that path carries a version number and dies on the next update, which is the whole reason the stable path exists.

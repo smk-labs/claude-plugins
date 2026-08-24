@@ -8,7 +8,9 @@ HERE="$(dirname "$0")"
 ROOT="$(cd "$HERE/.." && pwd)"
 
 sh "$ROOT/hooks/reap.sh" 2>/dev/null
-sh "$ROOT/hooks/refresh.sh" 2>/dev/null
+# Plug and play: register the card server the first time, everywhere, then
+# never touch a config again. Obeys a previous disconnect. Never fails a session.
+sh "$ROOT/hooks/connect.sh" auto 2>/dev/null || true
 
 cat "$HERE/rule.md"
 

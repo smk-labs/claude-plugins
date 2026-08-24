@@ -945,22 +945,84 @@ function check(name, cond) {
   // one. Deleted rather than adapted: two tests for one behaviour is how a
   // stale expectation survives a redesign.
 
-  /* The stable dir is a FLAT copy of the files hooks/refresh.sh names, and an
-   * opted-in desktop install runs from it. 5.4.0 added assets/email.js as a
+  /* The stable dir is a FLAT copy of the files hooks/connect.sh names, and a
+   * connected desktop install runs from it. 5.4.0 added assets/email.js as a
    * module-load require and left the copy list alone, so that dir got a server
    * that threw before its first byte of protocol and every machine installing
    * from the marketplace lost the card tool. A checkout never notices: it
-   * resolves ../assets/. So build the flat dir exactly as refresh.sh does and
-   * boot it — any future file the server needs and refresh.sh forgets fails
-   * here, not on a user's machine. connect.sh copies the same list, so it is
-   * checked against refresh.sh rather than duplicated as a second source. */
-  const refresh = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'refresh.sh'), 'utf8');
-  const connect = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'connect.sh'), 'utf8');
-  const copied = (refresh.match(/^for f in (.+); do$/m) || [, ''])[1].trim().split(/\s+/);
-  check('refresh.sh still declares a copy list', copied.length > 1 && copied.every((f) => f.includes('/')));
-  check('connect.sh copies exactly the same files as refresh.sh', (connect.match(/^\s*for f in (.+); do$/m) || [, ''])[1].trim().split(/\s+/).join(' ') === copied.join(' '));
-  check('no hook writes a Claude desktop config any more except connect.sh (6.0.0)', !/claude_desktop_config/.test(refresh) && !/claude_desktop_config/.test(fs.readFileSync(path.join(__dirname, '..', 'hooks', 'rule.sh'), 'utf8')) && /claude_desktop_config/.test(connect));
-  check('setup.sh is gone, so nothing registers itself unasked', !fs.existsSync(path.join(__dirname, '..', 'hooks', 'setup.sh')));
+   * resolves ../assets/. So build the flat dir exactly as connect.sh does and
+   * boot it — any future file the server needs and connect.sh forgets fails
+   * here, not on a user's machine. There is deliberately ONE copy list and one
+   * profile list in the tree: 6.0.0 briefly had a second copy in refresh.sh,
+   * which is how a list drifts. */
+  const HOOKS = path.join(__dirname, '..', 'hooks');
+  const connect = fs.readFileSync(path.join(HOOKS, 'connect.sh'), 'utf8');
+  const copied = (connect.match(/^\s*for f in (.+); do$/m) || [, ''])[1].trim().split(/\s+/);
+  check('connect.sh still declares a copy list', copied.length > 1 && copied.every((f) => f.includes('/')));
+  check('connect.sh is the only file that names a desktop config (6.1.0)',
+    fs.readdirSync(HOOKS).filter((f) => f.endsWith('.sh') && /claude_desktop_config/.test(fs.readFileSync(path.join(HOOKS, f), 'utf8'))).join() === 'connect.sh');
+  check('setup.sh and refresh.sh are both gone, so there is one implementation',
+    !fs.existsSync(path.join(HOOKS, 'setup.sh')) && !fs.existsSync(path.join(HOOKS, 'refresh.sh')));
+
+  /* AUTO-CONNECT (6.1.0), against a fake HOME with four fake profiles.
+   *
+   * 6.0.0 made registration a command the user had to run, which cost readable
+   * the one property it was built for: installing it is the whole setup. The
+   * real 5.x defects were never "it wrote the config", they were writing to one
+   * hardcoded profile, writing a backup on every write, writing in silence, and
+   * a removal that the next session silently undid. Each is asserted here. */
+  const FH = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-home-'));
+  const profs = [
+    path.join(FH, 'Library', 'Application Support', 'Claude'),
+    path.join(FH, 'Library', 'Application Support', 'Claude-3p'),
+    path.join(FH, 'Library', 'Application Support', 'Claude Profiles', '3p-test'),
+    path.join(FH, 'claude-3p-test-3p'),
+  ];
+  for (const p of profs) fs.mkdirSync(p, { recursive: true });
+  // two with a config that already holds an unrelated server, one bare, one
+  // with only config.json (a real profile that has never had a desktop config)
+  fs.writeFileSync(path.join(profs[0], 'claude_desktop_config.json'), JSON.stringify({ mcpServers: { other: { command: 'x' } }, preferences: { keep: true } }, null, 2));
+  fs.writeFileSync(path.join(profs[1], 'claude_desktop_config.json'), JSON.stringify({ mcpServers: {} }, null, 2));
+  fs.writeFileSync(path.join(profs[2], 'claude_desktop_config.json'), JSON.stringify({}, null, 2));
+  fs.writeFileSync(path.join(profs[3], 'config.json'), '{}');
+  const runHook = (action) => require('child_process').execFileSync('sh', [path.join(HOOKS, 'connect.sh'), action], { env: Object.assign({}, process.env, { HOME: FH }), encoding: 'utf8' });
+  const cfgOf = (p) => { const f = path.join(p, 'claude_desktop_config.json'); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; };
+  const srvPath = path.join(FH, '.claude', 'plugins', 'data', 'readable', 'server', 'server.js');
+
+  const first = runHook('auto');
+  check('auto registers in EVERY profile on the first session, not just the default (6.1.0)',
+    profs.every((p) => (cfgOf(p) || {}).mcpServers && cfgOf(p).mcpServers['readable-card'].args[0] === srvPath));
+  check('auto writes a desktop config for a profile that had none', cfgOf(profs[3]) !== null);
+  check('auto leaves every other server and preference alone', cfgOf(profs[0]).mcpServers.other.command === 'x' && cfgOf(profs[0]).preferences.keep === true);
+  check('auto says it wrote, once, with the undo (a silent write leaves the user with no cards and no clue)',
+    /<readable-setup>/.test(first) && /reopen the Claude app/.test(first) && /disconnect/.test(first));
+  check('auto builds the flat stable dir at a version-free path', fs.existsSync(srvPath) && ['rc.css', 'menu.js', 'email.js'].every((f) => fs.existsSync(path.join(path.dirname(srvPath), f))));
+
+  const stamps = profs.map((p) => fs.statSync(path.join(p, 'claude_desktop_config.json')).mtimeMs);
+  const second = runHook('auto');
+  check('the second session writes NOTHING and says nothing (steady state is free)',
+    second.trim() === '' && profs.every((p, i) => fs.statSync(path.join(p, 'claude_desktop_config.json')).mtimeMs === stamps[i]));
+  check('exactly one backup per config, ever (5.x left one per write)',
+    profs.every((p) => fs.readdirSync(p).filter((f) => f.endsWith('.readable-bak')).length <= 1));
+
+  runHook('disconnect');
+  check('disconnect removes the entry from every profile and deletes the copy',
+    profs.every((p) => !(cfgOf(p).mcpServers || {})['readable-card']) && !fs.existsSync(path.dirname(srvPath)));
+  const afterMark = runHook('auto');
+  check('a disconnect STICKS: the next session does not put it back (the 5.x defect that made removal pointless)',
+    afterMark.trim() === '' && profs.every((p) => !(cfgOf(p).mcpServers || {})['readable-card']));
+  runHook('connect');
+  check('an explicit connect clears the opt-out and registers again',
+    profs.every((p) => cfgOf(p).mcpServers['readable-card'].args[0] === srvPath));
+
+  // a hand-made override pointing at a real file is never rewritten
+  const ovr = path.join(FH, 'my-server.js');
+  fs.writeFileSync(ovr, '//');
+  const c0 = cfgOf(profs[0]); c0.mcpServers['readable-card'] = { command: 'node', args: [ovr] };
+  fs.writeFileSync(path.join(profs[0], 'claude_desktop_config.json'), JSON.stringify(c0, null, 2));
+  runHook('auto');
+  check('a dev override that resolves is left alone', cfgOf(profs[0]).mcpServers['readable-card'].args[0] === ovr);
+  check('status reports per profile without writing anything', /not registered|ok |!! /.test(runHook('status')));
   const flat = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-flat-'));
   for (const f of copied) fs.copyFileSync(path.join(__dirname, '..', f), path.join(flat, path.basename(f)));
   const srvFlat = spawn(process.execPath, [path.join(flat, 'server.js')], { stdio: ['pipe', 'pipe', 'ignore'], cwd: NEUTRAL_CWD });

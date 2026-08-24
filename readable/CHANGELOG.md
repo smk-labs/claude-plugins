@@ -1,5 +1,57 @@
 # readable changelog
 
+## 6.1.0
+
+6.0.0 fixed the leak by removing the automation, and that was the wrong trade.
+readable exists so that installing it is the whole setup; a plugin that renders
+nothing until you run a command has given up the property it was built for.
+
+The four things that actually went wrong in 5.x were never "it wrote the
+config". They were:
+
+- it knew ONE hardcoded profile path, so the default profile got the entry and
+  every other profile diverged. That is also what made people hand-copy whole
+  configs between profiles to get readable working there, which is how four
+  profiles ended up holding the same live Notion, Jira, Intercom and Jaam
+  tokens.
+- it wrote a `.readable-bak` on every write, so a config full of those tokens
+  accumulated copies of itself beside itself.
+- it wrote in silence, so a user whose cards did not appear had nothing to look
+  at and no idea a restart was needed.
+- removing the entry lasted until the next session, which put it straight back.
+  During this very cleanup the entry was removed and reappeared eight minutes
+  later.
+
+Each is now fixed on its own terms, and each is an assertion in `test.js`
+against a fake `HOME` with four fake profiles. `auto` registers in every profile
+found, and picks up a profile added later on the next session. It keeps one
+backup per config, the first time it touches that config, never one per write.
+The session that writes says so once, with the undo, because without a restart
+the entry does nothing. And `disconnect` leaves a marker that `auto` checks
+before anything else, so opting out holds forever until `connect` clears it.
+
+The steady state costs nothing: a config already pointing at the stable path is
+not opened for writing at all, so every session after the first writes no bytes
+and prints no line. A hand-made override that resolves to a real file is still
+left exactly as it was.
+
+`hooks/refresh.sh` is gone. 6.0.0 split this work across two files and gave each
+its own copy of the file list, which is how a list drifts; `connect.sh` is now
+the only file in the tree that names a desktop config and the only copy of both
+the profile list and the copy list, with `auto` as one more action beside
+`connect`, `disconnect` and `status`. A test asserts that no other hook names a
+desktop config.
+
+Registering everywhere is only safe because of 6.0.0's capability gate: being
+registered no longer implies being able to paint, since a host that did not
+negotiate MCP Apps is never offered the `card` tool. Automation and that gate
+are the same design, and 6.0.0 shipped only half of it.
+
+One gap stays, and it is documented rather than papered over: desktop chat runs
+no `SessionStart` hooks, so on a machine where no Claude Code session is ever
+opened, nothing registers itself. Opening one Code session once, or running
+`/readable:connect`, covers it.
+
 ## 6.0.0
 
 readable could not tell a host that renders cards from a host that only says

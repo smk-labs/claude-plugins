@@ -13,7 +13,16 @@ So never leave any of these behind:
 - `claude plugin install` from a local path
 - a dev override in the Claude desktop config (for readable, an `mcpServers.readable-card` entry whose path points into this checkout instead of `~/.claude/plugins/data/readable/server/server.js`)
 
-Since readable 6.0.0 nothing in this repo writes a Claude config on its own. If a plugin here needs to be registered with the desktop app, that is one explicit command a human runs (`hooks/connect.sh`), it covers every profile on the machine in one pass, and it has a `disconnect` that undoes all of it. A `SessionStart` hook that registers something silently looks like convenience and behaves like a leak: it knows one profile path, so the other profiles diverge, and each write leaves a backup of a config full of live tokens.
+A plugin here MAY register itself with the desktop app on first session, because installing a plugin should be the whole setup. readable does. But an auto-write earns that only by satisfying all four of these, and readable's `hooks/connect.sh` is the worked example plus the tests:
+
+- **every profile, not one.** A hook that knows a single config path leaves the other profiles diverged, which is what drives people to hand-copy whole configs between profiles and spread live API tokens doing it.
+- **one backup per config, ever.** Not one per write, or a config full of tokens accumulates copies of itself.
+- **say it once.** The write is useless until the app restarts, so a silent write leaves a user with no feature and no explanation.
+- **an opt-out that holds.** Removal must survive the next session, or removal is not a thing the user can do.
+
+Plus the precondition that makes it safe at all: being registered must not imply being able to act. readable's server refuses to offer its card tool to a host that cannot render one, so registering it in a profile that cannot use it costs nothing.
+
+One implementation, please. 6.0.0 briefly split this across two hooks with a copy of the file list in each, which is exactly how the two drift apart.
 
 ## Test from the checkout, then clean up
 
