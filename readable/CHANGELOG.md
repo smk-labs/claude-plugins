@@ -1,5 +1,36 @@
 # readable changelog
 
+## 6.5.0
+
+The card server was working the whole time. The rule was telling the model not
+to look.
+
+6.0.0 opened with "pick the delivery channel from the tools ALREADY in your tool
+list. Never call, search for, or defer-load a tool that is not listed." That
+guard exists for a good reason: a model that searches for a plausible tool name
+will find something eventually, and a card tool that does not exist is worse
+than none. But it collapsed two different situations into one word.
+
+Some hosts do not load MCP tools into the prompt at all. They announce the names
+in a system reminder and hand them over on request. On such a host the card tool
+is not in the list, so the rule said absent, so every Persian reply came out as
+a tier 2 widget: correct-looking, more expensive, and wrong about why.
+
+The evidence took a day to assemble and reads clearly in hindsight. The server's
+log showed the connection alive and `mcp-apps=YES`. The app's log showed
+`readable-card` no longer dropped. The tool was offered. And still no card,
+because nothing ever loaded it.
+
+So the rule now separates the two: available means loaded OR offered as a
+deferred tool you can load, deferred is not absent, and what stays forbidden is
+searching for a name that nothing has offered. Two assertions in `test.js` keep
+both halves, because losing either one costs a day.
+
+The lesson generalises past this plugin. A capability check has to test the
+capability, not a proxy for it. 6.0.0 read a client's declaration and trusted
+it; this read a prompt's tool list and mistook it for the set of tools that
+exist.
+
 ## 6.4.1
 
 Tier 2 was drawing a box inside a box. The widget host frames what it renders,

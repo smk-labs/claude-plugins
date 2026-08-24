@@ -854,6 +854,15 @@ function check(name, cond) {
   check('the plugin-scoped server is NOT named readable-card', !scoped.includes('readable-card'));
   check('the plugin-scoped server hard-disables its card tool', scoped.every((k) => manifest.mcpServers[k].env && manifest.mcpServers[k].env.READABLE_NO_CARD === '1'));
 
+  // The rule has to separate "not offered" from "offered but not yet loaded".
+  // Collapsing them cost a full day: on a host that defers MCP tools, the card
+  // server was connected, negotiating the UI and offering the tool, and every
+  // Persian reply still came out as a tier 2 widget because the rule said "in
+  // your list" and the tool was one search away instead of already loaded.
+  const ruleTxt = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'rule.md'), 'utf8');
+  check('the rule says deferred counts as present (6.5.0)', /[Dd]eferred is not absent/.test(ruleTxt));
+  check('the rule still forbids searching for a name nothing offered', /never .*search for, or call, a name that nothing has offered/i.test(ruleTxt));
+
   // 8c-ter. CLIPBOARD ENCODING (5.7.0). Inside the MCP Apps iframe every Copy
   // goes through copy_text into pbcopy, and the server is started by a GUI app
   // that passes down no locale at all. macOS tools read a locale-less
