@@ -68,12 +68,22 @@ fi
 # Every profile shape this app is known to use. A dir counts as a profile when
 # it holds either config file; a profile with no claude_desktop_config.json yet
 # gets one written on connect.
+#
+# The list is deliberately wider than "where the app installs by default",
+# because a second profile is always somewhere else. Missing one is the same
+# defect as 5.x's single hardcoded path, just further out: 6.1.0 covered five
+# profiles on the machine it was written on and still missed three, because a
+# relay setup keeps its data in ~/.claude-<name>/desktop and the glob only
+# reached ~/claude-*. The user restarted the app, saw no cards, and was right.
+# So when a shape turns up that is not here, widen this and add it to the test.
 list_profiles() {
   for d in \
     "$HOME/Library/Application Support/Claude" \
     "$HOME/Library/Application Support/Claude-"* \
     "$HOME/Library/Application Support/Claude Profiles/"* \
     "$HOME/claude-"* \
+    "$HOME/.claude-"*/desktop \
+    "$HOME/Library/Application Support/Claude Profiles/"*/desktop \
     "$APPDATA/Claude" \
     "${XDG_CONFIG_HOME:-$HOME/.config}/Claude"
   do

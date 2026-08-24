@@ -972,11 +972,15 @@ function check(name, cond) {
    * hardcoded profile, writing a backup on every write, writing in silence, and
    * a removal that the next session silently undid. Each is asserted here. */
   const FH = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-home-'));
+  // Every shape seen in the field. The last one is the shape 6.1.0 missed: a
+  // relay setup keeps its profile in ~/.claude-<name>/desktop, so three live
+  // profiles went unregistered while status reported all five others fine.
   const profs = [
     path.join(FH, 'Library', 'Application Support', 'Claude'),
     path.join(FH, 'Library', 'Application Support', 'Claude-3p'),
     path.join(FH, 'Library', 'Application Support', 'Claude Profiles', '3p-test'),
     path.join(FH, 'claude-3p-test-3p'),
+    path.join(FH, '.claude-relayed', 'desktop'),
   ];
   for (const p of profs) fs.mkdirSync(p, { recursive: true });
   // two with a config that already holds an unrelated server, one bare, one
@@ -985,11 +989,14 @@ function check(name, cond) {
   fs.writeFileSync(path.join(profs[1], 'claude_desktop_config.json'), JSON.stringify({ mcpServers: {} }, null, 2));
   fs.writeFileSync(path.join(profs[2], 'claude_desktop_config.json'), JSON.stringify({}, null, 2));
   fs.writeFileSync(path.join(profs[3], 'config.json'), '{}');
+  fs.writeFileSync(path.join(profs[4], 'claude_desktop_config.json'), JSON.stringify({ mcpServers: {} }, null, 2));
   const runHook = (action) => require('child_process').execFileSync('sh', [path.join(HOOKS, 'connect.sh'), action], { env: Object.assign({}, process.env, { HOME: FH }), encoding: 'utf8' });
   const cfgOf = (p) => { const f = path.join(p, 'claude_desktop_config.json'); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; };
   const srvPath = path.join(FH, '.claude', 'plugins', 'data', 'readable', 'server', 'server.js');
 
   const first = runHook('auto');
+  check('auto finds a relay profile at ~/.claude-<name>/desktop (6.1.2)',
+    (cfgOf(profs[4]) || {}).mcpServers && cfgOf(profs[4]).mcpServers['readable-card'].args[0] === srvPath);
   check('auto registers in EVERY profile on the first session, not just the default (6.1.0)',
     profs.every((p) => (cfgOf(p) || {}).mcpServers && cfgOf(p).mcpServers['readable-card'].args[0] === srvPath));
   check('auto writes a desktop config for a profile that had none', cfgOf(profs[3]) !== null);

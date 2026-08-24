@@ -1,5 +1,22 @@
 # readable changelog
 
+## 6.1.2
+
+6.1.0 registered every profile it could find, and still missed three live ones.
+The profile list reached `~/claude-*` but not `~/.claude-<name>/desktop`, which
+is where a relay setup keeps its data. So `status` reported all five known
+profiles healthy while the profile the user was actually sitting in had no entry
+at all: they restarted the app, saw no cards, and were right.
+
+That is the same defect as 5.x's single hardcoded path, only further out, so the
+fix is the same shape: widen the list, and add the shape to the test alongside
+the other four. The test now builds a relay profile too, and asserts it gets
+registered.
+
+The lesson is written into the function: the list has to be wider than "where
+the app installs by default", because a second profile is always somewhere else.
+When a new shape turns up, widen it and add it to the test.
+
 ## 6.1.1
 
 The connect skill could not diagnose the one case a user actually hits once
