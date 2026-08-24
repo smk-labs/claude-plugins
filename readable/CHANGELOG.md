@@ -1,5 +1,21 @@
 # readable changelog
 
+## 6.5.1
+
+6.5.0 made a deferred card tool count as present, and the first Persian reply of
+a session still came out as plain text. It became a card only after the user
+asked why.
+
+The gap was that the tier decision was being made per reply. A one-word greeting
+does not look worth a tool load, so the load never happened, so the tool was not
+in the list, so the reply went out as text: the same false negative one level up.
+
+The tier is now resolved once, before the first reply, and a deferred card tool
+is loaded then. The rule says outright that the load is paid once per session
+rather than per card, that a one-word Persian greeting scrambles exactly like a
+long one, and that a first reply arriving as text and turning into a card after a
+complaint is the rule failing rather than the user being fussy.
+
 ## 6.5.0
 
 The card server was working the whole time. The rule was telling the model not

@@ -862,6 +862,8 @@ function check(name, cond) {
   const ruleTxt = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'rule.md'), 'utf8');
   check('the rule says deferred counts as present (6.5.0)', /[Dd]eferred is not absent/.test(ruleTxt));
   check('the rule still forbids searching for a name nothing offered', /never .*search for, or call, a name that nothing has offered/i.test(ruleTxt));
+  check('the rule resolves the tier up front, not per reply (6.5.1)', /Resolve your tier ONCE, before your first reply/.test(ruleTxt));
+  check('and forbids skipping the load for a short reply', /too small to be worth it/.test(ruleTxt));
 
   // 8c-ter. CLIPBOARD ENCODING (5.7.0). Inside the MCP Apps iframe every Copy
   // goes through copy_text into pbcopy, and the server is started by a GUI app
