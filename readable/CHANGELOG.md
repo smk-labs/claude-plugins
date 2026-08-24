@@ -11,11 +11,16 @@ might call it and show raw HTML. 6.0.0 deleted that warning on the theory that
 the new capability gate made it safe, since a host that cannot paint would not
 be offered the card tool.
 
-The theory was wrong in one specific way. The gate trusts what the client
-DECLARES, and Claude Code's plugin bridge declares the MCP Apps extension while
-being unable to paint. So the scoped copy was handed the card tool, accepted the
-call, and returned the html on `structuredContent`, which printed raw in the
-chat. Same symptom as the original bug, same shape, from a different server.
+The theory was wrong, and here is exactly what is proven versus inferred. Proven:
+a card call was accepted and its html printed raw in the chat, while the
+desktop server's log held a healthy `mcp-apps=YES` handshake and no
+`tools/call card` at all, so that call reached some other server, and the only
+other one was the plugin-scoped copy. Inferred, not proven: that the plugin
+bridge now declares the MCP Apps extension, which is what would let the gate
+wave the call through. 4.5.0's note says that bridge connects as `mcp-apps=NO`;
+either that changed, or the duplicate was picked in a way the log did not
+capture. The fix does not depend on knowing which, because it removes the
+duplicate as a possibility either way.
 
 It hid well: the desktop server's log showed a healthy `mcp-apps=YES` handshake
 and no `tools/call card` at all, because the call had gone to the scoped copy,
