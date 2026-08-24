@@ -1,5 +1,43 @@
 # readable changelog
 
+## 6.4.0
+
+6.0.0 reintroduced the exact defect it was written to kill, and it took until now
+to catch because the evidence pointed at the wrong server the whole time.
+
+5.x's README carried a flat prohibition: never add this server to plugin
+`mcpServers`, because a plugin-scoped copy cannot render widgets and the model
+might call it and show raw HTML. 6.0.0 deleted that warning on the theory that
+the new capability gate made it safe, since a host that cannot paint would not
+be offered the card tool.
+
+The theory was wrong in one specific way. The gate trusts what the client
+DECLARES, and Claude Code's plugin bridge declares the MCP Apps extension while
+being unable to paint. So the scoped copy was handed the card tool, accepted the
+call, and returned the html on `structuredContent`, which printed raw in the
+chat. Same symptom as the original bug, same shape, from a different server.
+
+It hid well: the desktop server's log showed a healthy `mcp-apps=YES` handshake
+and no `tools/call card` at all, because the call had gone to the scoped copy,
+which logs somewhere else entirely. Two sessions were spent chasing profiles and
+managed lists before anyone thought to check WHICH server received the call.
+
+Two changes, either of which alone would have prevented it:
+
+- `READABLE_NO_CARD=1` is a hard no, checked before anything the client claims,
+  ahead of `READABLE_FORCE_UI`. The plugin's scoped server sets it and carries
+  the export tools only.
+- that server is renamed `readable-local`, so it cannot shadow the
+  desktop-registered `readable-card` by name in any host.
+
+The rule text no longer hints that a plugin-scoped card tool can exist, because
+it cannot; a card tool under any other prefix now means something is
+misconfigured, and the model treats it as tier 3.
+
+The lesson is the general one: a capability gate that reads a declaration is
+only as honest as the declaration. Where a host is known to lie, the opt-out has
+to sit outside the negotiation.
+
 ## 6.3.0
 
 The handshake line now says WHICH surface opened the connection, as

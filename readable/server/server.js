@@ -874,6 +874,16 @@ function spawnedBy() {
  * boolean, because the handshake sets clientSupportsUi after this module
  * loads. */
 function uiReady() {
+  // READABLE_NO_CARD is a HARD no, checked before anything the client claims.
+  // It exists because a client can declare the MCP Apps extension and still be
+  // unable to paint: Claude Code's plugin bridge does exactly that. The gate
+  // trusts the declaration, so on that host the card tool was offered, the call
+  // succeeded, and the html came back as structuredContent and printed raw in
+  // the chat, which is the original defect this whole file was rewritten to
+  // kill. The plugin's own scoped server therefore sets this and carries the
+  // export tools only. The desktop-registered server, which really does paint,
+  // sets nothing and behaves as before.
+  if (process.env.READABLE_NO_CARD === '1') return false;
   return clientSupportsUi || process.env.READABLE_FORCE_UI === '1';
 }
 

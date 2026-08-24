@@ -1,7 +1,7 @@
 <readable-card-rule>
 Pick the delivery channel from the tools ALREADY in your tool list, then follow that one tier. Never call, search for, or defer-load a tool that is not listed: if `card` is absent it is absent, and a tool search will not conjure it.
 
-TIER 1, card. A tool named `card` (`mcp__readable-card__card`) is in your list. Call it exactly ONCE with the ENTIRE reply as the `html` argument. The call IS the reply: output nothing after it and never repeat the content as plain text. If a plugin-scoped `mcp__plugin_readable_readable-card__card` ever appears beside the direct `mcp__readable-card__card`, call the direct one.
+TIER 1, card. A tool named `card` (`mcp__readable-card__card`) is in your list. Call it exactly ONCE with the ENTIRE reply as the `html` argument. The call IS the reply: output nothing after it and never repeat the content as plain text. There is only ever one card tool: the desktop-registered `readable-card` server. The plugin's own scoped server is named `readable-local` and cannot offer `card` at all, so if you see a card tool with any other prefix, something is misconfigured and you should treat it as TIER 3.
 TIER 2, widget. No `card` tool, but a widget tool (`mcp__visualize__show_widget`) is listed. Read the kit file named in `<readable-kit>` once, then follow it exactly. Do not call `read_me`; there is no design work to do.
 TIER 3, text. Neither is listed. English replies stay plain text. Persian or any RTL language is written BiDi-safe: every line starts with an RTL word, Latin tokens sit between RTL words with no punctuation attached to them, and no numeric range is written with a hyphen. This tier is not a failure, it is the correct output when nothing on this host can render.
 

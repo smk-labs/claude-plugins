@@ -810,6 +810,50 @@ function check(name, cond) {
   check('READABLE_FORCE_UI=1 puts the card tool back', forced.result.tools.map((t) => t.name).includes('card'));
   srv6.kill();
 
+  // READABLE_NO_CARD is the opposite and it must WIN, even against a client that
+  // declares the MCP Apps extension. 6.0.0 added a plugin-scoped copy of this
+  // server on the theory that the capability gate made it safe; it did not,
+  // because Claude Code's plugin bridge declares the extension and still cannot
+  // paint. So that copy was handed the card tool, accepted the call, and the
+  // html came back as structuredContent and printed raw in the chat: the exact
+  // defect 6.0.0 existed to kill, reintroduced by 6.0.0. The scoped server now
+  // sets this env var and carries the export tools only.
+  const srv8 = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
+    stdio: ['pipe', 'pipe', 'inherit'],
+    env: Object.assign({}, env3, { READABLE_NO_CARD: '1', READABLE_FORCE_UI: '1' }),
+    cwd: NEUTRAL_CWD,
+  });
+  const nocard = await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout: no-card')), 3000);
+    let b = '';
+    const got = {};
+    srv8.stdout.on('data', (d) => {
+      b += d;
+      let j;
+      while ((j = b.indexOf('\n')) !== -1) {
+        const l = b.slice(0, j); b = b.slice(j + 1);
+        if (!l.trim()) continue;
+        const m = JSON.parse(l);
+        if (m.id != null) got[m.id] = m;
+        if (m.id === 3) { clearTimeout(t); resolve(got); }
+      }
+    });
+    srv8.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } } }) + '\n');
+    srv8.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }) + '\n');
+    srv8.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'card', arguments: { html: '<p>x</p>' } } }) + '\n');
+  });
+  check('READABLE_NO_CARD=1 beats a client that DECLARES the ui extension (6.4.0)',
+    !nocard[2].result.tools.map((t) => t.name).includes('card'));
+  check('READABLE_NO_CARD=1 beats READABLE_FORCE_UI=1 too', nocard[2].result.tools.length === 7);
+  check('and a card call there is refused, not answered', Boolean(nocard[3].error));
+  srv8.kill();
+
+  // the scoped server must not be able to shadow the desktop one by name
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.claude-plugin', 'plugin.json'), 'utf8'));
+  const scoped = Object.keys(manifest.mcpServers || {});
+  check('the plugin-scoped server is NOT named readable-card', !scoped.includes('readable-card'));
+  check('the plugin-scoped server hard-disables its card tool', scoped.every((k) => manifest.mcpServers[k].env && manifest.mcpServers[k].env.READABLE_NO_CARD === '1'));
+
   // 8c-ter. CLIPBOARD ENCODING (5.7.0). Inside the MCP Apps iframe every Copy
   // goes through copy_text into pbcopy, and the server is started by a GUI app
   // that passes down no locale at all. macOS tools read a locale-less
