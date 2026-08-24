@@ -35,11 +35,14 @@ The same client name reports both, which is the part that misleads people: on on
 
 ## A running app can erase what you just wrote
 
-The desktop app holds its own copy of the server list, loaded at launch, and writes that copy back to `claude_desktop_config.json` when its settings change. Anything added to the file while the app was running is gone at that point.
+The desktop app holds its own copy of the server list, loaded at launch, and rewrites `claude_desktop_config.json` from that copy whenever something makes it re-derive its state. Anything added to the file while the app was running is gone at that point. Two triggers are confirmed:
 
-Seen in the field: registered at 03:47, the user opened the MCP settings pane at 04:20, the app rewrote the config at 04:26 with its own nine servers and no `readable-card`, and the user then restarted and saw no cards. `status` explained it in one line, and the file's own modification time named the culprit.
+- a visit to the MCP settings pane
+- a plugin install or update, including `claude plugin update` run from a terminal
 
-So the order matters. Register, then leave the settings alone, then quit and reopen the app. If a user says "it worked and then stopped" or "it does not stick", check the config's modification time against the last time they were in Settings before assuming anything else. The session hook re-adds a missing entry on the next session, so the recovery is: open one Code session, then restart the app, in that order.
+Seen in the field, twice within six minutes. Registered at 03:47; the user opened the settings pane at 04:20 and the app rewrote the config at 04:26 with its own nine servers and no `readable-card`; re-registered at 04:29, then a `claude plugin update readable@smk` at 04:30 and the app rewrote it again at 04:31. Re-registered at 04:32 with nothing else touched, and it held. `status` named the state each time, and the file's own modification time named the culprit.
+
+So the order matters, and registering must be the LAST thing done. Update the plugin first, leave the settings pane alone, register, then quit and reopen the app. Registering while the app is closed avoids all of it. If a user says "it worked and then stopped" or "it does not stick", check the config's modification time against the last time they were in Settings before assuming anything else. The session hook re-adds a missing entry on the next session, so the recovery is: open one Code session, then restart the app, in that order.
 
 ## A profile that manages itself
 

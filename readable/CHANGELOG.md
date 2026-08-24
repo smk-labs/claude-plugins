@@ -12,11 +12,15 @@ restoring the redundant one. `status` reports a skipped profile with the reason
 from the file, so nobody has to rediscover why it looks unregistered.
 
 Also documented, because it explains a whole class of "it does not stick": the
-desktop app holds its own copy of the server list from launch and writes that
-copy back whenever its settings change, erasing anything added to the file while
-it was running. Observed here: registered at 03:47, the user opened the MCP
-settings pane at 04:20, the app rewrote the config at 04:26 with its own nine
-servers and no readable-card, and the restart after that showed no cards. The
+desktop app holds its own copy of the server list from launch and rewrites the
+config from that copy whenever it re-derives its state, erasing anything added to
+the file meanwhile. Two confirmed triggers: a visit to the MCP settings pane, and
+a plugin install or update, including `claude plugin update` from a terminal.
+Observed twice within six minutes: registered at 03:47, settings pane at 04:20,
+app rewrote at 04:26 with its own nine servers and no readable-card;
+re-registered at 04:29, a plugin update at 04:30, app rewrote again at 04:31;
+re-registered at 04:32 with nothing else touched and it held. So registering must
+be the LAST step: update first, stay out of settings, register, then restart. The
 session hook re-adds a missing entry next session, so the recovery is one Code
 session and then a restart, in that order. The connect skill now checks the
 config's modification time before believing any other theory.
