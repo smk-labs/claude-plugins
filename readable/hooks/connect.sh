@@ -132,6 +132,22 @@ let changed = 0;
 for (const dir of dirs) {
   const cfg = path.join(dir, "claude_desktop_config.json");
   const label = dir.replace(process.env.HOME, "~");
+  // A profile can opt itself out with a .readable-skip file, for every action.
+  // The case this exists for: a managed (3p) deployment takes its local servers
+  // from managedMcpServers in its own deployment config, which is the sanctioned
+  // route there, and a user-added entry in claude_desktop_config.json is both
+  // redundant and gated by an admin toggle. Without this marker the session hook
+  // would keep restoring that redundant entry and the profile would carry two
+  // registrations of the same server. The file may hold a one-line reason.
+  const skipFile = path.join(dir, ".readable-skip");
+  if (fs.existsSync(skipFile)) {
+    if (!auto) {
+      let why = "";
+      try { why = fs.readFileSync(skipFile, "utf8").trim().split("\n")[0].slice(0, 90); } catch (e) {}
+      out.push("  skip " + label + ": " + (why || ".readable-skip"));
+    }
+    continue;
+  }
   let d = {};
   if (fs.existsSync(cfg)) {
     try { d = JSON.parse(fs.readFileSync(cfg, "utf8")); }

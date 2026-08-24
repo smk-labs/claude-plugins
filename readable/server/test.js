@@ -1030,6 +1030,23 @@ function check(name, cond) {
   runHook('auto');
   check('a dev override that resolves is left alone', cfgOf(profs[0]).mcpServers['readable-card'].args[0] === ovr);
   check('status reports per profile without writing anything', /not registered|ok |!! /.test(runHook('status')));
+
+  // A profile can opt out on its own with .readable-skip, which is how a managed
+  // 3p deployment keeps its one sanctioned registration (managedMcpServers in its
+  // own config) instead of carrying a second, redundant one here.
+  const skipProf = profs[1];
+  const skipCfgBefore = JSON.stringify(cfgOf(skipProf));
+  fs.writeFileSync(path.join(skipProf, '.readable-skip'), 'managed by the deployment config\n');
+  const c1 = cfgOf(skipProf); delete c1.mcpServers['readable-card'];
+  fs.writeFileSync(path.join(skipProf, 'claude_desktop_config.json'), JSON.stringify(c1, null, 2));
+  runHook('auto');
+  check('.readable-skip keeps the session hook out of that profile for good (6.2.0)',
+    !(cfgOf(skipProf).mcpServers || {})['readable-card']);
+  check('.readable-skip does not affect any other profile',
+    profs.filter((p) => p !== skipProf).every((p) => cfgOf(p).mcpServers['readable-card']));
+  check('status names the skipped profile and its reason', /skip .*managed by the deployment config/.test(runHook('status')));
+  fs.unlinkSync(path.join(skipProf, '.readable-skip'));
+  void skipCfgBefore;
   const flat = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-flat-'));
   for (const f of copied) fs.copyFileSync(path.join(__dirname, '..', f), path.join(flat, path.basename(f)));
   const srvFlat = spawn(process.execPath, [path.join(flat, 'server.js')], { stdio: ['pipe', 'pipe', 'ignore'], cwd: NEUTRAL_CWD });

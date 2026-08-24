@@ -1,5 +1,26 @@
 # readable changelog
 
+## 6.2.0
+
+A profile can now opt itself out with a `.readable-skip` file in its directory,
+and every action leaves it alone. This exists for a managed (3p) deployment,
+which takes its local servers from `managedMcpServers` in its own deployment
+config; that is the sanctioned route there, and a user-added entry in
+`claude_desktop_config.json` is both a second registration of the same server
+and gated by an admin toggle. Without the marker the session hook would keep
+restoring the redundant one. `status` reports a skipped profile with the reason
+from the file, so nobody has to rediscover why it looks unregistered.
+
+Also documented, because it explains a whole class of "it does not stick": the
+desktop app holds its own copy of the server list from launch and writes that
+copy back whenever its settings change, erasing anything added to the file while
+it was running. Observed here: registered at 03:47, the user opened the MCP
+settings pane at 04:20, the app rewrote the config at 04:26 with its own nine
+servers and no readable-card, and the restart after that showed no cards. The
+session hook re-adds a missing entry next session, so the recovery is one Code
+session and then a restart, in that order. The connect skill now checks the
+config's modification time before believing any other theory.
+
 ## 6.1.2
 
 6.1.0 registered every profile it could find, and still missed three live ones.

@@ -33,6 +33,18 @@ Each line ends in `mcp-apps=YES` or `mcp-apps=NO`. NO means that host negotiated
 
 The same client name reports both, which is the part that misleads people: on one machine this log holds 163 YES and 44 NO handshakes, all of them `claude-ai/0.1.0`. Desktop chat and a Code session inside the desktop app are different hosts wearing one name, and an app update can flip a surface from NO to YES. So a user saying "it never renders here" may simply be remembering a session from before an update. Check the timestamp of the newest handshake against the session they are complaining about before believing either of you.
 
+## A running app can erase what you just wrote
+
+The desktop app holds its own copy of the server list, loaded at launch, and writes that copy back to `claude_desktop_config.json` when its settings change. Anything added to the file while the app was running is gone at that point.
+
+Seen in the field: registered at 03:47, the user opened the MCP settings pane at 04:20, the app rewrote the config at 04:26 with its own nine servers and no `readable-card`, and the user then restarted and saw no cards. `status` explained it in one line, and the file's own modification time named the culprit.
+
+So the order matters. Register, then leave the settings alone, then quit and reopen the app. If a user says "it worked and then stopped" or "it does not stick", check the config's modification time against the last time they were in Settings before assuming anything else. The session hook re-adds a missing entry on the next session, so the recovery is: open one Code session, then restart the app, in that order.
+
+## A profile that manages itself
+
+A managed (3p) deployment takes its local servers from `managedMcpServers` in its own deployment config, which is the sanctioned route there, and a user-added entry in `claude_desktop_config.json` is both redundant and gated by an admin toggle called "Allow user-added MCP servers". For those profiles, put the server in the managed list and drop a `.readable-skip` file in the profile directory, optionally with a one-line reason. Every action then leaves that profile alone, and `status` reports it as skipped with the reason, so nobody has to rediscover why it looks unregistered.
+
 ## The other two actions
 
 - `connect` registers in every profile and clears any previous opt-out.
