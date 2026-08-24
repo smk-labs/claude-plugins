@@ -52,7 +52,9 @@ The user-added route in `claude_desktop_config.json` is the one that negotiates 
 
 ## A profile that manages itself
 
-A managed (3p) deployment takes its local servers from `managedMcpServers` in its own deployment config, which is the sanctioned route there, and a user-added entry in `claude_desktop_config.json` is both redundant and gated by an admin toggle called "Allow user-added MCP servers". For those profiles, put the server in the managed list and drop a `.readable-skip` file in the profile directory, optionally with a one-line reason. Every action then leaves that profile alone, and `status` reports it as skipped with the reason, so nobody has to rediscover why it looks unregistered.
+Any profile can opt itself out with a `.readable-skip` file in its directory, optionally holding a one-line reason. Every action then leaves that profile alone, and `status` reports it as skipped with the reason, so nobody has to rediscover why it looks unregistered.
+
+Use it for a profile whose registration is genuinely owned elsewhere, and note that a managed (3p) deployment is NOT such a case for this server: see the section above. The one thing this marker must never become is a way to hide a profile that simply is not working.
 
 ## The other two actions
 
