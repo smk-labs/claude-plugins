@@ -245,6 +245,17 @@ function check(name, cond) {
     !/border-radius:14px/.test(kitMd.split('CONTENT')[0]) && !/border-radius:14px/.test(kitInline.split('CONTENT')[0]));
   check('the icon sprite is kept off the copy-by-hand path', !/class="ic /.test(kitInline.split('<!--@')[0].split('- ICON')[0] + 'x') && !/- ICON —/.test(kitInline));
 
+  // The one path shape that 404s silently. Plugins sit at the REPO ROOT here, so
+  // `plugins/readable/...` resolves to nothing — as a CDN ref it was an unstyled
+  // card for a year, and as a command in the README it was a copy-paste that
+  // could not run. The only allowed mention is the one warning about it.
+  for (const doc of ['README.md', 'hooks/kit.md', 'hooks/kit-inline.md', 'hooks/rule.md']) {
+    const text = src(__dirname, '..', doc);
+    const hits = (text.match(/plugins\/readable\//g) || []).length;
+    const warnings = (text.match(/not `plugins\/readable\//g) || []).length;
+    check(doc + ' never names a plugins/readable/ path except to warn about it', hits === warnings);
+  }
+
   // The palette lived in the card template, the report shell and email.js.
   const paletteCss = src(assetsDir, 'palette.css');
   const shellHtml = src(__dirname, '..', 'skills', 'report', 'assets', 'shell.html');
@@ -1201,6 +1212,12 @@ function check(name, cond) {
   srvFlat.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {} } }) + '\n');
   check('the flat stable dir setup.sh builds boots and answers initialize', (await boot).includes('"serverInfo"'));
   srvFlat.kill();
+
+  // Counted, not typed. The README states this number, and a stated number that
+  // nothing checks is a number that drifts: it said 104 while the suite ran 283.
+  // This check counts itself, hence the +1.
+  const readmeCount = Number((src(__dirname, '..', 'README.md').match(/runs a (\d+)-check/) || [])[1]);
+  check('the README states the real check count (' + (checks.length + 1) + ')', readmeCount === checks.length + 1);
 
   srv.kill();
   let pass = 0;

@@ -71,7 +71,7 @@ The card template grew 388 bytes, all of it the shared palette bringing
 sends no theme now follows the OS instead of always painting light. 26,693 bytes
 of the ~30KB ceiling.
 
-297 checks, up from 283. The new ones are all the same shape: prove the sheet,
+302 checks, up from 283. The new ones are all the same shape: prove the sheet,
 the vocabulary and the detector table describe the same components, and prove no
 palette, LTR rule or font constant has been copied anywhere.
 
