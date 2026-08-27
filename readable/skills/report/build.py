@@ -57,9 +57,16 @@ from urllib.parse import quote, unquote, urlparse
 from urllib.request import url2pathname
 
 HERE = pathlib.Path(__file__).resolve().parent
-KIT = HERE.parents[1] / "assets" / "rc.css"
-MENU = HERE.parents[1] / "assets" / "menu.js"
-EMAIL = HERE.parents[1] / "assets" / "email.js"
+ASSETS = HERE.parents[1] / "assets"
+KIT = ASSETS / "rc.css"
+MENU = ASSETS / "menu.js"
+EMAIL = ASSETS / "email.js"
+# Shared with the card server, not re-declared here (6.7.0). The palette lived in
+# three hand-kept copies and the LTR overrides in two, each with a comment
+# promising it matched the other.
+PALETTE = ASSETS / "palette.css"
+LTR = ASSETS / "ltr.css"
+FONTS = ASSETS / "fonts.json"
 SHELL = HERE / "assets" / "shell.html"
 
 BRAND_HEAD_CSS = (
@@ -71,10 +78,11 @@ BRAND_HEAD_CSS = (
 
 
 # The css2 api serves woff2 only to a browser UA; anything else gets ttf, which
-# is three times the bytes. Same UA and subset allowlist the card server uses.
-FONT_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-           "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
-FONT_SUBSETS = ("arabic", "latin", "latin-ext")
+# is three times the bytes. THE policy file, read by server/fonts.js too, so the
+# two paths cannot fetch different formats or different subsets.
+_FONTS = json.loads(FONTS.read_text(encoding="utf-8"))
+FONT_UA = _FONTS["ua"]
+FONT_SUBSETS = tuple(_FONTS["subsets"])
 FACE_RE = re.compile(r"(?s)(?:/\*\s*([\w-]+)\s*\*/\s*)?@font-face\s*\{([^}]*)\}")
 # The url is matched by its format() marker, not by a .woff2 suffix: the css2
 # api's text= subsetting answers with /l/font?kit=... and no extension at all.
@@ -280,14 +288,17 @@ def inline_js(src: pathlib.Path) -> str:
         out.append(line)
     return "\n".join(out)
 
-EN_EXTRA = (
-    "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');\n"
-    ".rc{font-family:Inter,system-ui,-apple-system,sans-serif;text-align:left}\n"
-    ".rc thead th,.rc tbody td{text-align:left}\n"
-    ".rc .cta::after{content:'\\2192'}\n"
-    ".rc .flow .s:not(:last-child)::before{transform:translateY(-50%) rotate(225deg)}\n"
-    ".meta{font-family:Inter,system-ui,sans-serif}\n"
-)
+def en_extra() -> str:
+    """The "this document is English" overrides, from THE shared sheet.
+
+    assets/ltr.css is authored card-first, scoped to `.rc[dir=ltr]`, because a
+    chat card mixes languages and the bridge stamps dir per card. A report is one
+    language end to end, so the attribute selector is dropped — one regex, and the
+    same specificity the hand-written copy had. The .meta rule is the report's
+    own: there is no .meta in a card."""
+    css = re.sub(r"(?s)/\*.*?\*/", "", LTR.read_text(encoding="utf-8"))
+    css = css.replace(".rc[dir=ltr]", ".rc").strip()
+    return css + "\n.meta{font-family:Inter,system-ui,sans-serif}\n"
 
 
 MEDIA_TYPES = {
@@ -890,7 +901,8 @@ def main():
         .replace("{{KIT}}", kit_css(brand_css))
         .replace("{{MENU}}", inline_js(MENU))
         .replace("{{EMAIL}}", inline_js(EMAIL))
-        .replace("{{EXTRA}}", EN_EXTRA if a.lang == "en" else "")
+        .replace("{{PALETTE}}", re.sub(r"(?s)/\*.*?\*/", "", PALETTE.read_text(encoding="utf-8")).strip())
+        .replace("{{EXTRA}}", en_extra() if a.lang == "en" else "")
         .replace("{{BRAND}}", brand_css)
         .replace("{{BRANDHEAD}}", brand_head)
         .replace("{{DATE}}", datetime.date.today().isoformat())

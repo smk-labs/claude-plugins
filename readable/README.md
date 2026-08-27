@@ -69,9 +69,20 @@ The style kit used to ship in full with every reply; now replies pay only for wh
 
 ### The tier 2 kit
 
-[hooks/kit.md](hooks/kit.md) is what the model reads when it lands in tier 2. BASE stays inline as the offline floor; component CSS arrives on one line, `@import url('https://cdn.jsdelivr.net/gh/smk-labs/claude-plugins@readable-v6.0.0/readable/assets/rc.css')`.
+[hooks/kit.md](hooks/kit.md) is what the model reads when it lands in tier 2. BASE stays inline as the offline floor; component CSS arrives on one line, `@import url('https://cdn.jsdelivr.net/gh/smk-labs/claude-plugins@main/readable/assets/rc.css')`. [hooks/kit-inline.md](hooks/kit-inline.md) is the same kit with every component inline, for a host with no network at all.
 
-Two things about that URL, both learned the hard way. It is pinned to a **tag**, not `@main`: on `@main` a push edits the stylesheet of every card already rendered on every machine, and jsDelivr takes about 12 h to agree with you about what it now says. And the path is `readable/assets/...`, not `plugins/readable/assets/...`: plugins sit at the repo root here, so the `plugins/` form was a 404 that failed silently as an unstyled card. Each release bumps the tag in `kit.md`; [hooks/kit-inline.md](hooks/kit-inline.md) is the same kit with the components inline, for a host with no network at all.
+Both files are **generated** (6.7.0): `node readable/tools/gen-kit.js` writes them from `assets/rc.css` plus the block vocabulary in `assets/blocks.md`, and `--check` fails the test run if either is stale. They were hand-written for six releases and it showed — kit.md's BASE was missing the whole `<pre>` block and still carried a `code` rule that had moved, and its CDN line was pinned to `readable-v6.4.1` while the plugin shipped 6.6.0, so tier 2 was quietly painting with two-release-old CSS.
+
+Two things about that URL. The path is `readable/assets/...`, not `plugins/readable/assets/...`: plugins sit at the repo root here, so the `plugins/` form was a 404 that failed silently as an unstyled card. And the ref is `@main`, which reverses the 6.0.0 note that argued for a release tag. The argument for a tag is real — on a branch a push restyles cards already rendered elsewhere, and jsDelivr takes ~12 h to agree about what the branch now says. The argument against it is the release history: the tag was bumped by hand, so it lagged by two releases in `kit.md` and by six in this README, and tags for 6.5.1 and 6.6.0 were never pushed at all. A tag ref that names an unpushed tag 404s, and an unstyled card is a worse failure than an old card restyled. The generator removes the drift either way; `@main` also removes the 404.
+
+### Architecture
+
+One design system, four places it can be delivered, and every fact about it written down once.
+
+- **Single sources**, all under `assets/`: `rc.css` (the sheet, `@TAG`-marked per component), `blocks.md` (the block vocabulary), `palette.css` (colours), `ltr.css` (the English overrides), `fonts.json` (the web-font fetch policy), `menu.js` and `email.js` (shared behaviour). Each is read by every path that needs it, JavaScript and Python alike, with at most one documented adaptation at the point of use.
+- **Server modules** in `server/`, each one thing: `kit.js` is the only code that parses `rc.css`; `blocks.js` assembles the vocabulary per tier; `theme.js` adapts palette + LTR for a card; `template.js` builds the `ui://` resource; `bridge.js` is the iframe's script; `brand.js`, `files.js`, `fonts.js`, `sys.js`, `host.js`, `paths.js`, `rpc.js`, `tools.js`. `server.js` is wiring only.
+- **Tools are data**: one registry entry per tool (schema, `needsUi`, `failure` prefix, `run`), one dispatcher. Bad arguments are always a protocol error, never a successful-looking result.
+- **Generated, not typed**: `tools/gen-kit.js` writes both tier 2 kits. `test.js` proves the sheet, the vocabulary and the detector table describe the same components, and that no palette, LTR rule or font constant has been copied anywhere.
 
 ## 2. visualize (skill, on demand)
 

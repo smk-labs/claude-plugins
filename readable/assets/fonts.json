@@ -1,0 +1,5 @@
+{
+  "//": "Web-font fetch policy, shared by server/fonts.js and skills/report/build.py. The css2 api serves woff2 only to a browser UA; anything else gets ttf, three times the bytes. Vazirmatn is an Arabic-script face, so only the subsets a Persian/English document actually uses are kept and the embedded payload stays a few hundred KB instead of megabytes.",
+  "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+  "subsets": ["arabic", "latin", "latin-ext"]
+}

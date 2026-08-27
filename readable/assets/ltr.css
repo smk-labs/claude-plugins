@@ -1,0 +1,17 @@
+/* readable LTR overrides — SINGLE SOURCE for "this document is English".
+   The kit is Persian-first (text-align:right, RTL arrows), so every path needs
+   the same five mirror rules and the same Inter import. They were spelled twice
+   before 6.7.0, in server.js as LTR_CSS and in build.py as EN_EXTRA, with a
+   comment in each promising they matched.
+
+   Authored in the CARD's convention: a chat card mixes languages, so the rules
+   are scoped to `.rc[dir=ltr]` and the bridge stamps dir from the content's
+   majority script. A report is one language end to end, so build.py drops the
+   attribute selector (`.rc[dir=ltr]` -> `.rc`) and appends its own .meta rule.
+   The @import must stay on its own first line: both consumers hoist imports by
+   a line-anchored match. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
+.rc[dir=ltr]{text-align:left;font-family:Inter,system-ui,-apple-system,sans-serif}
+.rc[dir=ltr] thead th,.rc[dir=ltr] tbody td{text-align:left}
+.rc[dir=ltr] .cta::after{content:'\2192'}
+.rc[dir=ltr] .flow .s:not(:last-child)::before{transform:translateY(-50%) rotate(225deg)}

@@ -194,14 +194,78 @@ function check(name, cond) {
 
   // COMPLETENESS. A new @TAG with no detector would silently render unstyled.
   // This is the guard that makes adding a component fail loudly instead.
-  const srvSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
-  const detectorBlock = srvSrc.split('const KIT_DETECT = {')[1].split('};')[0];
-  const detectors = new Set((detectorBlock.match(/([A-Z]+):\s*\{/g) || []).map((m) => m.split(':')[0]));
-  const kitSrc = fs.readFileSync(path.join(__dirname, '..', 'assets', 'rc.css'), 'utf8');
-  const tagsInSheet = new Set((kitSrc.match(/\/\*@([A-Z]+)/g) || []).map((m) => m.slice(3)));
-  tagsInSheet.delete('REPORT'); // tier divider, no CSS of its own
-  tagsInSheet.delete('PRINT');  // never ships to a card
+  // Read off the module rather than out of its source text: the detector table
+  // IS the interface here, and a test that greps for a `const` name breaks on a
+  // refactor that changed nothing it was meant to protect (it did, in 6.7.0).
+  const detectors = new Set(Object.keys(require('./kit.js').DETECT));
+  const tagsInSheet = new Set(require('./kit.js').componentTags());
   check('every @TAG in the sheet has a read_kit detector (' + [...tagsInSheet].length + ' components)', [...tagsInSheet].every((t) => detectors.has(t)) && [...detectors].every((d) => tagsInSheet.has(d)));
+
+  /* SINGLE SOURCE (6.7.0). Every check below exists because the thing it pins was
+   * spelled out in two or three files at once, with a comment in each promising
+   * they matched, and at least one of them was wrong when this was written. The
+   * cheapest way to keep them together is to make a copy fail here. */
+  const blocksMod = require('./blocks.js');
+  const kitMod = require('./kit.js');
+  const assetsDir = path.join(__dirname, '..', 'assets');
+  const src = (...f) => fs.readFileSync(path.join(...f), 'utf8').replace(/\r\n/g, '\n');
+
+  // The vocabulary and the sheet must describe the SAME components: one in the
+  // sheet with no entry renders with no instructions, one in the vocabulary with
+  // no sheet renders unstyled.
+  const inBlocks = new Set();
+  for (const e of blocksMod.entries()) for (const tg of blocksMod.tagsOf(e)) inBlocks.add(tg);
+  check('assets/blocks.md and assets/rc.css describe the same components (' + inBlocks.size + ')',
+    [...tagsInSheet].every((tg) => inBlocks.has(tg)) && [...inBlocks].every((tg) => tagsInSheet.has(tg)));
+
+  // The card tool's description is BUILT from that vocabulary, so a block cannot
+  // be offered on one tier and forgotten on the other.
+  const desc1 = blocksMod.forTier(1);
+  const desc2 = blocksMod.forTier(2);
+  check('the tier 1 description carries every chat shape and no report-only one',
+    blocksMod.chat(1).every((e) => desc1.includes(e.shape)) &&
+    blocksMod.entries().filter((e) => e.tier === 'r').every((e) => !desc1.includes(e.shape)));
+  check('tier-2-only blocks reach the on-demand kit and stay out of the always-on description',
+    blocksMod.chat(2).filter((e) => e.tier === '2').every((e) => desc2.includes(e.shape) && !desc1.includes(e.shape)));
+  check('notes are tier 2 only, so the description the model always carries stays shapes',
+    blocksMod.entries().filter((e) => e.notes && e.tier !== 'r').every((e) => desc2.includes(e.notes) && !desc1.includes(e.notes)));
+
+  // Both tier 2 kits are generated. --check is the drift guard; without it the
+  // files go stale silently, which is how kit.md ended up pinned two releases back.
+  const gen = require('child_process').spawnSync(process.execPath,
+    [path.join(__dirname, '..', 'tools', 'gen-kit.js'), '--check'], { encoding: 'utf8' });
+  check('hooks/kit.md and hooks/kit-inline.md are regenerated from the sheet + the vocabulary',
+    gen.status === 0, gen.stderr);
+  const kitMd = src(__dirname, '..', 'hooks', 'kit.md');
+  const kitInline = src(__dirname, '..', 'hooks', 'kit-inline.md');
+  check('the CDN ref is a branch, so it can neither lag the plugin nor 404 on an unpushed tag',
+    /claude-plugins@main\/readable\/assets\/rc\.css/.test(kitMd) && !/@readable-v/.test(kitMd));
+  check('the offline kit needs no network at all', !/cdn\.jsdelivr/.test(kitInline));
+  check('neither kit hands the model a framed card to draw inside the host\'s own frame',
+    !/border-radius:14px/.test(kitMd.split('CONTENT')[0]) && !/border-radius:14px/.test(kitInline.split('CONTENT')[0]));
+  check('the icon sprite is kept off the copy-by-hand path', !/class="ic /.test(kitInline.split('<!--@')[0].split('- ICON')[0] + 'x') && !/- ICON —/.test(kitInline));
+
+  // The palette lived in the card template, the report shell and email.js.
+  const paletteCss = src(assetsDir, 'palette.css');
+  const shellHtml = src(__dirname, '..', 'skills', 'report', 'assets', 'shell.html');
+  check('assets/palette.css is the only sheet that declares the palette',
+    paletteCss.includes('--text-primary:#1f1f1f') &&
+    !shellHtml.includes('--text-primary:#1f1f1f') && shellHtml.includes('{{PALETTE}}') &&
+    !src(__dirname, 'theme.js').includes('#1f1f1f') && !src(__dirname, 'template.js').includes('#1f1f1f'));
+  check('the card adapts it to html[data-theme=…] so a brand\'s dark block still wins by source order',
+    require('./theme.js').palette().includes('html[data-theme="dark"]') &&
+    !require('./theme.js').palette().includes(':root[data-theme'));
+
+  // The LTR overrides lived in server.js as LTR_CSS and in build.py as EN_EXTRA.
+  const buildPy = src(__dirname, '..', 'skills', 'report', 'build.py');
+  check('assets/ltr.css is the only sheet that declares the LTR overrides',
+    src(assetsDir, 'ltr.css').includes('rotate(225deg)') &&
+    !buildPy.includes('rotate(225deg)') && !src(__dirname, 'theme.js').includes('rotate(225deg)'));
+
+  // The font UA and subset allowlist were literals in both languages.
+  check('assets/fonts.json is the only place the font fetch policy is written',
+    src(assetsDir, 'fonts.json').includes('AppleWebKit') &&
+    !buildPy.includes('AppleWebKit') && !src(__dirname, 'fonts.js').includes('AppleWebKit'));
 
   // 3b. kit source invariants that the chat template cannot see (report tier).
   const kit = fs.readFileSync(path.join(__dirname, '..', 'assets', 'rc.css'), 'utf8').replace(/\r\n/g, '\n');
@@ -1021,8 +1085,13 @@ function check(name, cond) {
    * which is how a list drifts. */
   const HOOKS = path.join(__dirname, '..', 'hooks');
   const connect = fs.readFileSync(path.join(HOOKS, 'connect.sh'), 'utf8');
-  const copied = (connect.match(/^\s*for f in (.+); do$/m) || [, ''])[1].trim().split(/\s+/);
-  check('connect.sh still declares a copy list', copied.length > 1 && copied.every((f) => f.includes('/')));
+  // The set is a GLOB now, not a typed list (6.7.0): the list WAS the module
+  // graph, kept in a shell loop, and a module added to the server's requires and
+  // forgotten here broke a desktop install on a require. Two globs cannot miss
+  // one, so what is worth pinning is that they are still globs — the boot check
+  // at the bottom of this file proves what they actually produce.
+  check('connect.sh copies the server and its assets by glob, so no list can go stale',
+    /for f in "\$ROOT"\/server\/\*\.js "\$ROOT"\/assets\/\*; do/.test(connect));
   check('connect.sh is the only file that names a desktop config (6.1.0)',
     fs.readdirSync(HOOKS).filter((f) => f.endsWith('.sh') && /claude_desktop_config/.test(fs.readFileSync(path.join(HOOKS, f), 'utf8'))).join() === 'connect.sh');
   check('setup.sh and refresh.sh are both gone, so there is one implementation',
@@ -1111,8 +1180,18 @@ function check(name, cond) {
   check('status names the skipped profile and its reason', /skip .*managed by the deployment config/.test(runHook('status')));
   fs.unlinkSync(path.join(skipProf, '.readable-skip'));
   void skipCfgBefore;
-  const flat = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-flat-'));
-  for (const f of copied) fs.copyFileSync(path.join(__dirname, '..', f), path.join(flat, path.basename(f)));
+  // Boot the dir connect.sh REALLY built, in the fake home above, rather than a
+  // second reconstruction of it here. Reconstructing is what let the copy set and
+  // the test drift; running the hook means the thing under test is the thing that
+  // ships.
+  runHook('connect');
+  const flat = path.dirname(srvPath);
+  check('every module and asset the server needs is in the flat stable dir',
+    fs.existsSync(path.join(flat, 'server.js')) && fs.existsSync(path.join(flat, 'rc.css')) &&
+    fs.readdirSync(path.join(__dirname)).filter((f) => f.endsWith('.js') && f !== 'test.js')
+      .every((f) => fs.existsSync(path.join(flat, f))) &&
+    fs.readdirSync(path.join(__dirname, '..', 'assets')).every((f) => fs.existsSync(path.join(flat, f))) &&
+    !fs.existsSync(path.join(flat, 'test.js')));
   const srvFlat = spawn(process.execPath, [path.join(flat, 'server.js')], { stdio: ['pipe', 'pipe', 'ignore'], cwd: NEUTRAL_CWD });
   const boot = new Promise((res) => {
     let buf = '';

@@ -104,18 +104,25 @@ if [ -z "$PROFILES" ]; then
 fi
 
 if [ "$ACTION" = connect ]; then
-  # The stable dir is FLAT: server.js resolves rc.css, menu.js and email.js from
-  # its own dir. email.js is not optional; server.js require()s it at module
-  # load, so a stable dir missing it does not degrade, it refuses to start.
-  # test.js reads this list and boots the result, so a file added to the
-  # server's requires and forgotten here fails there, not on someone's machine.
+  # The stable dir is FLAT: every server module and every asset lands as a
+  # sibling, and paths.js resolves them from the server's own dir. The set is a
+  # GLOB, not a list: the list was four names typed out here, so the module graph
+  # really lived in this shell loop, and splitting server.js into modules broke a
+  # desktop install on a require the moment one name was missed. Two globs cannot
+  # miss one. Nothing here is optional either — assets/email.js is require()d at
+  # module load, so a stable dir missing a file does not degrade, it refuses to
+  # start. test.js boots this exact dir, so a gap fails there and not on
+  # someone's machine.
   # cmp before cp so a steady-state session writes nothing at all: this is also
   # what makes an update land, since the config keeps naming a version-free path
   # while the files under it move forward.
   mkdir -p "$STABLE" || exit 0
-  for f in server/server.js assets/rc.css assets/menu.js assets/email.js; do
+  for f in "$ROOT"/server/*.js "$ROOT"/assets/*; do
+    [ -f "$f" ] || continue
     b="$(basename "$f")"
-    cmp -s "$ROOT/$f" "$STABLE/$b" 2>/dev/null || cp "$ROOT/$f" "$STABLE/$b" 2>/dev/null
+    # test.js is the suite, not a runtime dependency, and it spawns servers.
+    [ "$b" = test.js ] && continue
+    cmp -s "$f" "$STABLE/$b" 2>/dev/null || cp "$f" "$STABLE/$b" 2>/dev/null
   done
   rm -f "$MARK"
 fi

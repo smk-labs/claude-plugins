@@ -1,5 +1,80 @@
 # readable changelog
 
+## 6.7.0
+
+Nothing here changes what a card looks like. It changes how many places you have
+to edit to change one.
+
+The plugin had one design system and four independent renderers of it: the card
+template, the two tier 2 kit files, the report builder and the email transform.
+None of them shared an implementation, so six policies were written out two or
+three times each, in two languages, with a comment in every copy promising it
+matched the others. Three of them did not. The palette lived in the card
+template, the report shell and `email.js`. The LTR overrides lived in
+`server.js` as `LTR_CSS` and in `build.py` as `EN_EXTRA`. The font fetch UA and
+subset allowlist were the same two literals in both languages. And the block
+vocabulary — what the model is told it may build a card out of — existed three
+times, all of them different: the card tool documented cards, box, cols, quote,
+src and icons and the kits did not; the kits documented zebra, donut, hub, fold,
+preview and numbered and the card tool did not; only the offline kit carried the
+craft notes. Which vocabulary you got depended on which host you were on.
+
+Every one of those now has exactly one home, and a test that fails if a copy
+reappears:
+
+- `assets/palette.css` — the colours. The card rewrites `:root[data-theme=` to
+  `html[data-theme=` on the way in, which is the one adaptation it needs and the
+  reason is written down: it drops the block to the specificity a brand's own
+  dark rules get, so they tie and the brand wins by source order.
+- `assets/ltr.css` — the five "this document is English" rules and the Inter
+  import. Authored card-first; the report drops the `[dir=ltr]` scope.
+- `assets/fonts.json` — the web-font fetch policy both languages read.
+- `assets/blocks.md` — the block vocabulary, one `### TAG` entry per component,
+  keyed to the marker `rc.css` uses for that component's CSS. `shape` is the
+  HTML contract and goes to every tier; `notes` is craft guidance and goes to
+  tier 2 alone, because the card tool's description sits in every session's
+  context whether a card is drawn or not.
+
+`hooks/kit.md` and `hooks/kit-inline.md` are no longer written by hand at all:
+`node readable/tools/gen-kit.js` writes both from the sheet and the vocabulary,
+and `--check` runs in the test suite. Six releases of hand-editing had left
+kit.md's BASE without the entire `<pre>` block, still carrying a `code` rule
+that had moved, and pinned to `readable-v6.4.1` while the plugin shipped 6.6.0 —
+tier 2 was painting with two-release-old CSS and nothing could tell you. The CDN
+ref is now `@main`, which reverses the 6.0.0 note; the note's argument is real,
+and the release history is more real. Tags for 6.5.1 and 6.6.0 were never
+pushed, and a tag ref that names an unpushed tag 404s into an unstyled card.
+
+Both chat tiers now advertise the same blocks, so tier 1 gained hub, preview,
+the two-metric bar and the kpi caveat line, and tier 2 gained cards, box, cols,
+quote, src, icons and `<pre>`. The card tool's description grew about 1.4KB for
+that; the tier 2 kits grew because they were missing more.
+
+`server.js` went from 1,144 lines holding nine concerns to 90 lines of wiring
+over twelve modules, each with one job: `kit.js` is now the only code anywhere
+that parses `rc.css`, `blocks.js` the only code that reads the vocabulary,
+`theme.js` the only place the palette is adapted for a card. The eight-branch
+if-chain in `tools/call`, where every branch spelled out the same validate → try
+→ respond → catch → isError shape by hand, is a registry: a tool is data
+(schema, `needsUi`, a `failure` prefix, a `run`) and there is one dispatcher.
+Bad arguments are always a protocol error now, never a result that looks like
+success.
+
+`hooks/connect.sh` copies the server by glob instead of by a typed list of four
+filenames. That list WAS the module graph, kept in a shell loop in another file,
+and the split would have broken a desktop install on the first missed name. The
+test no longer reconstructs the flat stable dir either — it runs the hook and
+boots what the hook actually built.
+
+The card template grew 388 bytes, all of it the shared palette bringing
+`--page-bg` and a `prefers-color-scheme` block a card never had: a host that
+sends no theme now follows the OS instead of always painting light. 26,693 bytes
+of the ~30KB ceiling.
+
+297 checks, up from 283. The new ones are all the same shape: prove the sheet,
+the vocabulary and the detector table describe the same components, and prove no
+palette, LTR rule or font constant has been copied anywhere.
+
 ## 6.6.0
 
 The session rule was paying for the same thing twice. `rule.md` is injected at
