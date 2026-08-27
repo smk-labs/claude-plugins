@@ -1,5 +1,48 @@
 # readable changelog
 
+## 6.8.0
+
+The hook that registers the card server stopped finding the machine it was
+running on.
+
+`connect.sh` looked for desktop profiles by walking a list of known shapes —
+`~/Library/Application Support/Claude`, `~/claude-*`, `~/.claude-*/desktop`,
+`$XDG_CONFIG_HOME/Claude`, and a few more. That list has now failed twice for
+the same reason. 6.1.0 covered five shapes on the machine it was written on and
+missed three, because a relay setup keeps its data in `~/.claude-<name>/desktop`.
+This time a desktop install had been relocated wholesale: profile under
+`~/desktop-trial/profile`, with `XDG_CONFIG_HOME` moved along with it. Not one
+glob resolved, `list_profiles` came back empty, and the hook took its "no desktop
+app on this machine" branch and exited silently — every session, for days. The
+user ran in tier 2 the whole time with nothing to look at, because the branch
+that gives up is also the branch that says nothing.
+
+The fix is to stop guessing first. Claude Code Desktop bundles its CLI at
+`<profile>/claude-code/<version>/claude` and puts that path in
+`CLAUDE_CODE_EXECPATH`, so the profile hosting the current session is three
+levels up and cannot be missed by a list that never heard of it. The glob list
+stays, as the fallback for terminal sessions, which have no such variable. Only
+that exact layout resolves, so a plain `claude` on `PATH` can never nominate an
+unrelated directory three levels above itself, and the profiles are deduped
+before any write, since the running profile can also match a glob and a dir
+registered twice would mistake its own fresh entry for a hand-made override on
+the second pass.
+
+That variable is in every real session's environment, including the one the test
+suite runs in, so the connect tests now pin `HOME`, `XDG_CONFIG_HOME`, `APPDATA`
+and `CLAUDE_CODE_EXECPATH` inside the fake home. Without that a test run would
+have registered readable in the developer's own live config. One case sets the
+variable back on purpose, against a fake relocated profile, which is the shape
+this release exists for.
+
+Same release, the diagnostic that would have shortened all of the above: the
+desktop server's first log line said `build unknown`. The stable dir is flat, so
+`paths.js` found neither `../.claude-plugin/plugin.json` nor `./manifest.json`
+and fell through — the one line whose entire job is to name the build named no
+build at all. `connect.sh` now copies the manifest in under the second name
+`paths.js` already looks for. It stays a diagnostic and not a dependency: if the
+copy is ever missing the server still boots and only the banner degrades.
+
 ## 6.7.0
 
 Nothing here changes what a card looks like. It changes how many places you have

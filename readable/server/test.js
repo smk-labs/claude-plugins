@@ -1134,7 +1134,20 @@ function check(name, cond) {
   fs.writeFileSync(path.join(profs[2], 'claude_desktop_config.json'), JSON.stringify({}, null, 2));
   fs.writeFileSync(path.join(profs[3], 'config.json'), '{}');
   fs.writeFileSync(path.join(profs[4], 'claude_desktop_config.json'), JSON.stringify({ mcpServers: {} }, null, 2));
-  const runHook = (action) => require('child_process').execFileSync('sh', [path.join(HOOKS, 'connect.sh'), action], { env: Object.assign({}, process.env, { HOME: FH }), encoding: 'utf8' });
+  /* HERMETIC: every path connect.sh can reach is pinned inside the fake home.
+   * The suite runs inside a real session, so the real CLAUDE_CODE_EXECPATH,
+   * XDG_CONFIG_HOME and APPDATA are all in process.env — and since 6.8.0 the
+   * first of those resolves to a real profile. Inheriting them would let a test
+   * run register readable in the developer's own live config. `hook` is what
+   * every case uses; the ccd case below overrides one variable on purpose. */
+  const hookEnv = (extra) => Object.assign({}, process.env, {
+    HOME: FH,
+    XDG_CONFIG_HOME: path.join(FH, '.config'),
+    APPDATA: path.join(FH, 'AppData'),
+    CLAUDE_CODE_EXECPATH: '',
+  }, extra || null);
+  const runHookEnv = (action, extra) => require('child_process').execFileSync('sh', [path.join(HOOKS, 'connect.sh'), action], { env: hookEnv(extra), encoding: 'utf8' });
+  const runHook = (action) => runHookEnv(action);
   const cfgOf = (p) => { const f = path.join(p, 'claude_desktop_config.json'); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; };
   const srvPath = path.join(FH, '.claude', 'plugins', 'data', 'readable', 'server', 'server.js');
 
@@ -1148,6 +1161,28 @@ function check(name, cond) {
   check('auto says it wrote, once, with the undo (a silent write leaves the user with no cards and no clue)',
     /<readable-setup>/.test(first) && /reopen the Claude app/.test(first) && /disconnect/.test(first));
   check('auto builds the flat stable dir at a version-free path', fs.existsSync(srvPath) && ['rc.css', 'menu.js', 'email.js'].every((f) => fs.existsSync(path.join(path.dirname(srvPath), f))));
+
+  /* The shape 6.7.x missed (6.8.0): a desktop install relocated wholesale, with
+   * XDG_CONFIG_HOME moved along with it, so not one glob resolves to its
+   * profile. The hook then found nothing and exited silently on every session,
+   * and the user saw no cards with no error to go on. It is found now by asking
+   * CLAUDE_CODE_EXECPATH where the running app lives, rather than by widening
+   * the guess list a third time. */
+  const ccd = path.join(FH, 'relocated', 'profile');
+  const ccdExec = path.join(ccd, 'claude-code', '2.1.237', 'claude');
+  fs.mkdirSync(path.dirname(ccdExec), { recursive: true });
+  fs.writeFileSync(ccdExec, '#!/bin/sh\n');
+  fs.writeFileSync(path.join(ccd, 'config.json'), '{}');
+  fs.writeFileSync(path.join(ccd, 'claude_desktop_config.json'), JSON.stringify({ preferences: { keep: true } }, null, 2));
+  runHookEnv('auto', { CLAUDE_CODE_EXECPATH: ccdExec });
+  check('auto finds the running app\'s own profile when no glob reaches it (6.8.0)',
+    (cfgOf(ccd) || {}).mcpServers && cfgOf(ccd).mcpServers['readable-card'].args[0] === srvPath);
+  check('the running profile keeps every key it already had', cfgOf(ccd).preferences.keep === true);
+  /* The guard that keeps the ask cheap: only the bundled-CLI layout resolves,
+   * so a plain `claude` on PATH cannot nominate some unrelated dir three levels
+   * up as a profile. */
+  check('a CLI outside the claude-code/<version>/ layout resolves to no profile (6.8.0)',
+    !/relocated/.test(runHookEnv('status', { CLAUDE_CODE_EXECPATH: path.join(FH, 'bin', 'claude') })));
 
   const stamps = profs.map((p) => fs.statSync(path.join(p, 'claude_desktop_config.json')).mtimeMs);
   const second = runHook('auto');
@@ -1203,6 +1238,14 @@ function check(name, cond) {
       .every((f) => fs.existsSync(path.join(flat, f))) &&
     fs.readdirSync(path.join(__dirname, '..', 'assets')).every((f) => fs.existsSync(path.join(flat, f))) &&
     !fs.existsSync(path.join(flat, 'test.js')));
+  /* The flat dir has no ../.claude-plugin/, so paths.js fell through to
+   * 'unknown' and the desktop server's first log line — the one whose whole job
+   * is to say which build the host loaded — named no build at all. connect.sh
+   * copies the manifest in under the second name paths.js already looks for. */
+  check('the flat stable dir carries the manifest, so the build banner names a real version (6.8.0)',
+    fs.existsSync(path.join(flat, 'manifest.json')) &&
+    JSON.parse(fs.readFileSync(path.join(flat, 'manifest.json'), 'utf8')).version ===
+      require('../.claude-plugin/plugin.json').version);
   const srvFlat = spawn(process.execPath, [path.join(flat, 'server.js')], { stdio: ['pipe', 'pipe', 'ignore'], cwd: NEUTRAL_CWD });
   const boot = new Promise((res) => {
     let buf = '';

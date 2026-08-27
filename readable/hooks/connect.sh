@@ -65,29 +65,54 @@ if [ -z "$NODE" ]; then
   exit 1
 fi
 
-# Every profile shape this app is known to use. A dir counts as a profile when
-# it holds either config file; a profile with no claude_desktop_config.json yet
-# gets one written on connect.
+# Where the profiles are. ASKED first, guessed second.
 #
-# The list is deliberately wider than "where the app installs by default",
-# because a second profile is always somewhere else. Missing one is the same
-# defect as 5.x's single hardcoded path, just further out: 6.1.0 covered five
-# profiles on the machine it was written on and still missed three, because a
-# relay setup keeps its data in ~/.claude-<name>/desktop and the glob only
-# reached ~/claude-*. The user restarted the app, saw no cards, and was right.
-# So when a shape turns up that is not here, widen this and add it to the test.
+# A dir counts as a profile when it holds either config file; a profile with no
+# claude_desktop_config.json yet gets one written on connect.
+#
+# running_profile is the one that cannot be missed, because it does not guess:
+# Claude Code Desktop bundles its CLI at <profile>/claude-code/<version>/claude
+# and puts that path in CLAUDE_CODE_EXECPATH, so the profile of the app hosting
+# THIS session is three levels up. Everything below it is still a guess.
+#
+# The guess list has now failed twice for the same reason. 6.1.0 covered five
+# profile shapes on the machine it was written on and missed three, because a
+# relay setup keeps its data in ~/.claude-<name>/desktop. 6.7.x then missed a
+# desktop install relocated wholesale (profile under ~/desktop-trial/profile,
+# XDG_CONFIG_HOME moved with it), so the only glob that could still have matched
+# pointed at an empty dir and the hook registered nothing, silently, every
+# session. A list of known shapes can only find profiles someone thought of; the
+# running app knows where it lives. Ask it.
+#
+# So when a shape turns up that is not here, widen the list AND add it to the
+# test — but the shape that matters most is already covered above.
+running_profile() {
+  # Only the bundled-CLI layout, so a plain `claude` on PATH cannot resolve to
+  # some unrelated dir three levels up.
+  case "${CLAUDE_CODE_EXECPATH:-}" in
+    */claude-code/*/*) ;;
+    *) return 0 ;;
+  esac
+  (cd "$(dirname "$CLAUDE_CODE_EXECPATH")/../.." 2>/dev/null && pwd)
+}
+
 list_profiles() {
-  for d in \
-    "$HOME/Library/Application Support/Claude" \
-    "$HOME/Library/Application Support/Claude-"* \
-    "$HOME/Library/Application Support/Claude Profiles/"* \
-    "$HOME/claude-"* \
-    "$HOME/.claude-"*/desktop \
-    "$HOME/Library/Application Support/Claude Profiles/"*/desktop \
-    "$APPDATA/Claude" \
-    "${XDG_CONFIG_HOME:-$HOME/.config}/Claude"
-  do
-    [ -d "$d" ] || continue
+  {
+    running_profile
+    for d in \
+      "$HOME/Library/Application Support/Claude" \
+      "$HOME/Library/Application Support/Claude-"* \
+      "$HOME/Library/Application Support/Claude Profiles/"* \
+      "$HOME/claude-"* \
+      "$HOME/.claude-"*/desktop \
+      "$HOME/Library/Application Support/Claude Profiles/"*/desktop \
+      "$APPDATA/Claude" \
+      "${XDG_CONFIG_HOME:-$HOME/.config}/Claude"
+    do
+      printf '%s\n' "$d"
+    done
+  } | while IFS= read -r d; do
+    [ -n "$d" ] && [ -d "$d" ] || continue
     if [ -f "$d/config.json" ] || [ -f "$d/claude_desktop_config.json" ]; then
       printf '%s\n' "$d"
     fi
@@ -124,6 +149,14 @@ if [ "$ACTION" = connect ]; then
     [ "$b" = test.js ] && continue
     cmp -s "$f" "$STABLE/$b" 2>/dev/null || cp "$f" "$STABLE/$b" 2>/dev/null
   done
+  # The one file copied under a different name, and the one exception to the
+  # glob. paths.js reads the build version off ../.claude-plugin/plugin.json or
+  # ./manifest.json, and the flat dir has neither, so the desktop server's first
+  # log line read `build unknown` — the line whose entire job is to say which
+  # build the host loaded. It is a diagnostic and not a dependency: if this copy
+  # is ever missing the server still boots and only the banner degrades.
+  cmp -s "$ROOT/.claude-plugin/plugin.json" "$STABLE/manifest.json" 2>/dev/null ||
+    cp "$ROOT/.claude-plugin/plugin.json" "$STABLE/manifest.json" 2>/dev/null
   rm -f "$MARK"
 fi
 
@@ -132,7 +165,10 @@ const fs = require("fs");
 const path = require("path");
 const { ACTION, AUTO, PROFILES, NODE, SRV } = process.env;
 const auto = AUTO === "1";
-const dirs = PROFILES.split("\n").filter(Boolean);
+// Deduped here rather than in the shell: the running profile can also match one
+// of the globs, and registering the same dir twice would write it twice and, on
+// the second pass, mistake its own fresh entry for a hand-made override.
+const dirs = [...new Set(PROFILES.split("\n").filter(Boolean))];
 const out = [];
 let changed = 0;
 
