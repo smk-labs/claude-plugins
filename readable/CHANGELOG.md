@@ -1,5 +1,38 @@
 # readable changelog
 
+## 6.9.0
+
+readable styled the reply and said nothing about how it was written. A card can
+be laid out perfectly and still be full of `می‌باشد`, `لازم به ذکر است`, and
+sentences translated out of English one clause at a time. This release adds the
+other half.
+
+Two style files ride along, vendored verbatim: `hooks/voice-fa.md` is
+sade-benevis, plain and concise Persian; `hooks/voice-en.md` is unslop from
+cursor/plugins, the English equivalent. Byte-identical copies on purpose — they
+are someone's finished writing, not a starting point, and an "improved" copy is
+just a fork nobody asked for. cursor/plugins carries no LICENSE file, so
+voice-en.md is a vendored copy with attribution rather than a licensed one.
+
+They are NAMED by the SessionStart rule, not injected into it. The two are 19KB
+together and most of that is whichever language the session never types, so
+inlining both would spend about 5,200 tokens every session to make roughly half
+of them useful. That is the same bill 6.6.0 spent a release removing from
+rule.md, and it would have come straight back. The pointer costs about 100
+tokens; the file the model actually reads costs 3,400 (fa) or 1,800 (en), once
+per session, in the language it is already writing.
+
+Four checks hold the line: the hook names both files, it says to read exactly
+one, it inlines neither, and the whole SessionStart payload is capped near the
+rule's own size. The last one is the important one — without it the obvious
+future edit is to paste a voice file into the hook and call it "always applied".
+
+Also fixed here, found while testing the above: reading the hook's payload back
+meant running `rule.sh`, which runs `connect.sh auto`, which registers readable
+in whatever profile it finds. The new case pins HOME, XDG_CONFIG_HOME, APPDATA
+and CLAUDE_CODE_EXECPATH inside a temp dir, the same way 6.8.0 pinned the
+connect cases, so a suite run cannot touch a real config.
+
 ## 6.8.0
 
 The hook that registers the card server stopped finding the machine it was

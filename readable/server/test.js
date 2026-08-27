@@ -949,6 +949,40 @@ function check(name, cond) {
   check('rule.md does not duplicate the block vocabulary the tool already ships',
     !/Build the card content from these blocks only/.test(ruleTxt) && /ships it in its own description/.test(ruleTxt));
 
+  /* VOICE (6.9.0). The two writing-style files are vendored verbatim and are
+   * 19KB together, so they follow the kit's rule rather than the card rule's:
+   * the hook NAMES them and the model reads the one language it is about to
+   * write. Inlining either would put a language this session never types into
+   * every session's context, which is the cost 6.6.0 spent a release removing.
+   *
+   * The budget check is what keeps that honest: the whole SessionStart payload
+   * has to stay near the rule's own size, so a future edit cannot quietly paste
+   * a voice file into the hook and call it "always applied". */
+  /* rule.sh also runs connect.sh auto, so the same hermetic pinning the connect
+   * cases use applies here: a suite run must never register readable in the
+   * developer's own live config just to read the payload back. */
+  const hookHome = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-hook-'));
+  const hookOut = require('child_process').execFileSync('sh', [path.join(__dirname, '..', 'hooks', 'rule.sh')], {
+    encoding: 'utf8',
+    env: Object.assign({}, process.env, {
+      HOME: hookHome,
+      XDG_CONFIG_HOME: path.join(hookHome, '.config'),
+      APPDATA: path.join(hookHome, 'AppData'),
+      CLAUDE_CODE_EXECPATH: '',
+      CLAUDE_PROJECT_DIR: NEUTRAL_CWD,
+    }),
+  });
+  const voiceFa = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'voice-fa.md'), 'utf8');
+  const voiceEn = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'voice-en.md'), 'utf8');
+  check('the hook names a voice file per language (6.9.0)',
+    /<readable-voice>/.test(hookOut) && /voice-fa\.md/.test(hookOut) && /voice-en\.md/.test(hookOut));
+  check('and says to read exactly one of them, once', /never both/.test(hookOut) && /once per session/.test(hookOut));
+  check('the voice files are NAMED, never inlined into the session payload',
+    !hookOut.includes(voiceFa.slice(200, 400)) && !hookOut.includes(voiceEn.slice(200, 400)) &&
+    Buffer.byteLength(hookOut) < Buffer.byteLength(ruleTxt) + 2048);
+  check('both voice files carry real content, not a stub',
+    Buffer.byteLength(voiceFa) > 8000 && Buffer.byteLength(voiceEn) > 4000);
+
   // 8c-ter. CLIPBOARD ENCODING (5.7.0). Inside the MCP Apps iframe every Copy
   // goes through copy_text into pbcopy, and the server is started by a GUI app
   // that passes down no locale at all. macOS tools read a locale-less
