@@ -1,5 +1,18 @@
 # readable changelog
 
+## 6.9.1
+
+`hooks/voice-fa.md` was a hand-kept copy of the Persian style file, and
+daily-tools shipped the same document as a skill. One release was enough for the
+two to diverge: the skill was renamed gouya and the voice file still called
+itself sade-benevis.
+
+The skill is now the source, because it is the one a person edits.
+`readable/tools/gen-voice-fa.js` derives the voice file from
+`daily-tools/skills/gouya/SKILL.md` and `test.js` runs it with `--check`, so the
+copy cannot go stale for longer than one test run. readable still ships the
+derived file, so installing readable alone still gets the voice.
+
 ## 6.9.0
 
 readable styled the reply and said nothing about how it was written. A card can
