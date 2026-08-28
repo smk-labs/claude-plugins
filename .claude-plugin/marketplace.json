@@ -75,7 +75,7 @@
     {
       "name": "daily-tools",
       "source": "./daily-tools",
-      "description": "Everyday Persian-first helpers: four-phase swarm QA campaigns (swarm-qa), goal-first resumable prompt writing (mkprompt-goal), spelled-out prompts with role and guardrails (mkprompt-classic), many-round redesign prompts that cannot decay into spacing and colour tweaks (mkprompt-redesign), light multi-agent research (mini-research), plain-language step-by-step guides (steps), ultra-terse resume-and-continue (go), report-to-page-to-email publishing with real file upload (publish), and plain, human-sounding Persian writing style, Persian only (guya).",
+      "description": "Everyday Persian-first helpers: four-phase swarm QA campaigns (swarm-qa), goal-first resumable prompt writing (mkprompt-goal), spelled-out prompts with role and guardrails (mkprompt-classic), many-round redesign prompts that cannot decay into spacing and colour tweaks (mkprompt-redesign), light multi-agent research (mini-research), plain-language step-by-step guides (steps), ultra-terse resume-and-continue (go), report-to-page-to-email publishing with real file upload (publish), and plain, human-sounding Persian writing style, Persian only (gouya).",
       "version": "2.3.0",
       "category": "daily"
     },
