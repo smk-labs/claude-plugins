@@ -40,8 +40,9 @@ function LINES(SIG_HTML) {
   "var finalGot=false,partialTimer=null;",
   "/* +2 covers fractional line-height rounding; overflow:hidden kills any residual scrollbar. Fonts (Vazirmatn) land late and change the height, so re-fit once they settle. */",
   "/* The menu is position:fixed, so an OPEN menu adds nothing to scrollHeight and would clip on short cards (overflow:hidden kills scrolling too). While open, the iframe grows to the menu's bottom edge; menu.js pings __rcFit on every open/close. */",
+  "/* Measure the CARD, never documentElement.scrollHeight. The root element's scrollHeight is floored by its own viewport, so once the host grows the iframe to H the measurement can never report less than H again: a one-way ratchet. Zoom out, or widen the pane so fewer lines wrap, and the card kept the taller frame with a slab of empty space under the text that nothing could reclaim. #card is a normal block with margin:0 on html, body and .rc, so its rect bottom IS the content height, and it shrinks. */",
   "/* Measure the .items panel itself: #rcmenu's own rect is just the dots button, absolute children never grow it. */",
-  "function fit(){var h=document.documentElement.scrollHeight;var m=document.getElementById('rcmenu');var it=m&&m.querySelector('.items');if(it&&m.className.indexOf('open')>-1){var b=it.getBoundingClientRect().bottom+10;if(b>h)h=b}notify('ui/notifications/size-changed',{height:Math.ceil(h)+2})}",
+  "function fit(){var c=document.getElementById('card');var h=c?c.getBoundingClientRect().bottom+(window.scrollY||0):document.body.getBoundingClientRect().height;var m=document.getElementById('rcmenu');var it=m&&m.querySelector('.items');if(it&&m.className.indexOf('open')>-1){var b=it.getBoundingClientRect().bottom+10;if(b>h)h=b}notify('ui/notifications/size-changed',{height:Math.ceil(h)+2})}",
   "window.__rcFit=fit;",
   "/* Card direction follows the content's majority script (the kit is Persian-first, ties go RTL); .rc[dir=ltr] overrides in the template CSS mirror the sided rules. code/pre spans are stripped BEFORE counting: paths and commands are direction-neutral, and one long /Users/... path outvoting the Persian prose flipped whole cards to LTR (field bug, 4.6.1). */",
   "function dirOf(h){var t=String(h).replace(/<(code|pre)[^>]*>[^]*?<\\/\\1>/gi,' ').replace(/<[^>]*>/g,' ');var r=(t.match(/[\\u0591-\\u07FF\\uFB1D-\\uFDFD\\uFE70-\\uFEFC]/g)||[]).length;var l=(t.match(/[A-Za-z]/g)||[]).length;return r>=l?'rtl':'ltr'}",
@@ -79,7 +80,8 @@ function LINES(SIG_HTML) {
   "if(err&&i+1<PVS.length){initTry(i+1);return}",
   "if(res){window.__rcHost=res;applyTheme(res.hostContext)}",
   "notify('ui/notifications/initialized',{});});})(0);",
-  "new ResizeObserver(fit).observe(document.body);",
+  "/* Observe the card as well as the body: body is what changes width when the pane is resized, #card is what changes height when the content reflows, and a shrink has to be heard as reliably as a growth or the frame stays tall. */",
+  "(function(){var ro=new ResizeObserver(fit);ro.observe(document.body);var c=document.getElementById('card');if(c)ro.observe(c)})();",
   "})();",
   ];
 }

@@ -1,5 +1,32 @@
 # readable changelog
 
+## 6.11.0
+
+Card height was a ratchet. It grew and never came back down.
+
+`fit()` measured `document.documentElement.scrollHeight` and reported that to
+the host. The root element's `scrollHeight` is floored by its own viewport, so
+the moment the host grew the iframe to H, no later measurement could return
+less than H. Growing worked fine, which is why it survived: zoom in, or narrow
+the pane so more lines wrap, and the frame followed. Zoom back out and the
+content shrank inside a frame that did not, leaving a slab of dead space under
+the text that nothing could reclaim short of re-rendering the card.
+
+It now measures `#card` instead. `html`, `body` and `.rc` all carry `margin:0`,
+so the card's rect bottom IS the content height, and unlike the document root
+it shrinks. The open-menu clamp is unchanged, since a `position:fixed` menu
+still never enters any content measurement.
+
+The `ResizeObserver` watches the card as well as the body. Body is what changes
+width when the pane is resized; the card is what changes height when the content
+reflows. A shrink has to be heard as reliably as a growth or the frame stays
+tall no matter how the height is computed.
+
+Two checks, and they run the real `fit()` against a stub DOM rather than
+grepping the source for the fix. The stub is the bug's exact shape: 300px of
+content inside a frame the host already stretched to 900. The old code answers
+902, the new one answers 302. A regex would have passed on both.
+
 ## 6.10.0
 
 A third principle, next to plain language and short sentences: a picture is

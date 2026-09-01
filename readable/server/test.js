@@ -481,6 +481,43 @@ function check(name, cond) {
   check('template has 5x2 format/action matrix (Email row back in 4.4, rendered server-side)', ['class="row"', 'class="fmt"', 'copyimg', 'copyemail', 'copyhtml', 'copymd', 'copytext', 'dlpng', 'dlemail', 'dlhtml', 'dlmd', 'dltxt'].every((l) => html.includes(l)) && html.split('row(I.').length === 6);
   check('email export fetches render_email and rich-copies both flavors, no lying execCommand fallback (4.12.0)', html.includes("name:'render_email'") && html.includes("'text/html'") && !html.includes('contentEditable'));
   check('open menu grows the iframe (fixed menu never enters scrollHeight)', html.includes('W.__rcFit=fit') && html.split('W.__rcFit()').length === 3);
+
+  /* HEIGHT IS NOT A RATCHET (6.11.0). fit() used documentElement.scrollHeight,
+   * and the root element's scrollHeight is floored by its own viewport: once
+   * the host grew the iframe to H, no later measurement could report less than
+   * H. Zoom out, or widen the pane so fewer lines wrap, and the card kept the
+   * tall frame with a slab of dead space under the text that nothing reclaimed.
+   *
+   * Run the real fit() against a stub DOM rather than grepping for the fix. The
+   * stub is the bug's exact shape: content 300px tall inside a frame the host
+   * already stretched to 900. A ratchet answers ~900; measuring the card
+   * answers ~300. */
+  /* The bridge ships as one line, so fit() is lifted out by brace matching
+   * rather than by grepping a line. Its body holds no braces inside strings. */
+  const bridgeSrc = require('./bridge.js').js('sig');
+  const fitSrc = (() => {
+    const at = bridgeSrc.indexOf('function fit(){');
+    let depth = 0;
+    for (let i = bridgeSrc.indexOf('{', at); i < bridgeSrc.length; i++) {
+      if (bridgeSrc[i] === '{') depth++;
+      else if (bridgeSrc[i] === '}' && --depth === 0) return bridgeSrc.slice(at, i + 1);
+    }
+    return '';
+  })();
+  const runFit = (cardBottom, staleFrame) => {
+    let got = null;
+    const doc = {
+      documentElement: { scrollHeight: staleFrame },
+      body: { getBoundingClientRect: () => ({ height: staleFrame }) },
+      getElementById: (id) => (id === 'card'
+        ? { getBoundingClientRect: () => ({ bottom: cardBottom }) }
+        : null),
+    };
+    new Function('document', 'window', 'notify', fitSrc + ';fit()')(doc, { scrollY: 0 }, (m, p) => { got = p.height; });
+    return got;
+  };
+  check('the card reports its CONTENT height, so a shrink actually shrinks (6.11.0)', runFit(300, 900) === 302);
+  check('and a grown frame never floors the next measurement (the ratchet)', runFit(120, 4000) === 122 && runFit(500, 100) === 502);
   const scriptSrc = html.split('<script>')[1].split('</script>')[0];
   check('squeezed template script still parses (assembly squeeze is syntax-safe)', (() => { try { new Function(scriptSrc); return true; } catch (e) { return false; } })());
   check('squeeze hoists the host-object globals + DOM-method helpers once, and each long form survives only in its helper def', scriptSrc.indexOf('var D=document,W=window,CE=t=>D.createElement(t)') === 0 && !scriptSrc.includes('document.') && !scriptSrc.includes('window.') && (scriptSrc.match(/querySelectorAll/g) || []).length === 1 && (scriptSrc.match(/querySelector\(/g) || []).length === 1 && (scriptSrc.match(/\.createElement\(/g) || []).length === 1 && (scriptSrc.match(/\.getElementById\(/g) || []).length === 1);
