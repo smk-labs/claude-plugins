@@ -1,5 +1,41 @@
 # readable changelog
 
+## 6.10.0
+
+A third principle, next to plain language and short sentences: a picture is
+worth a thousand words.
+
+readable had a kit full of components and guidance that leaned the wrong way
+about using them. "Pick the lightest structure that fits" and "no component is
+ever used just because the kit has it" are both true, and together they read as
+"when in doubt, write a paragraph" — which is how an answer with an obvious
+shape ends up as three paragraphs of prose. The bias is now the other way, with
+the same guard kept: content that HAS a shape gets drawn, and the limit is
+decoration rather than restraint. A two-line answer still gets zero components.
+
+The case that prompted it is the one the kit already had a component for and
+nobody reached for: a system, or several things hanging off one thing. That is
+a hub, and a hub tree once the items group. Written as a bulleted list it keeps
+the parts and throws the connections away, which were the point.
+
+Written in three places, deliberately, each doing a different job:
+
+- `daily-tools/skills/gouya/SKILL.md`, section 6, which regenerates
+  `hooks/voice-fa.md`. Medium-neutral, because gouya also runs over plain files
+  where no component exists.
+- `hooks/voice-en.md`, the same section in English, marked as readable's
+  addition rather than upstream unslop's.
+- `assets/blocks.md` `@guidance`, which is the only one of the three that can
+  name real components, and the only one every card already pays for.
+
+That last one is the whole input-token cost: 48 tokens on the always-loaded
+card description. The voice files are read on demand and cost nothing extra.
+
+Three checks pin it, because a regeneration is exactly how one of the three
+quietly stops saying it. The voice-file size floor also dropped from 8,000 to
+4,000 bytes: gouya lost a third of its bytes to editing in 6.9.1 and a tight
+threshold fails for the wrong reason.
+
 ## 6.9.1
 
 `hooks/voice-fa.md` was a hand-kept copy of the Persian style file, and

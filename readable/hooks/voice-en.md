@@ -25,6 +25,18 @@ Removing patterns is half the job. Sterile, voiceless writing is just as obvious
 - **Let some mess in.** Perfect structure looks machine-made.
 - **Be specific.** Not "this is concerning" but "there's something unsettling about agents churning away at 3am."
 
+<!-- readable addition, not part of upstream unslop -->
+## Show it, don't tell it
+
+A picture is worth a thousand words. For technical writing this is the most useful rule here.
+
+- **Draw what has a shape.** Numbers, comparisons, sequences, hierarchies. Three paragraphs of "first this, then that, then the other" is a diagram you didn't draw.
+- **Draw the system, don't list it.** When parts connect to each other, or all hang off one thing, the connections are what the reader came for. A bullet list throws them away.
+- **A comparison wants a table.** Wherever you wrote "whereas" or "the other one, though", you probably wanted rows and columns.
+- **Show the numbers.** Three statistics scattered through prose disappear. The same three side by side get read.
+- **Pick the shape before you write.** Prose written first and chopped up afterwards stays prose.
+- **But never decorate.** A two-line answer needs no structure at all. The test is whether the shape does some of the reader's work, not whether it fills the page.
+
 ## Patterns to detect and fix
 
 ### Content

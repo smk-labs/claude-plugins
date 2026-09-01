@@ -34,7 +34,7 @@
       "name": "readable",
       "source": "./readable",
       "description": "Replies as styled cards instead of raw chat text. Persian and RTL always render correctly, English by default. Export any card as a standalone HTML report, and give a project its own brand so every card and report matches it.",
-      "version": "6.9.1",
+      "version": "6.10.0",
       "category": "writing"
     },
     {
@@ -76,7 +76,7 @@
       "name": "daily-tools",
       "source": "./daily-tools",
       "description": "Everyday Persian-first helpers: four-phase swarm QA campaigns (swarm-qa), goal-first resumable prompt writing (mkprompt-goal), spelled-out prompts with role and guardrails (mkprompt-classic), many-round redesign prompts that cannot decay into spacing and colour tweaks (mkprompt-redesign), light multi-agent research (mini-research), plain-language step-by-step guides (steps), ultra-terse resume-and-continue (go), report-to-page-to-email publishing with real file upload (publish), and plain, human-sounding Persian writing style, Persian only (gouya).",
-      "version": "2.3.0",
+      "version": "2.4.0",
       "category": "daily"
     },
     {

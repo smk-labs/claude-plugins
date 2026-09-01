@@ -149,7 +149,7 @@ shape: <i class="ic NAME"></i> inherits the surrounding text colour and size, an
 notes: Only where it carries meaning.
 
 <!--@guidance-->
-Pick the lightest structure that fits the content: a short conversational answer is plain paragraphs with zero components, and no component is ever used just because the kit has it. When content genuinely benefits, numbers get kpi/bars/spark, sequences get flow/tl, one thing connected to many gets hub, comparisons get a table, list-shaped content gets ul/ol/kv, repeatable units with a narrative get cards, and one callout may hold the single most important takeaway.
+Content that has a shape gets DRAWN, not described: numbers get kpi/bars/spark, sequences get flow/tl, a system or several related things get hub (hub tree once they group), comparisons get a table, list-shaped content gets ul/ol/kv, repeatable units with a narrative get cards, and one callout may hold the single most important takeaway. Three paragraphs walking through steps is a flow you did not draw, and a bulleted list of parts is a hub with its connections thrown away. The limit is decoration, not restraint: a short conversational answer is plain paragraphs with zero components, and nothing is used just because the kit has it.
 
 A long structured answer reads best opened with <h2> plus one <p class="lead"> and an <h3> per section. Open with the substance: NO cover-page preamble (no owner/subject/prepared-by/audience/date/status kv block at the top) — the first line is the answer itself, and the <h2> already titles it.
 

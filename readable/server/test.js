@@ -980,8 +980,25 @@ function check(name, cond) {
   check('the voice files are NAMED, never inlined into the session payload',
     !hookOut.includes(voiceFa.slice(200, 400)) && !hookOut.includes(voiceEn.slice(200, 400)) &&
     Buffer.byteLength(hookOut) < Buffer.byteLength(ruleTxt) + 2048);
+  /* A floor, not a size lock. gouya lost a third of its bytes to editing in one
+   * release and a tight threshold would have failed for the wrong reason. */
   check('both voice files carry real content, not a stub',
-    Buffer.byteLength(voiceFa) > 8000 && Buffer.byteLength(voiceEn) > 4000);
+    Buffer.byteLength(voiceFa) > 4000 && Buffer.byteLength(voiceEn) > 4000);
+  /* Both languages carry the visual principle, and the guidance the model reads
+   * on every card carries the operative half. Written in three places on
+   * purpose, and pinned here because a regeneration is exactly how one of them
+   * quietly stops saying it: the voice files state the principle in the reader's
+   * own language, blocks.md maps it onto the components that actually exist. */
+  check('both voice files say to draw what has a shape (6.10.0)',
+    /نشان بده، نگو/.test(voiceFa) && /هزار کلمه/.test(voiceFa) &&
+    /Show it, don't tell it/.test(voiceEn) && /worth a thousand words/.test(voiceEn));
+  check('and both name the system case that a bullet list destroys',
+    /سیستم را بکش/.test(voiceFa) && /Draw the system/.test(voiceEn));
+  const guidance = require('./blocks.js').section('guidance');
+  check('the always-loaded guidance maps shapes onto real components',
+    /gets DRAWN, not described/.test(guidance) &&
+    /hub tree once they group/.test(guidance) &&
+    /The limit is decoration, not restraint/.test(guidance));
 
   // The Persian voice IS the gouya skill, generated from it rather than kept as
   // a second copy (CLAUDE.md, "one source"). Hand-maintained for one release,
