@@ -1,5 +1,53 @@
 # readable changelog
 
+## 6.11.1
+
+The relocated install still registered nothing, every session, in silence. The
+6.8.0 fix for this exact machine had been shipping for three releases with its
+test passing the whole time.
+
+That fix asked the running app where it lives, through `CLAUDE_CODE_EXECPATH`.
+The variable is set inside a Claude Code Bash tool — which is where it was
+verified — and not in the SessionStart hook's own environment, which is the only
+place `auto` ever runs. So the one route that could have found this profile was
+never running when it mattered, and the guess list behind it was no better than
+before: its single Linux glob, `$XDG_CONFIG_HOME/Claude`, resolved to a dir that
+exists and is empty, and a dir with neither config file is not a profile. Empty
+list, no-profile branch, exit 0, no output.
+
+Three things changed.
+
+`CLAUDE_CONFIG_DIR` is now a second way to find the install tree. A relocated
+install sets it and a default one does not, and it points at a sibling of the
+profile, so the tree is one `dirname` away and no name has to be guessed. Its
+siblings and its parent are scanned. That scan has no name to go on, so it
+accepts only an unmistakable marker — `claude_desktop_config.json`, or the
+bundled CLI — where the named globs may still take a bare `config.json`.
+
+The bundled CLI at `<profile>/claude-code/<version>/claude` now marks a profile
+on its own, everywhere. It is what tells the real profile from the empty
+`$XDG_CONFIG_HOME/Claude` beside it, and it is the marker that survives a
+profile that has never yet been given a desktop config.
+
+The data dir follows `CLAUDE_CONFIG_DIR` too, falling back to `$HOME/.claude`.
+Hardcoding the home path grew a second Claude tree outside the install the user
+had deliberately moved, and wrote the path to it into their desktop config.
+
+And when all three routes really do come up empty, `auto` no longer exits 0 with
+nothing. It stays silent to the session — printing on every session of every
+terminal-only machine is not a fix — and appends one line, with the four
+variables it read, to `<data>/connect.log`. Most of why this lasted three
+releases is that there was nothing anywhere to read.
+
+Five checks, plus one on the suite itself. The relocated case is the real hook's
+environment: no `CLAUDE_CODE_EXECPATH` at all, the profile found from
+`CLAUDE_CONFIG_DIR`, and the empty `$XDG_CONFIG_HOME/Claude` decoy sitting there
+to be rejected. Three of them fail against 6.11.0. The sixth exists because
+writing them broke hermeticity: the suite pinned the environment in two places,
+this release added `CLAUDE_CONFIG_DIR` to one of them, and a single test run
+registered readable in the live desktop config it was running inside. There is
+one pinning now, and a check that reads this file's own source to keep it one.
+
 ## 6.11.0
 
 Card height was a ratchet. It grew and never came back down.

@@ -997,17 +997,25 @@ function check(name, cond) {
    * a voice file into the hook and call it "always applied". */
   /* rule.sh also runs connect.sh auto, so the same hermetic pinning the connect
    * cases use applies here: a suite run must never register readable in the
-   * developer's own live config just to read the payload back. */
+   * developer's own live config just to read the payload back.
+   *
+   * ONE pinning, shared by every case that runs a hook, because there were two
+   * and they drifted the day the list grew: 6.11.1 added CLAUDE_CONFIG_DIR to
+   * the connect cases below and not to this one, and since the fix under test
+   * finds the profile FROM that variable, a single suite run registered
+   * readable in the developer's own live desktop config. Every variable
+   * connect.sh reads is pinned here and nowhere else. */
+  const pinnedEnv = (home, extra) => Object.assign({}, process.env, {
+    HOME: home,
+    XDG_CONFIG_HOME: path.join(home, '.config'),
+    APPDATA: path.join(home, 'AppData'),
+    CLAUDE_CODE_EXECPATH: '',
+    CLAUDE_CONFIG_DIR: '',
+  }, extra || null);
   const hookHome = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-hook-'));
   const hookOut = require('child_process').execFileSync('sh', [path.join(__dirname, '..', 'hooks', 'rule.sh')], {
     encoding: 'utf8',
-    env: Object.assign({}, process.env, {
-      HOME: hookHome,
-      XDG_CONFIG_HOME: path.join(hookHome, '.config'),
-      APPDATA: path.join(hookHome, 'AppData'),
-      CLAUDE_CODE_EXECPATH: '',
-      CLAUDE_PROJECT_DIR: NEUTRAL_CWD,
-    }),
+    env: pinnedEnv(hookHome, { CLAUDE_PROJECT_DIR: NEUTRAL_CWD }),
   });
   const voiceFa = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'voice-fa.md'), 'utf8');
   const voiceEn = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'voice-en.md'), 'utf8');
@@ -1205,6 +1213,14 @@ function check(name, cond) {
     fs.readdirSync(HOOKS).filter((f) => f.endsWith('.sh') && /claude_desktop_config/.test(fs.readFileSync(path.join(HOOKS, f), 'utf8'))).join() === 'connect.sh');
   check('setup.sh and refresh.sh are both gone, so there is one implementation',
     !fs.existsSync(path.join(HOOKS, 'setup.sh')) && !fs.existsSync(path.join(HOOKS, 'refresh.sh')));
+  /* And this suite runs a hook from exactly one pinned environment. The check
+   * reads its own source, because the thing it guards is a copy-paste: a second
+   * hand-rolled env beside a `sh hooks/...` call is a second pinning, and the
+   * one that goes stale writes the developer's live desktop config. Every such
+   * call must hand the child pinnedEnv, or hookEnv, which is pinnedEnv. */
+  const selfSrc = src(__dirname, 'test.js');
+  check('every hook the suite runs gets the one pinned environment, so a test run cannot touch a live config (6.11.1)',
+    selfSrc.split(/execFileSync\('sh',/).slice(1).every((tail) => /^[^;]*\b(pinnedEnv|hookEnv)\(/.test(tail)));
 
   /* AUTO-CONNECT (6.1.0), against a fake HOME with four fake profiles.
    *
@@ -1236,14 +1252,13 @@ function check(name, cond) {
    * The suite runs inside a real session, so the real CLAUDE_CODE_EXECPATH,
    * XDG_CONFIG_HOME and APPDATA are all in process.env — and since 6.8.0 the
    * first of those resolves to a real profile. Inheriting them would let a test
-   * run register readable in the developer's own live config. `hook` is what
-   * every case uses; the ccd case below overrides one variable on purpose. */
-  const hookEnv = (extra) => Object.assign({}, process.env, {
-    HOME: FH,
-    XDG_CONFIG_HOME: path.join(FH, '.config'),
-    APPDATA: path.join(FH, 'AppData'),
-    CLAUDE_CODE_EXECPATH: '',
-  }, extra || null);
+   * run register readable in the developer's own live config. CLAUDE_CONFIG_DIR
+   * joined that list in 6.11.1, and it is the sharpest of them: on a relocated
+   * install it points straight at the live tree, so a suite that inherited it
+   * would scan the developer's real profiles and write the real config — and
+   * would also put the fake stable dir inside the real install. `hook` is what
+   * every case uses; the cases below override one variable on purpose. */
+  const hookEnv = (extra) => pinnedEnv(FH, extra);
   const runHookEnv = (action, extra) => require('child_process').execFileSync('sh', [path.join(HOOKS, 'connect.sh'), action], { env: hookEnv(extra), encoding: 'utf8' });
   const runHook = (action) => runHookEnv(action);
   const cfgOf = (p) => { const f = path.join(p, 'claude_desktop_config.json'); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; };
@@ -1281,6 +1296,62 @@ function check(name, cond) {
    * up as a profile. */
   check('a CLI outside the claude-code/<version>/ layout resolves to no profile (6.8.0)',
     !/relocated/.test(runHookEnv('status', { CLAUDE_CODE_EXECPATH: path.join(FH, 'bin', 'claude') })));
+
+  /* The SAME relocated install, one session later (6.11.1). 6.8.0 fixed this
+   * shape by asking CLAUDE_CODE_EXECPATH, and the check above passed for three
+   * releases while the machine it was written for still registered nothing,
+   * every session, in silence: that variable is set inside a Bash tool and NOT
+   * in the SessionStart hook's own environment, which is the only place `auto`
+   * ever runs. So this case reproduces the real hook's environment — no
+   * EXECPATH at all — and leaves the install tree to be found from
+   * CLAUDE_CONFIG_DIR, which the relocated install does set.
+   *
+   * The decoy matters as much as the profile. $XDG_CONFIG_HOME/Claude EXISTS
+   * here and is EMPTY, exactly as it was on that machine: the one glob that
+   * still resolved pointed at it, and the config-file test rejected it, so the
+   * profile list came back empty and `auto` took the no-profile exit. The
+   * bundled CLI is what tells the two dirs apart.
+   *
+   * Its own HOME, because the third assertion is about what is NOT written
+   * there: with the data dir hardcoded to $HOME/.claude, a relocated install
+   * grows a second Claude tree outside the one the user moved, and the path
+   * written into the desktop config names it. */
+  const RH = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-reloc-'));
+  const relProf = path.join(RH, 'root', 'profile');
+  const relCfgDir = path.join(RH, 'root', 'claude-config');
+  const relXdg = path.join(RH, 'xdg');
+  fs.mkdirSync(path.join(relProf, 'claude-code', '2.1.247'), { recursive: true });
+  fs.mkdirSync(relCfgDir, { recursive: true });
+  fs.mkdirSync(path.join(relXdg, 'Claude'), { recursive: true });
+  fs.writeFileSync(path.join(relProf, 'claude-code', '2.1.247', 'claude'), '#!/bin/sh\n');
+  fs.writeFileSync(path.join(relProf, 'claude_desktop_config.json'), JSON.stringify({ preferences: { keep: true } }, null, 2));
+  const relEnv = { HOME: path.join(RH, 'home'), XDG_CONFIG_HOME: relXdg, CLAUDE_CONFIG_DIR: relCfgDir, CLAUDE_CODE_EXECPATH: '' };
+  fs.mkdirSync(path.join(RH, 'home'), { recursive: true });
+  const relSrv = path.join(relCfgDir, 'plugins', 'data', 'readable', 'server', 'server.js');
+  runHookEnv('auto', relEnv);
+  const relCfg = cfgOf(relProf) || {};
+  check('auto finds a relocated install from CLAUDE_CONFIG_DIR, with no CLAUDE_CODE_EXECPATH to ask (6.11.1)',
+    (relCfg.mcpServers || {})['readable-card'] !== undefined && relCfg.preferences.keep === true);
+  check('an existing but EMPTY $XDG_CONFIG_HOME/Claude is not mistaken for the profile, and is not written to (6.11.1)',
+    fs.readdirSync(path.join(relXdg, 'Claude')).length === 0);
+  check('the stable copy follows CLAUDE_CONFIG_DIR instead of scattering a stray ~/.claude (6.11.1)',
+    ((relCfg.mcpServers || {})['readable-card'] || {}).args?.[0] === relSrv && fs.existsSync(relSrv) &&
+    !fs.existsSync(path.join(RH, 'home', '.claude')));
+
+  /* And when all three routes really do come up empty, that is no longer a
+   * silent exit 0. It stays silent to the SESSION — printing on every session
+   * of every terminal-only machine is not a fix — and writes one line where a
+   * later diagnosis can find it. Two releases of this bug left nothing at all
+   * to read, which is most of why it lasted. */
+  const NH = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rc-none-'));
+  const noneCfgDir = path.join(NH, 'root', 'claude-config');
+  fs.mkdirSync(noneCfgDir, { recursive: true });
+  const noneOut = runHookEnv('auto', { HOME: path.join(NH, 'home'), XDG_CONFIG_HOME: path.join(NH, 'xdg'), CLAUDE_CONFIG_DIR: noneCfgDir, CLAUDE_CODE_EXECPATH: '' });
+  const noneLog = path.join(noneCfgDir, 'plugins', 'data', 'readable', 'connect.log');
+  check('auto finding no profile leaves a line in connect.log, not nothing at all (6.11.1)',
+    fs.existsSync(noneLog) && /no profile found/.test(fs.readFileSync(noneLog, 'utf8')) &&
+    /CLAUDE_CODE_EXECPATH=unset/.test(fs.readFileSync(noneLog, 'utf8')));
+  check('the no-profile session still says nothing to the session itself', noneOut.trim() === '');
 
   const stamps = profs.map((p) => fs.statSync(path.join(p, 'claude_desktop_config.json')).mtimeMs);
   const second = runHook('auto');

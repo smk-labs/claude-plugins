@@ -43,9 +43,15 @@
 # safe precisely because being registered no longer implies being able to paint.
 ACTION="${1:-status}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DATA="$HOME/.claude/plugins/data/readable"
+# The data dir follows the install, it is not $HOME/.claude by decree. A
+# relocated install sets CLAUDE_CONFIG_DIR and everything else of Claude's lives
+# under it; hardcoding $HOME/.claude there scatters a second, stray tree beside
+# the one the user deliberately moved, and the stable server path written into
+# the config then names a dir that install has no other reason to hold.
+DATA="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/readable"
 STABLE="$DATA/server"
 MARK="$DATA/.disconnected"
+LOG="$DATA/connect.log"
 
 AUTO=0
 case "$ACTION" in
@@ -75,17 +81,25 @@ fi
 # and puts that path in CLAUDE_CODE_EXECPATH, so the profile of the app hosting
 # THIS session is three levels up. Everything below it is still a guess.
 #
-# The guess list has now failed twice for the same reason. 6.1.0 covered five
-# profile shapes on the machine it was written on and missed three, because a
-# relay setup keeps its data in ~/.claude-<name>/desktop. 6.7.x then missed a
+# The guess list has now failed three times for the same reason. 6.1.0 covered
+# five profile shapes on the machine it was written on and missed three, because
+# a relay setup keeps its data in ~/.claude-<name>/desktop. 6.7.x then missed a
 # desktop install relocated wholesale (profile under ~/desktop-trial/profile,
 # XDG_CONFIG_HOME moved with it), so the only glob that could still have matched
 # pointed at an empty dir and the hook registered nothing, silently, every
 # session. A list of known shapes can only find profiles someone thought of; the
 # running app knows where it lives. Ask it.
 #
-# So when a shape turns up that is not here, widen the list AND add it to the
-# test — but the shape that matters most is already covered above.
+# 6.11.1 is that same relocated install again, because 6.8.0 asked only ONE
+# thing. CLAUDE_CODE_EXECPATH is set inside a Bash tool and not in the
+# SessionStart hook's own environment, so the route added to fix this shape was
+# never running when it mattered, and the shape stayed broken for three more
+# releases while its test passed. There are now three routes, and each one is a
+# thing the environment states rather than a name to guess: the running CLI, the
+# config dir, and the globs. Two of them can be absent and the profile is still
+# found. When a shape turns up that none of the three reaches, prefer a fourth
+# fact over a wider glob — and when auto still finds nothing, it now says so in
+# $DATA/connect.log rather than exiting 0 in silence.
 running_profile() {
   # Only the bundled-CLI layout, so a plain `claude` on PATH cannot resolve to
   # some unrelated dir three levels up.
@@ -94,6 +108,48 @@ running_profile() {
     *) return 0 ;;
   esac
   (cd "$(dirname "$CLAUDE_CODE_EXECPATH")/../.." 2>/dev/null && pwd)
+}
+
+# 6.8.0 asked the running app where it lives and stopped there, so the answer was
+# only ever as good as CLAUDE_CODE_EXECPATH — which a Bash tool has and the
+# SessionStart hook, on the very install this was written for, does not. The
+# second thing that knows the install tree is CLAUDE_CONFIG_DIR, which a
+# relocated install sets and a default one does not. It names a sibling of the
+# profile (here .../desktop-trial/claude-config beside .../desktop-trial/profile),
+# so the tree is one dirname away and needs no name to be guessed.
+config_dir_profiles() {
+  [ -n "${CLAUDE_CONFIG_DIR:-}" ] && [ -d "${CLAUDE_CONFIG_DIR:-}" ] || return 0
+  base="$(cd "$CLAUDE_CONFIG_DIR" && pwd)" || return 0
+  parent="$(dirname "$base")"
+  printf '%s\n' "$parent"
+  for d in "$parent"/*; do
+    [ -d "$d" ] && printf '%s\n' "$d"
+  done
+}
+
+# The bundled CLI at <profile>/claude-code/<version>/claude marks a profile as
+# surely as either config file does, and it is what separates the real profile
+# from the decoy: on a relocated install $XDG_CONFIG_HOME/Claude can exist and be
+# EMPTY, so the config-file test alone rejected the one dir a glob still reached
+# and the hook found nothing at all.
+bundled_cli() {
+  for c in "$1"/claude-code/*/claude; do
+    [ -f "$c" ] && return 0
+  done
+  return 1
+}
+
+is_profile() {
+  [ -f "$1/claude_desktop_config.json" ] || [ -f "$1/config.json" ] || bundled_cli "$1"
+}
+
+# The named-dir routes may take config.json as proof because the name already
+# said Claude. The config-dir scan has no name to go on — it walks whatever
+# happens to sit beside the install — so it wants a marker that cannot belong to
+# anything else: a file called claude_desktop_config.json, or the bundled CLI.
+# A bare config.json is far too common a filename to nominate a stranger's dir.
+is_profile_named() {
+  [ -f "$1/claude_desktop_config.json" ] || bundled_cli "$1"
 }
 
 list_profiles() {
@@ -113,18 +169,39 @@ list_profiles() {
     done
   } | while IFS= read -r d; do
     [ -n "$d" ] && [ -d "$d" ] || continue
-    if [ -f "$d/config.json" ] || [ -f "$d/claude_desktop_config.json" ]; then
-      printf '%s\n' "$d"
-    fi
+    is_profile "$d" && printf '%s\n' "$d"
+  done
+  config_dir_profiles | while IFS= read -r d; do
+    [ -n "$d" ] && [ -d "$d" ] || continue
+    is_profile_named "$d" && printf '%s\n' "$d"
   done
 }
 
 PROFILES="$(list_profiles)"
 if [ -z "$PROFILES" ]; then
-  # No desktop app on this machine (terminal-only CLI): nothing to register, and
-  # the rule's tier 3 covers those sessions.
-  [ "$AUTO" = 1 ] && exit 0
+  # Usually this is a terminal-only CLI with no desktop app: nothing to
+  # register, and the rule's tier 3 covers those sessions. But it is also
+  # exactly what a profile the routes above cannot see looks like, and for two
+  # releases running that case exited 0 without a word — the user saw no cards,
+  # and there was nothing anywhere to diagnose from. So `auto` still says
+  # nothing to the session, and writes one line here instead. This file is the
+  # first thing to read when cards never appear.
+  if [ "$AUTO" = 1 ]; then
+    if mkdir -p "$DATA" 2>/dev/null; then
+      printf '%s no profile found  HOME=%s CLAUDE_CONFIG_DIR=%s XDG_CONFIG_HOME=%s CLAUDE_CODE_EXECPATH=%s\n' \
+        "$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || echo '?')" \
+        "$HOME" "${CLAUDE_CONFIG_DIR:-unset}" "${XDG_CONFIG_HOME:-unset}" "${CLAUDE_CODE_EXECPATH:-unset}" \
+        >> "$LOG" 2>/dev/null
+      # Bounded: one line per session on a machine that will never have a
+      # profile is a file that grows forever otherwise.
+      if [ -f "$LOG" ]; then
+        tail -n 50 "$LOG" > "$LOG.tmp" 2>/dev/null && mv "$LOG.tmp" "$LOG" 2>/dev/null || rm -f "$LOG.tmp"
+      fi
+    fi
+    exit 0
+  fi
   echo "readable: no Claude desktop profile found on this machine; nothing to $ACTION."
+  echo "readable: every session that found none is logged at $LOG"
   exit 0
 fi
 
