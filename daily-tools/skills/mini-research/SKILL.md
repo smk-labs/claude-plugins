@@ -1,7 +1,8 @@
 ---
 name: mini-research
-description: >
-  تحقیق سبک و سریع چندایجنتی (mini research؛ عمداً نه deep research) روی یک موضوع. ورودی‌ها: موضوع، و اختیاری: مدل ایجنت‌ها (haiku یا sonnet یا opus)، نکات ویژهٔ تمرکز، تعداد ایجنت، ذخیرهٔ خروجی. Use when the user says "mini-research", "/mini-research", "تحقیق سبک", "یه ریسرچ کوچیک", "چند ایجنت بگرد", "با چند ایجنت هایکو بگرد", "با ایجنت‌های اپوس بگرد", "mini research on X".
+description: >-
+  تحقیق سبک چندایجنتی روی یک موضوع, با انتخاب مدل و تعداد ایجنت. عمداً deep research نیست.
+  Triggers: «تحقیق سبک», «یه ریسرچ کوچیک», «با چند ایجنت بگرد», "mini-research".
 ---
 
 # mini-research: تحقیق سبک چندایجنتی

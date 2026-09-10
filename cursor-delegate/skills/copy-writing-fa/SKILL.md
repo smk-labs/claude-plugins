@@ -1,6 +1,9 @@
 ---
 name: copy-writing-fa
-description: Write Persian web copy (blog articles, product descriptions, landing pages, category text, microcopy, meta titles and descriptions) using Cursor workers, so the writing runs on the Cursor subscription's quota instead of Claude's. Use when the user asks for Persian content for a site, says "متن فارسی بنویس", "مقاله بنویس", "توضیح محصول بنویس", "کپی‌رایتینگ فارسی", "محتوای سئو", "copy for the site in Persian", or wants blog/product/landing copy generated at volume. Also use to edit, proofread, or de-AI existing Persian copy. Claude writes the brief and accepts the result; Cursor writes and lints.
+description: >-
+  Write or edit Persian web copy (blog, product, landing, SEO, microcopy) with Cursor workers, on
+  Cursor's quota. Triggers: «متن فارسی بنویس», «مقاله بنویس», «کپی‌رایتینگ فارسی», «محتوای سئو»,
+  Persian copy at volume.
 ---
 
 # کپی‌رایتینگ فارسی با ناوگان Cursor

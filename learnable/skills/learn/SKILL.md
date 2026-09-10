@@ -1,6 +1,9 @@
 ---
 name: learn
-description: The way into learnable and the way back. If a course already exists here it continues from exactly where the learner stopped, next lesson, next chapter, no re-planning. If nothing exists yet it asks whether to measure their level first or go straight to building a course. Use when the user says they want to learn, study, continue, resume, keep going, "ادامه", "درس بعدی", "بریم یاد بگیریم", "شروع کنیم", "continue the course", "next lesson", "where were we", or invokes /learnable:learn. Also the right entry point when someone mentions learnable without naming a specific step.
+description: >-
+  Entry point to learnable: continues an existing course from exactly where the learner stopped,
+  or asks whether to place them first. Triggers: «ادامه», «درس بعدی», "continue the course",
+  "where were we", or learnable mentioned without a step.
 ---
 
 # learn: continue, or decide how to start

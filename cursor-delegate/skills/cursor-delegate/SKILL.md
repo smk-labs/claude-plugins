@@ -1,6 +1,9 @@
 ---
 name: cursor-delegate
-description: Delegate a coding or research task to the Cursor CLI (cursor-agent) so it runs on the Cursor subscription's quota instead of Claude's, with Claude still orchestrating. Use when the user says "delegate to cursor", "run this with cursor-agent", "offload to cursor", "spend the cursor quota", "have cursor do it", or wants to hand a heavy self-contained slice of a larger job to a second agent. Works with the user's default Cursor login; an optional account name targets a specific seat.
+description: >-
+  Hand one self-contained coding or research task to the Cursor CLI so it runs on Cursor's quota,
+  with Claude orchestrating. Triggers: "delegate to cursor", "offload to cursor", "have cursor do
+  it".
 ---
 
 # Delegate to Cursor (agent calling)

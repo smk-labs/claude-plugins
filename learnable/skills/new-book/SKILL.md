@@ -1,6 +1,9 @@
 ---
 name: new-book
-description: Write the next book of the course: its chapters and every lesson inside them, ready to teach. Reads the plan, runs a short research pass only for chapters that need one, then writes one file per chapter with the opening question, the correction, the explanation, the terms with their origins, and the end-of-chapter quiz. Use when the learner has finished a book, when a chapter file is missing, or when the user says "کتاب بعدی", "درس‌های بعدی رو بنویس", "فاز بعد", "write the next book", "author the next chapters", "the lessons ran out", or invokes /learnable:new-book. Requires a course already built by /learnable:new-course.
+description: >-
+  Write the next book of a learnable course, every chapter and lesson, researching only where a
+  chapter needs it. Triggers: «کتاب بعدی», «درس‌های بعدی رو بنویس», "write the next book", a
+  missing chapter file. Needs a course from new-course.
 ---
 
 # new-book: turn the plan into lessons

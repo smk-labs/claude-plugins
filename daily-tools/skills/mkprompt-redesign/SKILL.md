@@ -1,7 +1,9 @@
 ---
 name: mkprompt-redesign
-description: >
-  پرامپت‌ساز بازطراحی: پرامپتی می‌سازد که یک طراحی موجود را در چندین راند واقعی جلو ببرد و نگذارد راندها به رنگ و فاصله تنزل کنند. هر راند اول جواب می‌دهد «اگر این وجود نداشت، برای آدمی که این کار را می‌کند چه می‌ساختیم؟» و بعد تصمیم می‌گیرد چه عوض شود؛ حذف صفحه، ادغام فلو و برداشتن مرحله مجاز است. خروجی هم پیشنهاد تسک یک‌کلیکی است و هم متن خام در چت. Use when the user says "پرامپت بازطراحی", "پرامپت ریدیزاین", "پرامپت بده این رو بازطراحی کنه", "چند راند روی این طراحی کار کن", "این طراحی رو بهتر کن", "mkprompt-redesign", "/mkprompt-redesign", "write me a redesign prompt", "prompt to redesign this", "iterate on this design", or asks for a prompt that improves an existing UI, screen, flow, page, or CLI over many rounds. برای پرامپت هدف‌محور معمولی از mkprompt-goal و برای پرامپت تشریحی با نقش و گاردریل از mkprompt-classic استفاده کن.
+description: >-
+  پرامپت‌ساز بازطراحی چندراندی که نمی‌گذارد راندها به رنگ و فاصله تنزل کند. Triggers: «پرامپت
+  بازطراحی», «این طراحی رو بهتر کن», "redesign prompt", "iterate on this design". برای پرامپت
+  معمولی از mkprompt-goal استفاده کن.
 ---
 
 # mkprompt-redesign: هر راند از صفحهٔ سفید شروع می‌شود

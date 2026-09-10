@@ -1,6 +1,9 @@
 ---
 name: owasp-security
-description: Deep OWASP reference for security reviews and secure implementation. Covers OWASP Top 10:2025, ASVS 5.0 levels, secure code patterns (injection, auth, error handling, fail-closed), language-specific security quirks for 20 languages, OWASP LLM Top 10 (2025), and Agentic AI security (2026). Use when reviewing code for security vulnerabilities, implementing authentication/authorization, handling user input, hardening an LLM or AI-agent application, or discussing web application security in depth.
+description: >-
+  Deep OWASP reference: Top 10 2025, ASVS 5.0, secure patterns, per-language quirks, LLM Top 10
+  and agentic AI security. Use for an in-depth security review, auth work, or hardening an LLM or
+  agent app. For the everyday baseline use secure-coding.
 ---
 
 # OWASP Security Best Practices

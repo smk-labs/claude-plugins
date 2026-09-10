@@ -1,6 +1,9 @@
 ---
 name: principles-first
-description: Apply first-principles thinking and design-thinking to product, architecture, and communication decisions. Use this skill whenever the user is framing a problem, choosing between alternatives, debating a tradeoff, questioning a design, adding scope, or saying "should we…" / "that's how it's always done." Also trigger when about to add complexity, recommend a feature, or pick a default — those are where principle drift happens. Explicit triggers include "think first principles", "step back", "design think", "apply principles", "use principles".
+description: >-
+  First-principles and design thinking on product, architecture and communication decisions. Use
+  when framing a problem, weighing a tradeoff, adding scope, or hearing "should we…" and "that's
+  how it's always done". Explicit: "think first principles", "step back".
 ---
 
 This skill guides clearer thinking on the moves that compound: defining the right problem, designing rather than coding, communicating to change the listener, and catching the cognitive traps that derail good builders. A mindset, not a checklist — apply the moves fluidly, don't recite them.

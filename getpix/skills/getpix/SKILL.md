@@ -1,6 +1,9 @@
 ---
 name: getpix
-description: Search and fetch free, licensed stock images from the internet (Pexels, Pixabay, Unsplash, Openverse, Wikimedia Commons). Two jobs: add optimized WebP images to sites, blogs, and docs, or show a fitting photo right in the chat while answering about a topic. Use when the user wants to find, download, insert, or see a real photo, e.g. "find an image of X", "show me a photo of X", "add a hero photo", "getpix", or Persian requests like "عکس پیدا کن" / "عکسشو نشونم بده" / "عکس بذار". Also use proactively when a photo would genuinely help an answer (a place, animal, object, dish). Not for AI image generation.
+description: >-
+  Find and fetch free licensed stock photos (Pexels, Unsplash, Openverse, Wikimedia): add
+  optimized WebP to a site, or show a photo in chat. Triggers: "find an image of X", «عکس پیدا
+  کن», «عکس بذار». Not AI generation; for a whole site use photo-pass.
 ---
 
 # getpix

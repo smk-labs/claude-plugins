@@ -1,6 +1,9 @@
 ---
 name: k8s-rightsize
-description: Right-size Kubernetes pod CPU/memory requests from real Prometheus usage data (per-pod p95 CPU, p98 memory over 7 days), compute how many nodes the cluster needs, and tune KEDA queue-based autoscaling. Use when the user asks to rightsize workloads, fix over/under-provisioned requests, cut node count or cloud cost, size Celery or background workers, tune KEDA listLength or HPA settings, or answer "how many nodes do we need". Works for any namespace with kube-prometheus and cAdvisor metrics.
+description: >-
+  Right-size Kubernetes CPU and memory requests from Prometheus usage (p95 CPU, p98 memory over 7
+  days), size the node count, tune KEDA autoscaling. Use when asked to rightsize workloads, cut
+  node cost, or "how many nodes do we need".
 ---
 
 # k8s-rightsize: data-driven pod request sizing from Prometheus

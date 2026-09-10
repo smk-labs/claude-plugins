@@ -1,7 +1,8 @@
 ---
 name: publish
-description: >
-  گزارش را با readable بساز، بعد از تأیید روی پورتال صفحه‌اش کن، و آخرش یک ایمیل کوتاه به لحن خودم با لینک همان صفحه بده. Use when the user says "منتشر کن", "بذار روی پورتال", "صفحه‌اش کن", "لینکش کن", "publish this", "put it on the portal", "share this as a page", "/publish".
+description: >-
+  گزارش را با readable بساز, بعد از تأیید روی پورتال منتشر کن, و ایمیل کوتاه با لینک بده.
+  Triggers: «منتشر کن», «بذار روی پورتال», «صفحه‌اش کن», "publish this".
 ---
 
 # publish: گزارش، صفحه، ایمیل

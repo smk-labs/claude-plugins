@@ -1,6 +1,8 @@
 ---
 name: fig
-description: Make a fig. A single looping animated SVG, one self-contained HTML file you can drop in an email or a slide. Use it when an idea moves (flows, loops, retries, queues, fan-outs). Faster than a paragraph, livelier than a static diagram. No player, no deck.
+description: >-
+  One self-contained HTML file holding a looping animated SVG, for ideas that move: flows, loops,
+  retries, queues, fan-outs. Use when the user says "fig" or a diagram would be better animated.
 ---
 
 Some ideas are explained better by a 5-second looping animation than by 100 lines of text.

@@ -1,6 +1,9 @@
 ---
 name: photo-pass
-description: Run a conservative, end-to-end art-direction photo pass over a whole website: audit where photos genuinely earn their place, define one visual language, source free images, melt them into the design, verify in both themes, and record credits. Use when the user asks for a "photo pass", wants photography/warmth/imagery added across a site or landing page ("add photos to the site", "make it feel warmer with real photos"), or Persian requests like "به سایت عکس بده" / "پاس عکس بزن". For a single one-off image, use the getpix skill instead.
+description: >-
+  End-to-end art-direction photo pass over a whole site: audit where photos earn their place, set
+  one visual language, source, integrate, verify both themes, record credits. Triggers: "photo
+  pass", "add photos to the site", «به سایت عکس بده». For one image use getpix.
 ---
 
 # Photo Pass: add photography only where it earns its place

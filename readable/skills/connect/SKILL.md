@@ -1,6 +1,9 @@
 ---
 name: connect
-description: Report or change where the readable card server is registered across this machine's Claude desktop profiles. Use FIRST when the user says cards are not rendering, show raw HTML, or stopped working, because status answers that in one command. Also use when they ask to "connect readable", "turn cards on", "disconnect readable", "stop readable writing my config", "کارت‌ها رندر نمی‌شن", "ریدبل رو وصل کن", "ریدبل رو قطع کن", or invoke /readable:connect.
+description: >-
+  Report or change where the readable card server is registered across this machine's Claude
+  profiles. Use FIRST when cards stop rendering or show raw HTML. Triggers: "connect readable",
+  "turn cards on", «کارت‌ها رندر نمی‌شن».
 ---
 
 # readable connect

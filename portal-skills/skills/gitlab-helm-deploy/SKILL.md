@@ -1,6 +1,9 @@
 ---
 name: gitlab-helm-deploy
-description: Generate a GitLab CI/CD pipeline and Helm chart that builds the current project with kaniko, pushes to the GitLab Container Registry, and deploys to a Kubernetes namespace via a kubeconfig CI variable. Use when the user asks to set up CI/CD, create a GitLab pipeline, write a Helm chart, containerize and deploy an app to Kubernetes/GKE, or wire up "push to deploy". Also generates a Dockerfile tailored to the detected runtime when one is missing, handles backend + frontend split repos, and covers both ingress-nginx and Gateway API routing.
+description: >-
+  Generate a GitLab CI pipeline and Helm chart: kaniko build, push to the GitLab registry, deploy
+  to a Kubernetes namespace via a kubeconfig CI variable. Use when asked to set up CI/CD, write a
+  Helm chart, or wire push-to-deploy.
 ---
 
 # Generate GitLab CI/CD + Helm chart

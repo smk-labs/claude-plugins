@@ -1,6 +1,9 @@
 ---
 name: report
-description: Export a reply or chat card as a standalone styled HTML report file, in the exact readable card template (Persian RTL with Vazirmatn, or English LTR with Inter). Use ONLY when the user explicitly asks to save, export, file, or extend THE CURRENT widget/card ("همین کارت رو ذخیره کن", "کامل‌ترش رو به‌صورت فایل بساز", "save this card as a report") or invokes /readable:report directly. NEVER auto-trigger on generic report-writing requests ("گزارش بساز", "write a report") that do not mention saving a file or this template.
+description: >-
+  Export the current reply or card as a standalone styled HTML report in the readable template.
+  Use ONLY when the user asks to save, export or extend THE CURRENT card («همین کارت رو ذخیره کن»,
+  "save this card"). Never on a generic "write a report".
 ---
 
 # report: the chat card, as a standalone HTML file

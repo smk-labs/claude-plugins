@@ -1,6 +1,9 @@
 ---
 name: self-assess
-description: Placement quiz that finds someone's real level in a subject and writes it to PROFILE.md. Scenario questions in small batches, never definitions, with neutral options that cannot be eliminated by tone, plus self-report checks that separate knowing a word from being able to act on it. Use when the user asks to measure their level, wants a placement, diagnostic or self assessment, says "تعیین سطح", "آزمون بگیر", "سطحم رو بسنج", "خودارزیابی", "test my level", "where am I in X", "assess me on X", or invokes /learnable:self-assess. Also invoked by /learnable:new-course before it designs a curriculum, and re-run later to measure progress against the earlier profile.
+description: >-
+  Placement quiz that finds someone's real level and writes it to PROFILE.md, using scenario
+  questions rather than definitions. Triggers: «تعیین سطح», «سطحم رو بسنج», "test my level",
+  "assess me on X". Also called by new-course.
 ---
 
 # self-assess: find the real level, not the claimed one

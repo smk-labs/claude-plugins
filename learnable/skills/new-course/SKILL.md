@@ -1,6 +1,9 @@
 ---
 name: new-course
-description: Build a whole course on a subject, from scratch, on disk. A light survey of the domain, then the placement-quiz decision, then a deep multi-agent research pass that becomes an ordered taxonomy, a table of contents grouped into books and chapters, and a course folder that teaches itself. Use when the user asks for a course, curriculum, syllabus, study plan, roadmap or taxonomy on a topic, says "دوره بساز", "کورس جدید", "برنامه درسی", "نقشه یادگیری", "build me a course on X", "I want to learn X properly", or invokes /learnable:new-course. Run once per subject; use /learnable:new-book afterwards for each book of chapters.
+description: >-
+  Build a whole course on disk: domain survey, placement decision, multi-agent research, taxonomy,
+  books and chapters. Triggers: «دوره بساز», «برنامه درسی», "build me a course on X", curriculum,
+  syllabus or roadmap asks. Then new-book per book.
 ---
 
 # new-course: from "I want to learn X" to a course on disk

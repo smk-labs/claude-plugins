@@ -1,6 +1,9 @@
 ---
 name: visualize
-description: Turn an answer into a light visual (flowchart, timeline, comparison, architecture sketch), in any language. Trigger ONLY when the user explicitly asks to see something visual, e.g. "show me", "visualize this", "show it as a diagram", "draw it", "با شکل نشون بده", "شماتیکش رو بکش", "تصویریش کن". Never auto-trigger just because content is flow-shaped. Uses the widget tool with minimal, theme-aware SVG.
+description: >-
+  Turn an answer into a light visual (flowchart, timeline, comparison, architecture sketch), in
+  any language. Trigger ONLY on an explicit ask: "show me", "visualize this", "draw it", «با شکل
+  نشون بده». Never just because the content is flow-shaped.
 ---
 
 # visualize: a shape, only when it says it better

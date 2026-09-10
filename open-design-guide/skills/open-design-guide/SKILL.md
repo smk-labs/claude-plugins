@@ -1,6 +1,9 @@
 ---
 name: open-design-guide
-description: Use the Open Design content library: 151 design systems with real tokens (Apple, Vercel, Linear, Stripe, Notion, GitHub, Raycast, plus styles like brutalism and claymorphism), 71 design and frontend skills, and 114 rendering templates for decks, documents, video frames, and social cards. Use when building or restyling any UI, picking a visual direction, needing real design tokens instead of invented ones, matching a known brand's look, animating with GSAP, or producing a deck, report, poster, or social card. Also use when the user says "open design", "od", "design system", "brand contract", or "DESIGN.md", or names one of the bundled systems.
+description: >-
+  Local Open Design library: real tokens for 151 design systems, 71 design skills, 114 render
+  templates. Use only on an explicit ask: "open design", "od", "DESIGN.md", "brand contract", or
+  naming a bundled system.
 ---
 
 # Open Design guide

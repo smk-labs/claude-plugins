@@ -1,6 +1,10 @@
 ---
 name: spring-clean
-description: Deep-clean and simplify a whole repo or codebase, then leave guardrails so it stays clean. Delete dead surfaces, gitignore build artifacts, relocate dev docs, notes, clones and dumps to the project's workspace repo (the assistant-dev home base), split oversized files and functions, unify duplicated logic, draw package boundaries, run a clean-code pass (naming, function size, DRY, KISS, magic numbers, linter-warning burn-down), and encode the rules as architecture tests. Use when the user asks to clean up, declutter, tidy, simplify, restructure, or modularize a repo, asks for clean code or SOLID, wants dev docs moved out of the code tree, says "spring clean", "housekeeping", "خونه تکونی", "تمیزکاری", "کلین کد", "ساده‌سازی کدبیس", "ریپو رو مرتب کن", complains that the repo is a mess or a file is huge, or wants dead code removed and LoC reduced. Repo-scale work on the whole tree or a subtree, not a single diff.
+description: >-
+  Deep-clean a whole repo and leave guardrails: delete dead surfaces, relocate dev docs, split
+  oversized files, unify duplication, draw boundaries, clean-code pass, architecture tests.
+  Triggers: "clean up", "simplify the repo", «خونه تکونی», «تمیزکاری», «کلین کد». Repo-scale, not
+  one diff.
 ---
 
 Spring-clean a repository the way خونه تکونی cleans a house before the new year: everything comes out, only what belongs goes back, and the house gets rules that keep it clean. The pass is behaviour-preserving, and it is not a deletion contest. The one real pass on record was net **+5,185 lines**, and its single most valuable outcome was writing the first tests a security file ever had.

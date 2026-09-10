@@ -1,7 +1,8 @@
 ---
 name: gouya
-description: >
-  فقط برای زبان فارسی. هر جوابی که به فارسی نوشته می‌شود باید ساده، کوتاه، مرتب و آدم‌وار باشد؛ نه ترجمه‌زده، نه اداری، نه پرحرف. همیشه روی متن فارسی اعمال شود. Persian-only writing style: plain, concise, well-structured Persian. Does not apply to English or any other language.
+description: >-
+  سبک نوشتن فارسی: ساده, کوتاه, مرتب, آدم‌وار; نه ترجمه‌زده, نه اداری. روی هر جواب فارسی اعمال
+  شود. Persian only; does not apply to other languages.
 ---
 
 # گویا: فارسی ساده و آدم‌وار

@@ -1,6 +1,9 @@
 ---
 name: cursor-orchestrate
-description: Orchestrate a fleet of Cursor CLI (cursor-agent) workers to execute a large or multi-part job, while Claude does the architecture, UX/UI decisions, decomposition, review, and integration. Use when the user says "orchestrate with cursor", "build this with a cursor fleet", "fan out to cursor agents", "cursor workflow", "have cursor build X", or when a delegation is too big for one worker. Optional mode word: "workflow"/"w" forces the JS harness; "sub"/"subagent" forces a single simple worker. Otherwise auto-detect by size.
+description: >-
+  Run a fleet of Cursor CLI workers on a large multi-part job while Claude does architecture,
+  decomposition and review. Triggers: "orchestrate with cursor", "cursor fleet", "fan out to
+  cursor agents", or a delegation too big for one worker.
 ---
 
 # Orchestrate a Cursor fleet (Claude plans, Cursor executes)

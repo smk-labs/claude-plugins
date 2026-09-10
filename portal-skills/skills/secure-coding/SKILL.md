@@ -1,6 +1,9 @@
 ---
 name: secure-coding
-description: Apply a baseline of secure-coding standards to code being written or reviewed. Covers auth, secrets management, input validation, injection prevention, password hashing, PII handling, dependency hygiene, rate limiting, CORS, security headers, HTTPS, error/logging discipline, and infra hardening. Use proactively whenever the user writes or edits authentication/authorization logic, login/session/token code, API endpoints, database queries, file uploads or external input handling, credential storage, secret/config loading, CORS or header configuration, error handlers, logging, or any Dockerfile/k8s/IAM config. Also trigger on explicit asks like "security review", "is this safe", "audit this", "check for vulnerabilities", or mentions of OWASP, injection, XSS, CSRF, or SSRF. Even if the user doesn't ask for a security check, flag clear violations in code they're touching.
+description: >-
+  Baseline secure-coding standards for code being written or reviewed: auth, secrets, input
+  validation, injection, PII, CORS, headers, logging, infra. Use proactively on auth, endpoints,
+  queries, uploads, secrets and Dockerfile or k8s config, and on "is this safe".
 ---
 
 # Secure Coding Baseline

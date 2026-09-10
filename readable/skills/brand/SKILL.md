@@ -1,6 +1,9 @@
 ---
 name: brand
-description: Give THIS project its own readable brand - after this, every chat card and /report in the project renders in the project's palette, logo, and font. Detects the identity from the repo (design tokens, tailwind config, DESIGN.md, logos) or interviews the user when none exists, then writes a committable .readable/ layer. Use when the user asks to "brand readable", "brand the cards/reports", "make reports match our brand", "رنگ و لوگوی خودمون روی کارت‌ها/گزارش‌ها", or invokes /readable:brand.
+description: >-
+  Give this project its own readable brand, so every chat card and report renders in its palette,
+  logo and font. Detects the identity from the repo or interviews the user, then writes a
+  committable .readable/ layer. Triggers: "brand readable", «کارت‌ها رنگ خودمون».
 ---
 
 # brand: a per-project skin for cards and reports
