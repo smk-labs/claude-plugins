@@ -1,5 +1,19 @@
 # readable changelog
 
+## 7.0.0
+
+readable now costs about as little as it can: fewer tokens in, fewer out, and no extra turns before the first reply. The cards look the same.
+
+**The model writes md, not HTML.** The card tool takes `md`: GitHub Markdown plus a few `:::` blocks. `assets/md.js` compiles it to exactly the DOM `rc.css` styles, and test.js pins one golden per component taken from the shapes in `blocks.md`. The compiler does what the model used to spend tokens and thought on: closing tags, bar widths, sparkline points, donut slices, trend direction, grid columns, table striping, and the RLM for a Persian line that opens on a Latin word. On two real cards md is 32% and 70% fewer bytes than the HTML. It compiles in the server, because the template has no room for it, through the `read_kit` call the bridge already makes on every paint. Streaming still works and costs no extra round trip. `html` is still accepted, `*-card.md` works in htmlFile mode, and `build.py` builds a report from a `.md` file with the same compiler.
+
+**Every card sat in the transcript twice.** Claude Code shows the model `JSON.stringify(structuredContent)` in place of the text whenever a result has one, and the card result echoed its whole html there. The html now rides the result's `_meta`, which reaches the app and not the model. The bridge reads it there, and falls back to `structuredContent` for old transcripts.
+
+**The model saw 30% of the tool description.** Claude Code cuts a tool description at 2048 characters and the card's was 6807, so the model never saw anything from the middle of BARS on: spark, flow, tl, hub, badge, cards, cols, quote, preview, icons, the guidance, file mode, brand. Tier 1 now carries the md lines only, 1980 characters, and a test keeps it at 2000 or under. Tier 2 kits keep the HTML shapes.
+
+**Two turns before the first Persian reply, gone.** The card tool sets `_meta["anthropic/alwaysLoad"]`, so Claude Code no longer defers it behind ToolSearch. The voice is injected instead of named: the hook used to point at a 14KB Persian file the model then had to Read. `gen-voice-fa.js` now derives only a new `<!--@core-->` block of the gouya skill (daily-tools 2.5.0), and the English voice is cut to the same kind of core.
+
+**The rule lost its history.** `rule.md` goes from 4,890 bytes to about 1KB. The whole SessionStart payload is now about 4KB, where before it was 5.8KB plus a 14KB Read.
+
 ## 6.11.1
 
 The relocated install still registered nothing, every session, in silence. The

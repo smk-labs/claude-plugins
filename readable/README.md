@@ -28,6 +28,38 @@ The card is self-contained by default: components degrade to plain readable text
 
 Everything adapts to light and dark mode through the host's CSS variables.
 
+### Authoring in md (7.0.0)
+
+The model no longer writes the card's HTML. It sends `md`: GitHub Markdown plus a few `:::` blocks, and [assets/md.js](assets/md.js) compiles that to exactly the DOM the kit styles, so a card looks the same by construction. test.js pins it with one golden per component, taken from the shapes in `assets/blocks.md`.
+
+```md
+# فروش شهریور
+:::kpi
+درآمد | ۱.۲M | +۱۸٪
+ریزش | ۳.۱٪ | -۰.۴٪ | فقط اشتراک‌ها
+:::
+:::bars
+تهران | ۵۲۰
+مشهد | ۲۵۰
+:::
+سفارش → پرداخت → ارسال
+| سرویس | وضعیت |
+|---|---|
+| پرداخت | :ok[سالم] |
+```
+
+The compiler owns everything the model should not spend tokens or thought on: closing tags, bar widths, sparkline points, donut slices, trend direction, grid columns, table striping, and the RLM a Persian line needs when it opens on a Latin word. Persian digits parse. It never throws on content, because a streaming card hands it every prefix of the reply.
+
+Measured on two real cards, md is 32% (prose) to 70% (dashboard) fewer bytes than the HTML it replaces. Compilation runs in the server, not the iframe: the template has no room for a compiler, and the bridge already calls `read_kit` on every paint, so that call now takes `md` and returns the html with its css. Streaming, one round trip, same as before. `html` is still accepted, and a worker can write `*-card.md` for htmlFile mode.
+
+Three more costs went with it:
+
+- **No more echo.** Claude Code shows the model `JSON.stringify(structuredContent)` whenever a result has one, and the card result carried its whole html there, so every card sat in the transcript twice. The html now rides the result's `_meta`, which reaches the app and not the model.
+- **No ToolSearch turn.** The card tool sets `_meta["anthropic/alwaysLoad"]`, so Claude Code never defers it behind a lookup.
+- **A description the model can read.** Claude Code cuts a tool description at 2048 characters and the card's was 6807, so nothing past the middle of BARS ever arrived. Tier 1 now carries the md lines only, 1980 characters, pinned under 2000.
+
+At SessionStart the rule is 1KB instead of 4.9KB, and the voice is injected as two short cores instead of being named for the model to Read in a separate turn. Net: the first Persian reply of a session has no extra turns before it.
+
 ### Diagrams: hub and hub tree (5.5.0)
 
 The kit could draw a sequence (`flow`), a chronology (`tl`) and a comparison (`cards`), but not one thing connected to many, so authors faked that with a bullet list. Two components close it, and both are CSS only: no JS, no SVG, no image.
@@ -107,7 +139,7 @@ Ask "show me", "visualize this", "با شکل نشون بده" and Claude turns 
 
 The endgame for token cost: the model sends only content and never outputs CSS at all. [server/server.js](server/server.js) is a zero-dependency MCP Apps server (SEP-1865) with one tool, `card`: input is building-block HTML, and the host renders it inside a predeclared `ui://readable/card.html` template that carries the whole kit plus its own light/dark palette (host CSS variables do not reach inside the MCP Apps iframe).
 
-- Protocol-tested: `node readable/server/test.js` runs a 323-check JSON-RPC exchange, including capability negotiation (`io.modelcontextprotocol/ui`), the `roots/list` save-dir handshake, template mime `text/html;profile=mcp-app`, `_meta.ui.resourceUri` linkage, and the no-UI-host fallback (tool answer tells the model to fall back and re-deliver as text/widget).
+- Protocol-tested: `node readable/server/test.js` runs a 360-check JSON-RPC exchange, including capability negotiation (`io.modelcontextprotocol/ui`), the `roots/list` save-dir handshake, template mime `text/html;profile=mcp-app`, `_meta.ui.resourceUri` linkage, and the no-UI-host fallback (tool answer tells the model to fall back and re-deliver as text/widget).
 - Template-tested: the bridge (`ui/initialize` → `ui/notifications/tool-input` → `ui/notifications/size-changed`) renders the card correctly in a sandboxed iframe; CTA buttons map `sendPrompt()` onto `ui/message`.
 - Production-verified (2026-07): Claude Desktop chat negotiates `mcp-apps=YES` for local servers and renders the card inline, light and dark.
 - Re-learned in 6.4.0, the hard way: the 4.5.0 note below was right and 6.0.0 broke it. 6.0.0 declared a plugin-scoped copy of the server, reasoning that the new capability gate made a duplicate harmless. It did not. The card call stopped reaching the desktop server (its log showed a healthy `mcp-apps=YES` handshake and no `tools/call card` at all) and the html printed raw in the chat, exactly as this note warned. The scoped server is now named `readable-local` and runs with `READABLE_NO_CARD=1`, a hard no checked before anything a client declares, so it carries the export tools and can never be handed the card tool by any host. When a note in this file says "field-debugged", read it before overriding it.

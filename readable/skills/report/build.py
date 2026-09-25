@@ -49,6 +49,8 @@ import datetime
 import json
 import pathlib
 import re
+import shutil
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -61,6 +63,7 @@ ASSETS = HERE.parents[1] / "assets"
 KIT = ASSETS / "rc.css"
 MENU = ASSETS / "menu.js"
 EMAIL = ASSETS / "email.js"
+MD = ASSETS / "md.js"
 # Shared with the card server, not re-declared here (6.7.0). The palette lived in
 # three hand-kept copies and the LTR overrides in two, each with a comment
 # promising it matched the other.
@@ -818,6 +821,21 @@ def preview_pass(content: str, probe: bool, timeout: float) -> str:
     return PREVIEW_LIVE_RE.sub(live, content)
 
 
+def compile_md(text: str) -> str:
+    """A .md content file compiles through assets/md.js, the SAME compiler the
+    chat card runs, so a report and a card read one syntax and there is no
+    Python port to drift. The card server already needs node, so node is here."""
+    node = shutil.which("node")
+    if not node:
+        sys.exit("a .md content file needs node on PATH (it runs assets/md.js); pass a .html fragment instead")
+    run = subprocess.run([node, str(MD)], input=text, capture_output=True, text=True, encoding="utf-8")
+    if run.returncode != 0:
+        sys.exit("md compile failed: " + run.stderr.strip())
+    for line in run.stderr.splitlines():
+        print(line, file=sys.stderr)
+    return run.stdout.strip()
+
+
 def kit_css(brand_css: str) -> str:
     """KIT_REMOTE_IMPORT: a report is a standalone document that gets printed and
     emailed, so it must not depend on a font host. When the brand layer inlines
@@ -834,7 +852,7 @@ def kit_css(brand_css: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("content", help="path to the content HTML fragment (building blocks only, no <style>)")
+    ap.add_argument("content", help="path to the content: a .md file (card syntax) or an HTML fragment (building blocks only, no <style>)")
     ap.add_argument("-o", "--out", default="report.html", help="output file (default: ./report.html)")
     ap.add_argument("--lang", choices=["fa", "en"], default="fa")
     ap.add_argument("--title", default=None, help="page <title> (defaults to first <h2> text or a generic title)")
@@ -857,6 +875,8 @@ def main():
     content = src.read_text(encoding="utf-8").strip()
     if "<style" in content.lower() or "<script" in content.lower():
         sys.exit("content must be building-block HTML only: no <style> or <script>")
+    if src.suffix.lower() == ".md":
+        content = compile_md(content)
     # The brand resolves FIRST now: a figure is its own document and needs its own
     # copy of the report's face, so inline_media has to know what that face is.
     brand_dir = find_brand(src.parent) or find_brand(pathlib.Path.cwd())

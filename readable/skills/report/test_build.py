@@ -604,5 +604,30 @@ class ReapLocks(unittest.TestCase):
         self.assertEqual(0, self.reap(HERE / "no-such-dir").returncode)
 
 
+
+class MarkdownContent(unittest.TestCase):
+    """A .md content file compiles through assets/md.js, the card's own compiler,
+    so a report and a chat card share one syntax and no Python port can drift."""
+
+    @unittest.skipUnless(shutil.which("node"), "no node on PATH")
+    def test_md_compiles_to_the_same_blocks_a_card_gets(self):
+        html = build.compile_md("# گزارش\n:::kv\nالف | ب\n:::")
+        self.assertEqual('<h2>گزارش</h2>\n<div class="kv"><div><b>الف</b><span>ب</span></div></div>', html)
+
+    @unittest.skipUnless(shutil.which("node"), "no node on PATH")
+    def test_a_md_file_builds_a_report(self):
+        with tempfile.TemporaryDirectory() as d:
+            src = pathlib.Path(d) / "content.md"
+            out = pathlib.Path(d) / "r.html"
+            src.write_text("# گزارش\n- [x] تمام\n", encoding="utf-8")
+            run = subprocess.run([sys.executable, str(HERE / "build.py"), str(src), "-o", str(out),
+                                  "--no-preview-probe", "--no-figure-font", "--no-brand"],
+                                 capture_output=True, text=True)
+            self.assertEqual(0, run.returncode, run.stderr)
+            page = out.read_text(encoding="utf-8")
+            self.assertIn("<h2>گزارش</h2>", page)
+            self.assertIn('<li class="ok">تمام</li>', page)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

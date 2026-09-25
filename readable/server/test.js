@@ -83,7 +83,11 @@ function check(name, cond) {
   check('read_fonts carries no ui meta and takes no args', fontt._meta === undefined && Object.keys(fontt.inputSchema.properties).length === 0);
   check('card schema advertises the brand dir param', card.inputSchema.properties.brand && card.inputSchema.properties.brand.type === 'string');
   check('tool links template via _meta.ui.resourceUri', card._meta.ui.resourceUri === 'ui://readable/card.html');
-  check('inputSchema offers html or htmlFile, neither hard-required', Boolean(card.inputSchema.properties.html && card.inputSchema.properties.htmlFile) && card.inputSchema.required === undefined);
+  check('inputSchema offers md, html or htmlFile, none hard-required (7.0.0)', Boolean(card.inputSchema.properties.md && card.inputSchema.properties.html && card.inputSchema.properties.htmlFile) && card.inputSchema.required === undefined);
+  // Claude Code defers MCP tools behind ToolSearch unless a tool asks not to be:
+  // the first Persian reply of every session paid a turn for the lookup.
+  check('the card tool asks never to be deferred (7.0.0)', card._meta['anthropic/alwaysLoad'] === true);
+  check('read_kit takes md as well as html, neither required', kitt.inputSchema.properties.md.type === 'string' && kitt.inputSchema.required === undefined);
   check('save_card carries no ui meta (Desktop meta parser is fragile)', save._meta === undefined);
   check('render_email carries no ui meta', email._meta === undefined);
   check('read_card_file carries no ui meta', readf._meta === undefined);
@@ -103,7 +107,7 @@ function check(name, cond) {
   check('template is BASE only: no component CSS inlined at all (4.20.0)', ['.rc .spark', '.rc .kpi{', '.rc table{', '.rc .badge', '.rc .cta', '.rc .kv{', '.rc .bars', '.rc .flow{', '.rc .tl{', '.rc .card', '.rc .box', '.rc .cols', '.rc blockquote', '.rc .numbered', '.rc .sections', '.rc .tabs', '.rc .preview', '.donut', '.rc .fold'].every((sel) => !html.includes(sel)));
   check('template still carries all of BASE (frame, text, lists, callouts, code, bidi)', html.includes('.rc{') && html.includes('unicode-bidi:plaintext') && html.includes('.rc .cal') && html.includes('.rc code{') && html.includes('.rc ul>li::before'));
   check('print rules never ship to an iframe', !html.includes('@media print'));
-  check('bridge mounts the lazy kit before first paint, with a deadline so a silent host still paints (4.20.0)', html.includes("name:'read_kit'") && html.includes("id='rckit'") && html.includes('kApply(html,') && html.includes('setTimeout(go,1500)'));
+  check('bridge mounts the lazy kit before first paint, with a deadline so a silent host still paints (4.20.0)', html.includes("name:'read_kit'") && html.includes("id='rckit'") && html.includes('kApply(src,isMd,') && html.includes('go(null)},1500)'));
   // The #rckit node is created at load, not on first use, so the brand style is
   // appended after it and keeps winning. Assert the ORDER of the two mounts.
   check('the kit style node precedes the brand style node', html.indexOf("id='rckit'") < html.indexOf("id='rcbrand'"));
@@ -222,9 +226,12 @@ function check(name, cond) {
   // be offered on one tier and forgotten on the other.
   const desc1 = blocksMod.forTier(1);
   const desc2 = blocksMod.forTier(2);
-  check('the tier 1 description carries every chat shape and no report-only one',
-    blocksMod.chat(1).every((e) => desc1.includes(e.shape)) &&
-    blocksMod.entries().filter((e) => e.tier === 'r').every((e) => !desc1.includes(e.shape)));
+  // Claude Code cuts a tool description at 2048 characters. 6.x shipped 6807,
+  // so everything past the middle of BARS never reached the model.
+  check('the tier 1 description fits Claude Code\'s 2048-character cut with room (' + desc1.length + ' of 2000)', desc1.length <= 2000);
+  check('the tier 1 description carries every chat block\'s md form and no HTML shape (7.0.0)',
+    blocksMod.chat(1).every((e) => e.md && desc1.includes(e.md)) &&
+    blocksMod.entries().every((e) => !desc1.includes(e.shape)) && !/<div class=/.test(desc1));
   check('tier-2-only blocks reach the on-demand kit and stay out of the always-on description',
     blocksMod.chat(2).filter((e) => e.tier === '2').every((e) => desc2.includes(e.shape) && !desc1.includes(e.shape)));
   check('notes are tier 2 only, so the description the model always carries stays shapes',
@@ -550,19 +557,93 @@ function check(name, cond) {
   check('save rpcs are deadlined and request the native picker (4.12.0)', html.includes('function rpcTo(') && html.includes('pick:true') && html.includes("'picking'") && !html.includes('no host response'));
   check('email export is deadlined too (busy-forever guard)', html.includes("toast('email: timeout')"));
 
+  // 3d. THE md COMPILER (7.0.0). The look lives in rc.css keyed on DOM and
+  // class names, so md.js must emit exactly the shapes blocks.md documents.
+  // These goldens ARE the shapes; a drift here is a card that stops looking
+  // like readable.
+  const mdc = require(path.join(__dirname, '..', 'assets', 'md.js'));
+  const C = (t) => mdc.compile(t).html;
+  const golden = [
+    ['title and text', '# عنوان\n## بخش\n### زیر\nمتن **پررنگ** و `x.md`', '<h2>عنوان</h2>\n<h3>بخش</h3>\n<h4>زیر</h4>\n<p>متن <strong>پررنگ</strong> و <code>x.md</code></p>'],
+    ['no # promotes the top level to the title', '## عنوان\n### بخش', '<h2>عنوان</h2>\n<h3>بخش</h3>'],
+    ['status items', '- [x] سالم\n- [ ] خراب\n- عادی', '<ul><li class="ok">سالم</li><li class="no">خراب</li><li>عادی</li></ul>'],
+    ['callout', '> [!WARNING]\n> مراقب باش', '<div class="cal warn"><div><p>مراقب باش</p></div></div>'],
+    ['quote with a source', '> نقل\n> — حافظ', '<blockquote><p>نقل</p><cite>حافظ</cite></blockquote>'],
+    ['lead and src', 'مقدمه {.lead}\n\nمنبع: آمار {.src}', '<p class="lead">مقدمه</p>\n<p class="src">منبع: آمار</p>'],
+    ['KV', ':::kv\nکلید | مقدار\n:::', '<div class="kv"><div><b>کلید</b><span>مقدار</span></div></div>'],
+    ['KPI: trend from the sign, grid from the count', ':::kpi\nدرآمد | 1.2M | +18%\nریزش | 3% | -0.4% | فقط اشتراک\n:::', '<div class="grid c2"><div class="kpi"><div class="l">درآمد</div><div class="n">1.2M<span class="trend up">18%</span></div></div><div class="kpi"><div class="l">ریزش</div><div class="n">3%<span class="trend dn">0.4%</span></div><div class="f">فقط اشتراک</div></div></div>'],
+    ['BARS: widths from the max, Persian digits parsed', ':::bars\nالف | ۲۰۰\nب | ۵۰\n:::', '<div class="bars"><div class="bar"><span class="l">الف</span><span class="t"><i style="width:100%"></i></span><span class="v">۲۰۰</span></div><div class="bar"><span class="l">ب</span><span class="t"><i style="width:25%"></i></span><span class="v">۵۰</span></div></div>'],
+    ['BARS duo with its legend', ':::bars کل | بخش\nالف | 98h | 49h\n:::', '<div class="bars"><div class="leg"><span class="a"><i></i>کل</span><span class="b"><i></i>بخش</span></div><div class="bar duo"><span class="l">الف</span><span class="t"><i style="width:100%"></i><i style="width:50%"></i></span><span class="v">98h / 49h</span></div></div>'],
+    ['SPARK: points computed, y inverted into 2..28', ':::spark\n0 10\nاول | آخر\n:::', '<div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,28 100,2"/></svg><div class="x"><span>اول</span><span>آخر</span></div></div>'],
+    ['FLOW from an arrow line', 'الف → ب → پ', '<div class="flow"><span class="s">الف</span><span class="s">ب</span><span class="s">پ</span></div>'],
+    ['TL', ':::tl\n۱۴۰۳ | شروع\n:::', '<div class="tl"><div><b>۱۴۰۳</b>شروع</div></div>'],
+    ['HUB with an outgoing leg', ':::hub\nمرکز | یادداشت\nنوشن\n-> دیسکورد\n:::', '<div class="hub"><div class="c">مرکز<span>یادداشت</span></div><div class="s">نوشن</div><div class="s out">دیسکورد</div></div>'],
+    ['HUB tree from indentation', ':::hub\nریشه\nشاخه\n  برگ\n:::', '<div class="hub tree"><div class="c">ریشه</div><div class="s">شاخه<div class="s">برگ</div></div></div>'],
+    ['BADGE in a table cell', '| سرویس | وضعیت |\n|---|---|\n| پرداخت | :ok[سالم] |', '<table><thead><tr><th>سرویس</th><th>وضعیت</th></tr></thead><tbody><tr><td>پرداخت</td><td><span class="badge ok">سالم</span></td></tr></tbody></table>'],
+    ['CTA: the prompt can never close its own quote', ":::cta\nادامه | it's done\n:::", '<div class="btns"><button class="cta" onclick="sendPrompt(\'it’s done\')">ادامه</button></div>'],
+    ['CARDS with a pick', ':::cards c2\n### الف {.pick}\nمتن\n### ب\nمتن\n:::', '<div class="cards c2"><div class="card pick"><h4>الف</h4><p>متن</p></div><div class="card"><h4>ب</h4><p>متن</p></div></div>'],
+    ['BOX with an eyebrow', ':::box خلاصه\nمتن\n:::', '<div class="box"><div class="lbl">خلاصه</div><p>متن</p></div>'],
+    ['COLS', ':::cols\n### مزایا\n- الف\n### معایب\n- ب\n:::', '<div class="cols"><div><h4>مزایا</h4><ul><li>الف</li></ul></div><div><h4>معایب</h4><ul><li>ب</li></ul></div></div>'],
+    ['PREVIEW: host from the url', ':::preview\n[سند](https://www.example.com/a) | توضیح\n:::', '<a class="preview" href="https://www.example.com/a"><b>سند</b><span>توضیح</span><small>example.com</small></a>'],
+    ['ICON', 'ببین :ic[check]', '<p>ببین <i class="ic check"></i></p>'],
+    ['DONUT: slices normalised to 100', ':::donut\nالف | 1\nب | 1\n:::', '<div class="donut-w"><div class="donut" style="--a:50"></div><div class="leg"><span class="a"><i></i>الف 50%</span><span class="b"><i></i>ب 50%</span></div></div>'],
+    ['a Persian line opening on a Latin word gets its RLM', 'Vercel سرویس خوبی است', '<p>&rlm;Vercel سرویس خوبی است</p>'],
+    ['code fences keep their text and never parse as blocks', '```\n:::kpi\n<b>\n```', '<pre><code>:::kpi\n&lt;b&gt;</code></pre>'],
+  ];
+  for (const [name, input, want] of golden) {
+    const got = C(input);
+    check('md: ' + name, got === want, got);
+  }
+  const big = Array.from({ length: 12 }, (_, k) => '| ' + k + ' | x |').join('\n');
+  check('md: 10+ row tables stripe themselves', C('| a | b |\n|---|---|\n' + big).startsWith('<table class="zebra dense">'));
+  check('md: {.wide} under a table builds the sideways scroller', C('| a |\n|---|\n| b |\n{.wide}').startsWith('<div class="scroll-table wide"><table>'));
+  check('md: an unknown block renders as Markdown with a warning, never an error', mdc.compile(':::nope\nمتن\n:::').html === '<p>متن</p>' && mdc.compile(':::nope\nx\n:::').warnings.length === 1);
+  // A card streams, so the compiler sees every prefix of the reply. None may throw.
+  const stream = golden.map((g) => g[1]).join('\n\n');
+  let cutOk = true;
+  for (let k = 0; k <= stream.length; k++) { try { mdc.compile(stream.slice(0, k)); } catch (e) { cutOk = false; break; } }
+  check('md: every prefix of a streaming reply compiles without throwing', cutOk);
+  // Every class the compiler can emit must exist in the sheet, or it renders unstyled.
+  const sheet = src(assetsDir, 'rc.css');
+  const emitted = new Set();
+  for (const [, input] of golden) for (const m of C(input).matchAll(/class="([^"]+)"/g)) for (const c of m[1].split(' ')) emitted.add(c);
+  const unstyled = [...emitted].filter((c) => !new RegExp('\\.' + c + '(?![\\w-])').test(sheet));
+  check('md: every class the compiler emits is styled by rc.css', unstyled.length === 0, unstyled.join(' '));
+  // md through read_kit: the bridge's one round trip carries html and css back.
+  const kMd = JSON.parse((await rpc('tools/call', { name: 'read_kit', arguments: { md: ':::kpi\nالف | ۱ | +۲٪\n:::' } })).content[0].text);
+  check('read_kit compiles md and returns its html with just its css (7.0.0)', kMd.h.includes('class="kpi"') && kMd.c.includes('.rc .kpi{') && kMd.n === false);
+
   // 4. tools/call happy path
   const ok = await rpc('tools/call', { name: 'card', arguments: { html: '<h2>سلام</h2><p>تست</p>' } });
   check('call returns model-facing text', ok.content[0].type === 'text' && ok.content[0].text.includes('rendered'));
-  check('call mirrors html into structuredContent', ok.structuredContent.html === '<h2>سلام</h2><p>تست</p>');
+  // Claude Code shows the model JSON.stringify(structuredContent) instead of the
+  // text whenever it is present, so a card that echoed its html there sat in the
+  // transcript twice. The html rides _meta now, which reaches the app only.
+  check('call returns NO structuredContent, so the model never reads its own card back (7.0.0)', ok.structuredContent === undefined);
+  check('call carries the html to the app in _meta', ok._meta['readable/card'].html === '<h2>سلام</h2><p>تست</p>');
   const okSvg = await rpc('tools/call', { name: 'card', arguments: { html: '<div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,26 50,10 100,4"/></svg><div class="x"><span>a</span><span>b</span></div></div>' } });
-  check('card accepts inline-svg spark content (guardrail blocks only style/script)', okSvg.structuredContent.html.includes('<svg'));
+  check('card accepts inline-svg spark content (guardrail blocks only style/script)', okSvg._meta['readable/card'].html.includes('<svg'));
+
+  const okMd = await rpc('tools/call', { name: 'card', arguments: { md: '# سلام\n:::kv\nالف | ب\n:::' } });
+  check('an md call compiles on the server and hands the app the html (7.0.0)', okMd.structuredContent === undefined && okMd._meta['readable/card'].html === '<h2>سلام</h2>\n<div class="kv"><div><b>الف</b><span>ب</span></div></div>');
+  const okWarn = await rpc('tools/call', { name: 'card', arguments: { md: ':::nope\nx\n:::' } });
+  check('md warnings reach the model in the one text line, never as an error', !okWarn.isError && /unknown block :::nope/.test(okWarn.content[0].text));
+  const mdAndHtml = await rpc('tools/call', { name: 'card', arguments: { md: 'a', html: '<p>a</p>' } }).then(() => false, (e) => /exactly one of md \| html \| htmlFile/.test(e.message));
+  check('rejects md and html together', mdAndHtml);
+  const mdStyle = await rpc('tools/call', { name: 'card', arguments: { md: 'a <style>x</style>' } }).then(() => false, () => true);
+  check('md gets the same no-<style>/<script> guardrail', mdStyle);
+  const MD_FILE = path.join(SAVE_DIR, 'worker-card.md');
+  fs.writeFileSync(MD_FILE, '# گزارش\n- [x] تمام');
+  const okMdFile = await rpc('tools/call', { name: 'card', arguments: { htmlFile: MD_FILE } });
+  const mdFileHtml = (await rpc('tools/call', { name: 'read_card_file', arguments: { path: MD_FILE } })).content[0].text;
+  check('a worker\'s *-card.md renders compiled through read_card_file', !okMdFile.isError && mdFileHtml === '<h2>گزارش</h2>\n<ul><li class="ok">تمام</li></ul>');
 
   // 4b. htmlFile mode: card renders from a pre-written *-card.html file
   const CARD_FILE = path.join(SAVE_DIR, 'worker-report-card.html');
   fs.writeFileSync(CARD_FILE, '<h2>گزارش کارگر</h2><p>تمام شد</p>');
   const okf = await rpc('tools/call', { name: 'card', arguments: { htmlFile: CARD_FILE } });
   check('htmlFile call returns model-facing text', okf.content[0].type === 'text' && okf.content[0].text.includes('rendered'));
-  check('htmlFile call carries only the path in structuredContent (no html echo to the model)', okf.structuredContent.htmlFile === CARD_FILE && okf.structuredContent.html === undefined);
+  check('htmlFile call carries only the path, in _meta (no html echo to the model)', okf.structuredContent === undefined && okf._meta['readable/card'].htmlFile === CARD_FILE && okf._meta['readable/card'].html === undefined);
   const rf = await rpc('tools/call', { name: 'read_card_file', arguments: { path: CARD_FILE } });
   check('read_card_file returns the file content for the bridge', rf.content[0].text === '<h2>گزارش کارگر</h2><p>تمام شد</p>' && !rf.isError);
 
@@ -745,15 +826,15 @@ function check(name, cond) {
   check('read_brand strips < (no style/script breakout can survive)', !brCss.includes('<'));
   check('read_brand raises bare dark selectors to html[data-theme]', brCss.includes('html[data-theme="dark"]{--text-accent:#FB923C'));
   const cardBr = await rpc('tools/call', { name: 'card', arguments: { html: '<p>برند</p>', brand: BRAND_DIR } });
-  check('card call carries the brand dir into structuredContent', cardBr.structuredContent.brand === BRAND_DIR && cardBr.structuredContent.html === '<p>برند</p>');
+  check('card call carries the brand dir into _meta', cardBr._meta['readable/card'].brand === BRAND_DIR && cardBr._meta['readable/card'].html === '<p>برند</p>');
   const cardNoBr = await rpc('tools/call', { name: 'card', arguments: { html: '<p>ساده</p>' } });
-  check('card without a resolvable brand omits the field entirely', cardNoBr.structuredContent.brand === undefined);
+  check('card without a resolvable brand omits the field entirely', cardNoBr._meta['readable/card'].brand === undefined);
   const brRel = await rpc('tools/call', { name: 'read_brand', arguments: { dir: '.readable' } });
   check('read_brand rejects relative dirs', brRel.isError && brRel.content[0].text.includes('absolute'));
   const brWrong = await rpc('tools/call', { name: 'read_brand', arguments: { dir: BRAND_PROJ } });
   check('read_brand rejects dirs not named .readable', brWrong.isError);
   const cardBadBrand = await rpc('tools/call', { name: 'card', arguments: { html: '<p>x</p>', brand: '/nonexistent/.readable' } });
-  check('a dangling brand arg degrades to the default look, never an error', !cardBadBrand.isError && cardBadBrand.structuredContent.brand === undefined && cardBadBrand.structuredContent.html === '<p>x</p>');
+  check('a dangling brand arg degrades to the default look, never an error', !cardBadBrand.isError && cardBadBrand._meta['readable/card'].brand === undefined && cardBadBrand._meta['readable/card'].html === '<p>x</p>');
 
   // 8a3. letterhead (4.14.0): a brand.json wordmark/logo folds a .rc::before
   // letterhead INTO the read_brand css (zero template cost, runtime only). It
@@ -860,9 +941,9 @@ function check(name, cond) {
     srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: { roots: { listChanged: true }, extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } } }) + '\n');
     srv4.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }) + '\n');
   });
-  check('multi-root: a brand-less call is never guessed (4.13.1)', mr[11].result.structuredContent.brand === undefined && mr[11].result.structuredContent.html === '<p>a</p>');
-  check('multi-root: an explicit brand dir still wins', mr[12].result.structuredContent.brand === path.join(MR_B, '.readable'));
-  check('lone root resumes auto-branding after roots/list_changed', mr[13].result.structuredContent.brand === path.join(MR_B, '.readable'));
+  check('multi-root: a brand-less call is never guessed (4.13.1)', mr[11].result._meta['readable/card'].brand === undefined && mr[11].result._meta['readable/card'].html === '<p>a</p>');
+  check('multi-root: an explicit brand dir still wins', mr[12].result._meta['readable/card'].brand === path.join(MR_B, '.readable'));
+  check('lone root resumes auto-branding after roots/list_changed', mr[13].result._meta['readable/card'].brand === path.join(MR_B, '.readable'));
   srv4.kill();
 
   // 8c-bis. THE CAPABILITY GATE (6.0.0). A host with no MCP Apps extension
@@ -966,45 +1047,26 @@ function check(name, cond) {
   check('the plugin-scoped server is NOT named readable-card', !scoped.includes('readable-card'));
   check('the plugin-scoped server hard-disables its card tool', scoped.every((k) => manifest.mcpServers[k].env && manifest.mcpServers[k].env.READABLE_NO_CARD === '1'));
 
-  // The rule has to separate "not offered" from "offered but not yet loaded".
-  // Collapsing them cost a full day: on a host that defers MCP tools, the card
-  // server was connected, negotiating the UI and offering the tool, and every
-  // Persian reply still came out as a tier 2 widget because the rule said "in
-  // your list" and the tool was one search away instead of already loaded.
+  // The rule has to separate "not offered" from "offered but not yet loaded":
+  // on a host that defers MCP tools, a rule that said "in your list" sent every
+  // Persian reply to the widget tier for a day (6.5.0). 7.0.0 asks the host not
+  // to defer the tool at all, and the rule keeps one line for a host that still does.
   const ruleTxt = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'rule.md'), 'utf8');
-  check('the rule says deferred counts as present (6.5.0)', /[Dd]eferred is not absent/.test(ruleTxt));
-  check('the rule still forbids searching for a name nothing offered', /never .*search for, or call, a name that nothing has offered/i.test(ruleTxt));
-  check('the rule resolves the tier up front, not per reply (6.5.1)', /Resolve your tier ONCE, before your first reply/.test(ruleTxt));
-  check('and forbids skipping the load for a short reply', /too small to be worth it/.test(ruleTxt));
+  check('the rule still covers a host that defers the tool', /offered as a deferred tool, load it before your first reply/.test(ruleTxt));
+  check('the rule sends the reply as md, in one call', /ONE `card` call/.test(ruleTxt) && /as `md`/.test(ruleTxt));
+  check('an erroring card call means text for the rest of the conversation, and no false "delivered"', /errors means plain text/.test(ruleTxt) && /Never say a card was delivered/.test(ruleTxt));
 
-  // A byte budget, enforced rather than promised. rule.md is injected into EVERY
-  // session whether a card is used or not, so it is the one payload that must
-  // stay small. 6.5.1 had grown to 9,021 bytes, about 2,255 tokens a session,
-  // and roughly half of that was the block vocabulary repeated from the card
-  // tool's own description.
-  check('rule.md stays under 5KB, since every session pays for it (6.6.0)', Buffer.byteLength(ruleTxt) < 5120);
-  check('rule.md does not duplicate the block vocabulary the tool already ships',
-    !/Build the card content from these blocks only/.test(ruleTxt) && /ships it in its own description/.test(ruleTxt));
+  // A byte budget, enforced rather than promised: rule.md is injected into EVERY
+  // session. 6.5.1 had grown to 9,021 bytes, 6.11 still carried 4,890 of mostly
+  // history; 7.0.0 keeps the instructions and drops the stories.
+  check('rule.md stays under 1.3KB, since every session pays for it (7.0.0)', Buffer.byteLength(ruleTxt) < 1300);
+  check('rule.md does not duplicate the block vocabulary the tool already ships', !/:::kpi|class="/.test(ruleTxt));
 
-  /* VOICE (6.9.0). The two writing-style files are vendored verbatim and are
-   * 19KB together, so they follow the kit's rule rather than the card rule's:
-   * the hook NAMES them and the model reads the one language it is about to
-   * write. Inlining either would put a language this session never types into
-   * every session's context, which is the cost 6.6.0 spent a release removing.
-   *
-   * The budget check is what keeps that honest: the whole SessionStart payload
-   * has to stay near the rule's own size, so a future edit cannot quietly paste
-   * a voice file into the hook and call it "always applied". */
-  /* rule.sh also runs connect.sh auto, so the same hermetic pinning the connect
-   * cases use applies here: a suite run must never register readable in the
-   * developer's own live config just to read the payload back.
-   *
-   * ONE pinning, shared by every case that runs a hook, because there were two
-   * and they drifted the day the list grew: 6.11.1 added CLAUDE_CONFIG_DIR to
-   * the connect cases below and not to this one, and since the fix under test
-   * finds the profile FROM that variable, a single suite run registered
-   * readable in the developer's own live desktop config. Every variable
-   * connect.sh reads is pinned here and nowhere else. */
+  /* VOICE (7.0.0). The hook INJECTS both core blocks. Until 7.0.0 it named the
+   * files and the model spent a Read turn on 14KB of Persian before its first
+   * reply; the cores are the rules without the essay, about 1.3K characters a
+   * language, and the budget check keeps a future edit from pasting the essay
+   * back in. */
   const pinnedEnv = (home, extra) => Object.assign({}, process.env, {
     HOME: home,
     XDG_CONFIG_HOME: path.join(home, '.config'),
@@ -1019,41 +1081,23 @@ function check(name, cond) {
   });
   const voiceFa = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'voice-fa.md'), 'utf8');
   const voiceEn = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'voice-en.md'), 'utf8');
-  check('the hook names a voice file per language (6.9.0)',
-    /<readable-voice>/.test(hookOut) && /voice-fa\.md/.test(hookOut) && /voice-en\.md/.test(hookOut));
-  check('and says to read exactly one of them, once', /never both/.test(hookOut) && /once per session/.test(hookOut));
-  check('the voice files are NAMED, never inlined into the session payload',
-    !hookOut.includes(voiceFa.slice(200, 400)) && !hookOut.includes(voiceEn.slice(200, 400)) &&
-    Buffer.byteLength(hookOut) < Buffer.byteLength(ruleTxt) + 2048);
-  /* A floor, not a size lock. gouya lost a third of its bytes to editing in one
-   * release and a tight threshold would have failed for the wrong reason. */
-  check('both voice files carry real content, not a stub',
-    Buffer.byteLength(voiceFa) > 4000 && Buffer.byteLength(voiceEn) > 4000);
-  /* Both languages carry the visual principle, and the guidance the model reads
-   * on every card carries the operative half. Written in three places on
-   * purpose, and pinned here because a regeneration is exactly how one of them
-   * quietly stops saying it: the voice files state the principle in the reader's
-   * own language, blocks.md maps it onto the components that actually exist. */
-  check('both voice files say to draw what has a shape (6.10.0)',
-    /نشان بده، نگو/.test(voiceFa) && /هزار کلمه/.test(voiceFa) &&
-    /Show it, don't tell it/.test(voiceEn) && /worth a thousand words/.test(voiceEn));
-  check('and both name the system case that a bullet list destroys',
-    /سیستم را بکش/.test(voiceFa) && /Draw the system/.test(voiceEn));
-  const guidance = require('./blocks.js').section('guidance');
-  check('the always-loaded guidance maps shapes onto real components',
-    /gets DRAWN, not described/.test(guidance) &&
-    /hub tree once they group/.test(guidance) &&
-    /The limit is decoration, not restraint/.test(guidance));
+  const bullets = (t) => t.split('\n').filter((l) => l.startsWith('- '));
+  check('the hook injects both voice cores, bullets only (7.0.0)',
+    /<readable-voice lang="fa">/.test(hookOut) && /<readable-voice lang="en">/.test(hookOut) &&
+    bullets(voiceFa).every((l) => hookOut.includes(l)) && bullets(voiceEn).every((l) => hookOut.includes(l)) &&
+    !hookOut.includes('GENERATED'));
+  check('the whole SessionStart payload stays under 4.5KB', Buffer.byteLength(hookOut) < 4600);
+  check('both voice cores carry real rules, not a stub', bullets(voiceFa).length >= 8 && bullets(voiceEn).length >= 8);
+  check('the Persian core keeps the rules the model breaks unprompted', /ترجمه‌زده/.test(voiceFa) && /اداری/.test(voiceFa) && /تعارف/.test(voiceFa));
+  const guidance1 = require('./blocks.js').section('guidance tier1');
+  check('the always-loaded tool description carries the draw-what-has-a-shape rule', /Draw what has a shape/.test(guidance1));
 
-  // The Persian voice IS the gouya skill, generated from it rather than kept as
-  // a second copy (CLAUDE.md, "one source"). Hand-maintained for one release,
-  // the two already carried different names for the same rules.
+  // The Persian voice IS the gouya skill's core block, generated from it rather
+  // than kept as a second copy (CLAUDE.md, "one source").
   const voiceGen = require('child_process').spawnSync(process.execPath,
     [path.join(__dirname, '..', 'tools', 'gen-voice-fa.js'), '--check'], { encoding: 'utf8' });
-  check('hooks/voice-fa.md is regenerated from daily-tools/skills/gouya',
-    voiceGen.status === 0, voiceGen.stderr);
-  check('and says so in the file, so nobody edits the derived copy',
-    /GENERATED by readable\/tools\/gen-voice-fa\.js/.test(voiceFa));
+  check('hooks/voice-fa.md is regenerated from the gouya core block', voiceGen.status === 0, voiceGen.stderr);
+  check('and says so in the file, so nobody edits the derived copy', /GENERATED by readable\/tools\/gen-voice-fa\.js/.test(voiceFa));
 
   // 8c-ter. CLIPBOARD ENCODING (5.7.0). Inside the MCP Apps iframe every Copy
   // goes through copy_text into pbcopy, and the server is started by a GUI app

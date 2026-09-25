@@ -11,6 +11,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const sys = require('./sys.js');
+const paths = require('./paths.js');
+const md = require(paths.asset('md.js'));
 
 const CARD_FILE_MAX = 256 * 1024;
 
@@ -18,12 +20,12 @@ const CARD_FILE_MAX = 256 * 1024;
  * the content through the host (tools/call), so the HTML reaches the iframe
  * without ever entering the model's context — the measured alternative
  * (structuredContent.html) is echoed back to the model verbatim by the desktop
- * host. Guardrails: absolute path, *-card.html name, size cap, and the same
+ * host. Guardrails: absolute path, *-card.md|html name, size cap, and the same
  * no-<style>/<script> rule as an inline card. */
 function readCardFile(p) {
   const abs = String(p);
   if (!path.isAbsolute(abs)) throw new Error('htmlFile must be an absolute path');
-  if (!/-card\.html$/.test(path.basename(abs))) throw new Error('htmlFile must end with -card.html');
+  if (!/-card\.(html|md)$/.test(path.basename(abs))) throw new Error('htmlFile must end with -card.md or -card.html');
   let st;
   try { st = fs.statSync(abs); } catch (e) { throw new Error('htmlFile not found: ' + abs); }
   if (!st.isFile()) throw new Error('htmlFile is not a regular file');
@@ -31,7 +33,9 @@ function readCardFile(p) {
   const text = fs.readFileSync(abs, 'utf8');
   if (!text.trim()) throw new Error('htmlFile is empty');
   if (/<\s*(style|script)\b/i.test(text)) throw new Error('htmlFile must not contain <style> or <script>');
-  return text;
+  /* A worker writes md for the same reason the model does: a third of the bytes.
+   * The bridge renders whatever this returns, so md compiles here. */
+  return /\.md$/.test(abs) ? md.compile(text).html : text;
 }
 
 /* Where an export lands. A lone workspace root (MCP roots/list) is the session's

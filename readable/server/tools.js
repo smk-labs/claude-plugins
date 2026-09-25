@@ -38,6 +38,9 @@ const sys = require('./sys.js');
  * apart; the only thing this side owns is resolving the project brand into the
  * palette the transform paints with. */
 const renderEmail = require(paths.asset('email.js'));
+/* The authoring format: md in, the kit's building-block HTML out. Same
+ * single-source rule as email.js; the report build runs the same file. */
+const md = require(paths.asset('md.js'));
 
 const CARD_URI = 'ui://readable/card.html';
 
@@ -59,12 +62,16 @@ const SPECS = [
     inputSchema: {
       type: 'object',
       properties: {
-        html: { type: 'string', description: 'The full reply content as building-block HTML (no <style>, no wrapper). Exactly one of html | htmlFile.' },
-        htmlFile: { type: 'string', description: 'Absolute path to a pre-written *-card.html report file (e.g. a background worker\'s output). The card renders from the file; never copy its content into html. Exactly one of html | htmlFile.' },
+        md: { type: 'string', description: 'The whole reply, in the Markdown described above.' },
+        html: { type: 'string', description: 'Legacy: the reply as building-block HTML. Prefer md.' },
+        htmlFile: { type: 'string', description: 'Absolute path to a worker\'s *-card.md or *-card.html file; the card renders from it.' },
         brand: { type: 'string', description: 'Absolute path to the project\'s .readable brand dir. Pass it on every call when the session rule announces one; omit otherwise.' },
       },
     },
-    _meta: { ui: { resourceUri: CARD_URI, visibility: ['model', 'app'] } },
+    /* alwaysLoad (7.0.0): Claude Code defers MCP tools behind ToolSearch, which
+     * cost the first Persian reply of every session one extra turn. This tool is
+     * the reply channel, so it is never worth deferring. */
+    _meta: { ui: { resourceUri: CARD_URI, visibility: ['model', 'app'] }, 'anthropic/alwaysLoad': true },
     run: card,
   },
   {
@@ -170,12 +177,12 @@ const SPECS = [
       type: 'object',
       properties: {
         html: { type: 'string', description: 'The card content HTML to select component CSS for.' },
+        md: { type: 'string', description: 'The card content as md: compiled here, and the reply carries the html too.' },
         brand: { type: 'string', description: 'The card call\'s .readable brand dir, if any; carries the signature opt-out.' },
       },
-      required: ['html'],
     },
     failure: 'kit select failed: ',
-    run: (a, ctx) => (brand.signatureOff(a.brand, ctx.roots()) ? '!' : '') + kit.cssFor(a.html),
+    run: readKit,
   },
 ];
 
@@ -225,8 +232,8 @@ async function call(name, args, ctx) {
 }
 
 /* The card tool: the one whose result is not content but a render instruction.
- * The html rides structuredContent, which is what the host's app channel reads;
- * the text content exists only to stop the model from repeating itself. */
+ * md compiles here; the html rides the result's _meta for the host's app
+ * channel, and the text content exists only to stop the model repeating itself. */
 function card(args, ctx) {
   /* A host that cannot paint gets a REFUSAL, not a note. The note was the bug: a
    * successful result carrying "this did not render" reads as success, the html
@@ -236,34 +243,59 @@ function card(args, ctx) {
   if (!ctx.uiReady()) {
     throw new ProtocolError(-32011, 'this host has no MCP Apps UI, so a card cannot be rendered here and nothing was shown to the user. Deliver the whole reply as text instead (Persian/RTL: BiDi-safe plain text), and do not call this tool again in this conversation.');
   }
-  const html = args.html;
   const htmlFile = args.htmlFile;
+  const given = ['md', 'html'].filter((k) => typeof args[k] === 'string' && args[k].trim());
   /* Resolved once per call: explicit arg, else an unambiguous lone-root/cwd
-   * guess (never across parallel projects). It rides structuredContent as a
-   * PATH only; the bridge pulls the css itself, so branding costs the model
-   * nothing. */
+   * guess (never across parallel projects). It rides the result as a PATH only;
+   * the bridge pulls the css itself, so branding costs the model nothing. */
   const dir = brand.dirFor(args.brand, ctx.roots());
   if (typeof htmlFile === 'string' && htmlFile.trim()) {
-    if (typeof html === 'string' && html.trim()) throw new ParamError('pass exactly one of html | htmlFile, not both');
+    if (given.length) throw new ParamError('pass exactly one of md | html | htmlFile, not both');
     /* Validated now so the model gets an actionable error while it can still
-     * fall back to the html argument; the bridge re-reads via read_card_file. */
+     * fall back to md; the bridge re-reads via read_card_file. */
     try { files.readCardFile(htmlFile); } catch (e) {
-      throw new ParamError(String(e && e.message) + ' — fix the file or pass the content as html');
+      throw new ParamError(String(e && e.message) + ' — fix the file or pass the content as md');
     }
     sys.log('tools/call card, htmlFile=' + htmlFile + ', brand=' + (dir || 'none'));
-    return rendered({ htmlFile }, dir, ' from the file');
+    return rendered({ htmlFile }, dir, ' from the file', []);
   }
-  if (typeof html !== 'string' || !html.trim()) throw new ParamError('html (string) is required (or htmlFile for a pre-written *-card.html)');
-  if (NO_MARKUP.test(html)) throw new ParamError('html must not contain <style> or <script>; send content only');
-  sys.log('tools/call card, html=' + html.length + 'B, brand=' + (dir || 'none'));
-  return rendered({ html }, dir, '');
+  if (given.length !== 1) throw new ParamError(given.length ? 'pass exactly one of md | html | htmlFile' : 'md (string) is required (or htmlFile for a worker\'s *-card.md file)');
+  const src = args[given[0]];
+  if (NO_MARKUP.test(src)) throw new ParamError(given[0] + ' must not contain <style> or <script>; send content only');
+  const out = given[0] === 'md' ? md.compile(src) : { html: src, warnings: [] };
+  sys.log('tools/call card, ' + given[0] + '=' + src.length + 'B, brand=' + (dir || 'none'));
+  return rendered({ html: out.html }, dir, '', out.warnings);
 }
 
-function rendered(payload, dir, where) {
+/* The result the MODEL reads is the one text line, nothing else. Until 7.0.0
+ * the html also rode structuredContent, and Claude Code shows the model
+ * JSON.stringify(structuredContent) in place of the text whenever it is
+ * present, so every card sat in the transcript twice: once as the call, once
+ * as its own echo, re-read on every later turn. The view still needs the html
+ * (a host may hand it the result without the input), so it rides _meta, which
+ * reaches the app and not the model. */
+function rendered(payload, dir, where, warnings) {
+  const card = dir ? Object.assign({}, payload, { brand: dir }) : payload;
+  const note = warnings.length ? ' Notes: ' + warnings.join('; ') + '.' : '';
   return {
-    content: [{ type: 'text', text: 'Card rendered by the host UI' + where + '. Do not repeat the content as text.' }],
-    structuredContent: dir ? Object.assign({}, payload, { brand: dir }) : payload,
+    content: [{ type: 'text', text: 'Card rendered by the host UI' + where + '. Do not repeat the content as text.' + note }],
+    _meta: { 'readable/card': card },
   };
+}
+
+/* read_kit: the component CSS one card needs. Called by the bridge on every
+ * paint, streaming partials included, so it is also where md compiles on the
+ * way to the screen: one round trip that was already being paid carries the
+ * html back with its css. A md request gets JSON {h, c, n}; an html request
+ * keeps the old reply, css with a leading '!' for the signature opt-out. */
+function readKit(a, ctx) {
+  const off = brand.signatureOff(a.brand, ctx.roots());
+  if (typeof a.md === 'string') {
+    const html = md.compile(a.md).html;
+    return JSON.stringify({ h: html, c: kit.cssFor(html), n: off });
+  }
+  if (typeof a.html !== 'string') throw new ParamError('html (string) or md (string) is required');
+  return (off ? '!' : '') + kit.cssFor(a.html);
 }
 
 function saveCard(a, ctx) {

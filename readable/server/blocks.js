@@ -3,8 +3,9 @@
  * assets/blocks.md, parsed: the block vocabulary as data.
  *
  * Two shapes come out of one source. tier 1 is the `card` tool's description,
- * which the model is handed in every session, so it carries SHAPES only. tier 2
- * is the on-demand widget kit, so it carries shapes plus the craft notes. See
+ * which the model is handed in every session, so it carries the md authoring
+ * lines only. tier 2 is the on-demand widget kit, so it carries the HTML shapes
+ * plus the craft notes. See
  * the header of blocks.md for the field meanings; the rules are enforced here
  * and pinned by test.js.
  */
@@ -60,14 +61,27 @@ function describe(entry, withNotes) {
   return withNotes && entry.notes ? head + ' ' + entry.notes : head;
 }
 
+/* Tier 1 is the `card` tool's description. Claude Code cuts a tool description
+ * at 2048 characters, and before 7.0.0 this one was 6807, so the model never
+ * saw anything past the middle of BARS. It now carries the md authoring lines
+ * only (assets/md.js turns them into the shapes) and test.js pins the length. */
 function forTier(tier) {
-  const list = chat(tier).map((e) => '- ' + describe(e, tier === 2)).join('\n');
+  if (tier === 1) {
+    return [
+      section('lead tier1'),
+      section('text tier1'),
+      chat(1).map((e) => e.md).join('\n'),
+      section('guidance tier1'),
+      section('close tier1'),
+    ].join('\n\n');
+  }
+  const list = chat(tier).map((e) => '- ' + describe(e, true)).join('\n');
   return [
-    section('lead tier' + tier),
+    section('lead tier2'),
     section('text'),
     list,
     section('guidance'),
-    section('close tier' + tier),
+    section('close tier2'),
   ].join('\n\n');
 }
 
