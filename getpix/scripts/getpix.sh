@@ -35,13 +35,32 @@ Usage:
                                                      SOURCE: all|openverse|wikimedia|pexels|pixabay|unsplash
   getpix.sh thumb N                                  download small preview of result N, prints path
   getpix.sh get N -d DIR [-w 1600] [-f webp|jpg] [--name slug]
+                                                     Wikimedia files fetch the next standard width
+                                                     at or above -w, never above the original
 
 search, thumb and get also take [--session ID], same as GETPIX_SESSION=ID:
 its own cache dir, so parallel runs stop overwriting each other's results.
 EOF
 }
 
+# Wikimedia serves thumbnails only at these widths and answers any other with a
+# 400 ("Use thumbnail sizes listed on https://w.wiki/GHai"), so /640px- and
+# /1600px- both broke. Ask for a step, then resize locally.
+WM_STEPS="20 40 60 120 250 330 500 960 1280 1920 3840"
+
 urlenc(){ python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$1"; }
+
+# Download only if the answer is an image. An error page used to be saved as
+# thumb_N.jpg and handed on as if it were the picture.
+FETCH_WHY=""
+fetch_image(){ # OUT URL TIMEOUT
+  local r code ct
+  r=$(curl -sL -m "$3" -A "$UA" -o "$1" -w '%{http_code} %{content_type}' "$2") || { FETCH_WHY="network error"; return 1; }
+  code=${r%% *}; ct=${r#* }
+  case "$code" in 2??) ;; *) FETCH_WHY="HTTP $code: $(head -c 4000 "$1" 2>/dev/null | tr -s '[:space:]' ' ' | sed 's/<style.*<\/style>//; s/<title>[^<]*<\/title>//; s/<[^>]*>/ /g; s/  */ /g; s/^ //' | cut -c1-140)"; return 1;; esac
+  case "$ct" in image/*|application/octet-stream|binary/octet-stream|"") ;; *) FETCH_WHY="not an image ($ct)"; return 1;; esac
+  [ -s "$1" ] || { FETCH_WHY="empty"; return 1; }
+}
 
 cmd="${1:-}"; [ $# -gt 0 ] && shift
 
@@ -82,7 +101,7 @@ search)
   fi
   if want wikimedia; then
     curl -sL -m 25 -A "$UA" -o "$CD/raw_wikimedia.json" \
-      "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrsearch=filetype%3Abitmap%20$QE&gsrnamespace=6&gsrlimit=$N&prop=imageinfo&iiprop=url%7Csize%7Cextmetadata&iiurlwidth=1600" &
+      "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrsearch=filetype%3Abitmap%20$QE&gsrnamespace=6&gsrlimit=$N&prop=imageinfo&iiprop=url%7Csize%7Cextmetadata&iiurlwidth=1280" &
   fi
   if want pexels && [ -n "${PEXELS_API_KEY:-}" ]; then
     o=""; [ -n "$ORI" ] && o="&orientation=$ORI"
@@ -117,6 +136,25 @@ def load(name):
         with open(p) as f: return json.load(f)
     except Exception: return "error"
 
+# A Wikimedia thumb URL with {W} where the width goes, so "get -w" can pick a
+# standard step later. "" when the file has no thumbnail form we can name.
+def wm_tpl(thumburl, orig):
+    if thumburl and re.search(r"/(lossy-page1-)?\d+px-[^/]*$", thumburl):
+        return re.sub(r"/(lossy-page1-)?\d+px-([^/]*)$", r"/\g<1>{W}px-\2", thumburl.split("?")[0])
+    m = re.match(r"(https://upload\.wikimedia\.org/wikipedia/[^/]+)/(\w/\w\w)/([^/?#]+)$", (orig or "").split("?")[0])
+    if not m: return ""
+    base, hp, name = m.groups()
+    ext = name.rsplit(".", 1)[-1].lower()
+    if ext in ("jpg", "jpeg", "png", "gif", "webp"): return f"{base}/thumb/{hp}/{name}/{{W}}px-{name}"
+    if ext == "svg": return f"{base}/thumb/{hp}/{name}/{{W}}px-{name}.png"
+    return ""
+
+# The 500px step, or the original when that is no bigger: never ask for an upscale.
+def wm_thumb(tpl, orig, w):
+    if not tpl: return ""
+    if w and w <= 500 and not orig.lower().split("?")[0].endswith(".svg"): return orig
+    return tpl.replace("{W}", "500")
+
 def strip_html(s): return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", s or "")).strip()
 
 LIC = {"by":"CC BY","by-sa":"CC BY-SA","cc0":"CC0","pdm":"Public Domain"}
@@ -128,10 +166,17 @@ if d == "error" or (d and not isinstance(d.get("results"), list)):
 elif d:
     out = []
     for r in d["results"]:
+        # Openverse's thumbnail proxy answers 424 "Thumbnail unavailable from
+        # provider" for Wikimedia files, so those go straight to Wikimedia's own
+        # thumb and keep the proxy only as the fallback.
+        full = r.get("url") or ""
+        tpl = wm_tpl("", full)
+        thumb, thumb2 = r.get("thumbnail") or "", ""
+        if tpl: thumb, thumb2 = wm_thumb(tpl, full, r.get("width")), thumb
         out.append(dict(src="openverse", title=r.get("title") or "", w=r.get("width"), h=r.get("height"),
             license=LIC.get(r.get("license"), ("CC "+(r.get("license") or "?").upper())),
             creator=r.get("creator") or "", page=r.get("foreign_landing_url") or "",
-            thumb=r.get("thumbnail") or "", full=r.get("url") or "", alt=r.get("title") or "",
+            thumb=thumb, thumb2=thumb2, full=full, orig=full, wtpl=tpl, alt=r.get("title") or "",
             attr=r.get("attribution") or "", dl=""))
     recs["openverse"] = out
 
@@ -147,12 +192,14 @@ elif d:
         if ori == "square" and not (w and h and abs(w-h) <= min(w,h)*0.15): continue
         em = ii.get("extmetadata") or {}
         get = lambda k: strip_html((em.get(k) or {}).get("value",""))
-        full = ii.get("thumburl") or ii.get("url") or ""
-        thumb = re.sub(r"/(\d+)px-", "/640px-", full) if "px-" in full else full
+        orig = (ii.get("url") or "").split("?")[0]
+        full = ii.get("thumburl") or orig
+        tpl = wm_tpl(ii.get("thumburl") or "", orig)
+        thumb = wm_thumb(tpl, orig, w) or full
         title = re.sub(r"^File:|\.\w+$", "", p.get("title",""))
         out.append(dict(src="wikimedia", title=title, w=w, h=h,
             license=get("LicenseShortName") or "see page", creator=get("Artist"),
-            page=ii.get("descriptionurl") or "", thumb=thumb, full=full, alt=title, attr="", dl=""))
+            page=ii.get("descriptionurl") or "", thumb=thumb, full=full, orig=orig, wtpl=tpl, alt=title, attr="", dl=""))
     recs["wikimedia"] = out
 
 d = load("pexels")
@@ -231,14 +278,18 @@ thumb)
     *) die "unknown option: $1";;
   esac; done
   [ -f "$CACHE" ] || die "no search cache; run search first"
-  URL=$(python3 -c 'import json,sys;r=json.load(open(sys.argv[1]))["results"][int(sys.argv[2])-1];print(r["thumb"])' "$CACHE" "$IDX") || die "bad index"
-  [ -n "$URL" ] || die "no thumbnail for this result"
-  EXT="jpg"; case "$URL" in *.png*) EXT="png";; esac
-  # $$ in the name: two runs previewing result 3 must not write one file.
-  OUT="$CD/thumb_$IDX.$$.$EXT"
-  trap 'rm -f "$OUT"' EXIT INT TERM
-  curl -sL -m 40 -A "$UA" -o "$OUT" "$URL" || die "thumbnail download failed"
-  [ -s "$OUT" ] || die "empty thumbnail"
+  URLS=$(python3 -c 'import json,sys;r=json.load(open(sys.argv[1]))["results"][int(sys.argv[2])-1];print("\n".join(u for u in (r["thumb"], r.get("thumb2","")) if u))' "$CACHE" "$IDX") || die "bad index"
+  [ -n "$URLS" ] || die "no thumbnail for this result"
+  OUT=""
+  while IFS= read -r URL; do
+    EXT="jpg"; case "$URL" in *.png*) EXT="png";; esac
+    # $$ in the name: two runs previewing result 3 must not write one file.
+    OUT="$CD/thumb_$IDX.$$.$EXT"
+    trap 'rm -f "$OUT"' EXIT INT TERM
+    fetch_image "$OUT" "$URL" 40 && break
+    rm -f "$OUT"; OUT=""
+  done <<< "$URLS"
+  [ -n "$OUT" ] || die "thumbnail download failed (${FETCH_WHY:-no image})"
   trap - EXIT INT TERM   # the file is the answer: keep it, drop only partials
   echo "$OUT"
   ;;
@@ -259,12 +310,24 @@ get)
   [ -n "$DIR" ] || die "get needs -d DIR (where to save)"
   mkdir -p "$DIR"
 
+  case "$W" in ""|*[!0-9]*) die "-w needs a width in pixels";; esac
+
+  # Wikimedia files: fetch the smallest standard step at or above -w, or the
+  # original when that step would be an upscale, then resize down to -w here.
   REC=$(python3 -c '
 import json,sys
 d=json.load(open(sys.argv[1])); rs=d["results"]; r=rs[int(sys.argv[2])-1]
-print("\x1f".join([str(r.get(k,"")) for k in ("src","full","page","creator","license","title","alt","attr","dl")]
-  + [str(d.get("query","")), str(len(rs))]))' "$CACHE" "$IDX") || die "bad index"
-  IFS=$'\x1f' read -r SRC FULL PAGE CREATOR LICENSE TITLE ALT ATTR DL QUERY NRES <<< "$REC"
+want, steps = int(sys.argv[3]), [int(s) for s in sys.argv[4].split()]
+full, tpl, orig, ow = r.get("full",""), r.get("wtpl",""), r.get("orig",""), r.get("w") or 0
+if tpl:
+    step = next((s for s in steps if s >= want), steps[-1])
+    svg = orig.lower().endswith(".svg")
+    full = orig if (orig and not svg and ow and step >= ow) else tpl.replace("{W}", str(step))
+alt = r.get("full","") if r.get("full","") != full else ""
+print("\x1f".join([str(r.get(k,"")) for k in ("src",)] + [full, alt]
+  + [str(r.get(k,"")) for k in ("page","creator","license","title","alt","attr","dl")]
+  + [str(d.get("query","")), str(len(rs))]))' "$CACHE" "$IDX" "$W" "$WM_STEPS") || die "bad index"
+  IFS=$'\x1f' read -r SRC FULL FULL2 PAGE CREATOR LICENSE TITLE ALT ATTR DL QUERY NRES <<< "$REC"
   [ -n "$FULL" ] || die "no full-size URL for this result"
   # Name the search this index came from: a cache another run overwrote used to
   # be invisible, and you only found out from the wrong picture on the page.
@@ -272,8 +335,11 @@ print("\x1f".join([str(r.get(k,"")) for k in ("src","full","page","creator","lic
 
   TMP="$CD/orig_$IDX.$$"
   trap 'rm -f "$TMP"' EXIT INT TERM
-  curl -sL -m 90 -A "$UA" -o "$TMP" "$FULL" || die "download failed (origin may be slow or blocked); try another result"
-  [ -s "$TMP" ] || die "empty download; try another result"
+  if ! fetch_image "$TMP" "$FULL" 90; then
+    WHY="$FETCH_WHY"
+    { [ -n "$FULL2" ] && fetch_image "$TMP" "$FULL2" 90; } \
+      || die "download failed ($WHY); origin may be slow or blocked, try another result"
+  fi
 
   if [ -z "$NAME" ]; then NAME="${TITLE:-$ALT}"; fi
   SLUG=$(python3 -c 'import re,sys;s=re.sub(r"[^a-z0-9]+","-",sys.argv[1].lower()).strip("-")[:60];print(s or "image")' "$NAME")

@@ -42,7 +42,7 @@ Cost: one search plus 1 to 2 thumbnails. Do this proactively when it genuinely h
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/getpix.sh" get 3 -d ./public/images -w 1600 --name coffee-desk-hero
    ```
-   The script downloads a reasonably sized variant, converts to WebP (magick, else cwebp, else JPEG via sips), and never upscales. Widths: content 1200 to 1600, hero 1920, card/thumb 640.
+   The script downloads a reasonably sized variant, converts to WebP (magick, else cwebp, else JPEG via sips), and never upscales. Widths: content 1200 to 1600, hero 1920, card/thumb 640. Wikimedia files arrive at the next standard Commons width at or above `-w` (250, 330, 500, 960, 1280, 1920, 3840) and are resized down locally.
 5. **Insert.** Use the printed path. Write a descriptive `alt` (the printed alt suggestion is a starting point), add `loading="lazy"` below the fold, and set width/height if the framework wants them.
 6. **Attribution.** The `get` output says exactly what each source needs. Pexels and Pixabay: none required. Unsplash: required, add the credit line near the image or in the page footer. Openverse and Wikimedia: follow the printed license line. Never skip a printed "REQUIRED" attribution.
 
