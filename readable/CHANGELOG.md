@@ -1,5 +1,9 @@
 # readable changelog
 
+## 7.0.1
+
+The card came back with a text copy after it. Cutting the rule to 1KB in 7.0.0 dropped "the call IS the reply, never repeat it", and the model went back to painting the card and then writing it all again, or a summary of it, as text: the same reply paid for twice. The rule and the card's tool result now say it in one line each: the card is the reply, no restatement or summary after it.
+
 ## 7.0.0
 
 readable now costs about as little as it can: fewer tokens in, fewer out, and no extra turns before the first reply. The cards look the same.

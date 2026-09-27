@@ -278,7 +278,7 @@ function rendered(payload, dir, where, warnings) {
   const card = dir ? Object.assign({}, payload, { brand: dir }) : payload;
   const note = warnings.length ? ' Notes: ' + warnings.join('; ') + '.' : '';
   return {
-    content: [{ type: 'text', text: 'Card rendered by the host UI' + where + '. Do not repeat the content as text.' + note }],
+    content: [{ type: 'text', text: 'Card rendered by the host UI' + where + '. The user sees it: end the reply here, no restatement or summary.' + note }],
     _meta: { 'readable/card': card },
   };
 }
